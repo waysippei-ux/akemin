@@ -330,22 +330,29 @@ input[type="number"],
   border: 2px solid var(--stock-red-border);
 }
 
-/* Inventory list */
+/* Inventory list（棚を見る — カテゴリ内一覧） */
 .inventory-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
   gap: 0.5rem;
+}
+
+.inventory-list > .empty-msg {
+  grid-column: 1 / -1;
 }
 
 .inventory-item {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.85rem 1rem;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.35rem;
   border-radius: var(--radius);
   border: 3px solid transparent;
   font-weight: 500;
+  text-align: center;
+  min-height: 4.5rem;
 }
 
 .inventory-item.stock-green {
@@ -368,20 +375,25 @@ input[type="number"],
 
 .inventory-item .item-name {
   font-weight: 600;
-  flex: 1;
+  flex: none;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  word-break: break-word;
+  width: 100%;
 }
 
 .inventory-item .item-qty {
-  font-size: 1.15rem;
+  font-size: 0.8rem;
   font-weight: 700;
   white-space: nowrap;
 }
 
 .inventory-item .item-badge {
-  font-size: 0.75rem;
-  padding: 0.15rem 0.5rem;
+  font-size: 0.65rem;
+  padding: 0.1rem 0.35rem;
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.08);
+  order: -1;
 }
 
 /* Advice */
@@ -702,11 +714,11 @@ input[type="number"],
 }
 
 .section-materials {
-  background: linear-gradient(180deg, #f0f4ff 0%, var(--color-surface) 100%);
+  background: #dbdaf1;
 }
 
 .section-retail {
-  background: linear-gradient(180deg, #f5f0eb 0%, var(--color-surface) 100%);
+  background: #ffefec;
 }
 
 .section-heading {
@@ -780,6 +792,36 @@ input[type="number"],
   background: var(--stock-red-bg);
   color: var(--stock-red-text);
   border: 1px solid var(--stock-red-border);
+}
+
+/* ダッシュボード TOP — カテゴリカード列数 */
+@media (max-width: 768px) {
+  .category-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .category-card {
+    padding: 0.85rem;
+  }
+
+  .category-card-title {
+    font-size: 1rem;
+  }
+
+  .inventory-list {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.4rem;
+  }
+
+  .inventory-item {
+    min-height: 4rem;
+    padding: 0.4rem 0.25rem;
+  }
+
+  .inventory-item .item-name {
+    font-size: 0.65rem;
+  }
 }
 
 .breadcrumb {
