@@ -122,7 +122,7 @@ def migrate_schema() -> None:
             with engine.begin() as conn:
                 conn.execute(
                     text(
-                        "ALTER TABLE stores ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1"
+                        "ALTER TABLE stores ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT true"
                     )
                 )
 
@@ -146,7 +146,7 @@ def migrate_schema() -> None:
                     )
                 )
                 # 既存データは棚に並んでいるものとして有効化
-                conn.execute(text("UPDATE inventories SET is_active = 1"))
+                conn.execute(text("UPDATE inventories SET is_active = true"))
 
 
 def init_db():
