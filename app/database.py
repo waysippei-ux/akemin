@@ -53,7 +53,7 @@ DATABASE_URL = _resolve_sqlite_path(settings.DATABASE_URL)
 # SQLite はマルチスレッド用の設定が必要
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False},
+    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
