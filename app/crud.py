@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session, joinedload
 
 from app.auth import verify_password
+from app.crud_store_settings import get_settings_map, resolve_thresholds
 from app.models import (
     Category,
     Inventory,
@@ -502,6 +503,7 @@ def get_inventory_list(
 ) -> list[InventoryItemOut]:
     """店舗の在庫一覧（未登録は quantity=0）。category_id で絞り込み可"""
     products = get_products(db, category_id=category_id)
+    settings_map = get_settings_map(db, store_id)
     result: list[InventoryItemOut] = []
 
     for product in products:
@@ -514,9 +516,10 @@ def get_inventory_list(
             .first()
         )
         quantity = inv.quantity if inv else 0
-        level = calc_stock_level(
-            quantity, product.warning_threshold, product.critical_threshold
+        warning, critical = resolve_thresholds(
+            product, settings_map.get(product.id)
         )
+        level = calc_stock_level(quantity, warning, critical)
         result.append(
             InventoryItemOut(
                 product_id=product.id,
@@ -525,8 +528,8 @@ def get_inventory_list(
                 unit=product.unit,
                 quantity=quantity,
                 stock_level=level,
-                warning_threshold=product.warning_threshold,
-                critical_threshold=product.critical_threshold,
+                warning_threshold=warning,
+                critical_threshold=critical,
                 category_id=product.category_id,
             )
         )
@@ -556,9 +559,9 @@ def scan_inventory(
         inv.quantity += data.quantity
         action_label = "補充"
 
-    level = calc_stock_level(
-        inv.quantity, product.warning_threshold, product.critical_threshold
-    )
+    setting = get_settings_map(db, data.store_id).get(product.id)
+    warning, critical = resolve_thresholds(product, setting)
+    level = calc_stock_level(inv.quantity, warning, critical)
 
     log = InventoryLog(
         store_id=data.store_id,

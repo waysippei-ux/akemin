@@ -46,6 +46,7 @@ from app.schemas import (
     StockLevel,
 )
 from app.crud import calc_stock_level, get_or_create_inventory, get_store
+from app.crud_store_settings import get_settings_map, resolve_thresholds
 
 
 # ---------------------------------------------------------------------------
@@ -274,6 +275,7 @@ def product_to_out(product: Product, include_delivery_codes: bool = False) -> Pr
 
 def _summarize_category(db: Session, store_id: int, cat: Category) -> CategorySummaryOut:
     products = db.query(Product).filter(Product.category_id == cat.id).all()
+    settings_map = get_settings_map(db, store_id)
     yellow = red = 0
     for product in products:
         inv = (
@@ -282,9 +284,10 @@ def _summarize_category(db: Session, store_id: int, cat: Category) -> CategorySu
             .first()
         )
         qty = inv.quantity if inv else 0
-        level = calc_stock_level(
-            qty, product.warning_threshold, product.critical_threshold
+        warning, critical = resolve_thresholds(
+            product, settings_map.get(product.id)
         )
+        level = calc_stock_level(qty, warning, critical)
         if level == "yellow":
             yellow += 1
         elif level == "red":

@@ -8,7 +8,14 @@ from app import crud
 from app.auth import get_current_user, require_admin
 from app.database import get_db
 from app.models import User, UserRole
-from app.schemas import StoreCreate, StoreOut, StoreUpdate
+from app import crud_store_settings
+from app.schemas import (
+    StoreCreate,
+    StoreOut,
+    StoreProductSettingRowOut,
+    StoreProductSettingUpsert,
+    StoreUpdate,
+)
 
 router = APIRouter()
 
@@ -45,6 +52,59 @@ def create_store(
     if not name:
         raise HTTPException(400, "店舗名を入力してください。")
     return crud.create_store(db, name)
+
+
+@router.get("/{store_id}/product-settings", response_model=list[StoreProductSettingRowOut])
+def list_store_product_settings(
+    store_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """店舗別発注目安一覧（管理者のみ）"""
+    if not crud.get_store(db, store_id):
+        raise HTTPException(404, "店舗が見つかりません。")
+    return crud_store_settings.list_store_product_settings(db, store_id)
+
+
+@router.put("/{store_id}/product-settings/{product_id}", response_model=StoreProductSettingRowOut)
+def upsert_store_product_setting(
+    store_id: int,
+    product_id: int,
+    body: StoreProductSettingUpsert,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """店舗別の黄・赤閾値を設定（管理者のみ）"""
+    if not crud.get_store(db, store_id):
+        raise HTTPException(404, "店舗が見つかりません。")
+    try:
+        crud_store_settings.upsert_store_product_setting(
+            db,
+            store_id,
+            product_id,
+            body.warning_threshold,
+            body.critical_threshold,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    rows = crud_store_settings.list_store_product_settings(db, store_id)
+    row = next((r for r in rows if r["product_id"] == product_id), None)
+    if not row:
+        raise HTTPException(404, "商品が見つかりません。")
+    return row
+
+
+@router.delete("/{store_id}/product-settings/{product_id}", status_code=204)
+def clear_store_product_setting(
+    store_id: int,
+    product_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """店舗別設定を削除しデフォルトに戻す（管理者のみ）"""
+    if not crud.get_store(db, store_id):
+        raise HTTPException(404, "店舗が見つかりません。")
+    crud_store_settings.delete_store_product_setting(db, store_id, product_id)
 
 
 @router.put("/{store_id}", response_model=StoreOut)

@@ -96,6 +96,11 @@ def admin_products_page(request: Request):
     return templates.TemplateResponse(request, "admin_products.html")
 
 
+@app.get("/admin/store-settings")
+def admin_store_settings_page(request: Request):
+    return templates.TemplateResponse(request, "admin_store_settings.html")
+
+
 @app.get("/orders")
 def orders_page(request: Request):
     return templates.TemplateResponse(request, "orders.html")

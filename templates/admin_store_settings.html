@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}店舗別発注目安 — AKEMIN{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <h1>店舗別発注目安</h1>
+  <p class="page-desc">管理者のみ — 店舗ごとに黄・赤の閾値を上書き設定（未設定は商品マスタのデフォルト）</p>
+</section>
+
+<p id="settings-denied" class="error-msg card" hidden>この画面は管理者のみ利用できます。</p>
+
+<div id="settings-content" hidden>
+  <section class="card toolbar">
+    <label for="store-select">店舗</label>
+    <select id="store-select" class="select"></select>
+    <button type="button" class="btn btn-secondary btn-sm" id="btn-reload">再読み込み</button>
+    <a href="/admin/products" class="btn btn-ghost btn-sm">商品管理へ</a>
+  </section>
+
+  <section class="card">
+    <p class="help-text">
+      「デフォルト」は商品マスタの値です。「適用中」は在庫ダッシュボードの色分けに使われる値です。
+      保存すると店舗専用設定になり、「デフォルトに戻す」で上書きを解除できます。
+    </p>
+    <div id="settings-loading" class="loading">読み込み中…</div>
+    <div class="table-wrap" id="settings-table-wrap" hidden>
+      <table class="data-table" id="settings-table">
+        <thead>
+          <tr>
+            <th>商品名</th>
+            <th>カテゴリ</th>
+            <th>デフォルト（黄/赤）</th>
+            <th>適用中（黄/赤）</th>
+            <th>店舗設定（黄 ≤）</th>
+            <th>店舗設定（赤 ≤）</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="settings-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/admin_store_settings.js"></script>
+{% endblock %}

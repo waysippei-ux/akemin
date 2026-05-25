@@ -58,6 +58,30 @@ class StoreUpdate(BaseModel):
     is_active: bool = True
 
 
+class StoreProductSettingRowOut(BaseModel):
+    """店舗別発注目安 — 商品1行（一覧・編集画面用）"""
+    store_id: int
+    store_name: str
+    product_id: int
+    product_name: str
+    barcode: str
+    category_name: str = ""
+    unit: str = "本"
+    default_warning_threshold: int
+    default_critical_threshold: int
+    effective_warning_threshold: int
+    effective_critical_threshold: int
+    custom_warning_threshold: Optional[int] = None
+    custom_critical_threshold: Optional[int] = None
+    has_custom_setting: bool = False
+    setting_id: Optional[int] = None
+
+
+class StoreProductSettingUpsert(BaseModel):
+    warning_threshold: int = Field(ge=0)
+    critical_threshold: int = Field(ge=0)
+
+
 # ---------------------------------------------------------------------------
 # 商品（カラー材）
 # ---------------------------------------------------------------------------
