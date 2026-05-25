@@ -18,6 +18,7 @@ from app.models import User
 from app.schemas import (
     CategoryOut,
     DealerOut,
+    InventoryItemOut,
     InventoryScanResponse,
     MakerOut,
     StockBulkParseResult,
@@ -39,8 +40,10 @@ pages_router = APIRouter(tags=["棚補充・使用 画面"])
 router = APIRouter()
 
 
-def _stock_page_context(db: Session, stock_mode: str) -> dict[str, Any]:
-    """店舗・マスタをテンプレートへ渡す（JS 初期化・フォールバック用）"""
+def _stock_page_context(
+    db: Session, stock_mode: str, store_id: Optional[int] = None
+) -> dict[str, Any]:
+    """店舗・マスタ・初期在庫をテンプレートへ渡す（SSR + JS 初期化）"""
     stores = [
         StoreOut.model_validate(s).model_dump(mode="json")
         for s in crud.get_stores(db, active_only=True)
@@ -57,29 +60,61 @@ def _stock_page_context(db: Session, stock_mode: str) -> dict[str, Any]:
         DealerOut.model_validate(d).model_dump(mode="json")
         for d in crud_masters.get_dealers(db, active_only=True)
     ]
+    store_ids = {s["id"] for s in stores}
+    default_store_id: Optional[int] = None
+    if store_id and store_id in store_ids:
+        default_store_id = store_id
+    elif stores:
+        default_store_id = stores[0]["id"]
+
+    active_only = stock_mode != "replenish"
+    inventory_items: list[dict[str, Any]] = []
+    if default_store_id is not None:
+        inventory_items = [
+            InventoryItemOut.model_validate(item).model_dump(mode="json")
+            for item in crud.get_inventory_list(
+                db, default_store_id, active_only=active_only
+            )
+        ]
+
     page_data = {
         "stores": stores,
         "categories": categories,
         "makers": makers,
         "dealers": dealers,
+        "inventory": inventory_items,
+        "default_store_id": default_store_id,
     }
     return {
         "stock_mode": stock_mode,
+        "stores": stores,
+        "categories": categories,
+        "makers": makers,
+        "dealers": dealers,
+        "default_store_id": default_store_id,
         "stock_page_data_json": json.dumps(page_data, ensure_ascii=False),
     }
 
 
 @pages_router.get("/stock/replenish")
-def stock_replenish_page(request: Request, db: Session = Depends(get_db)):
+def stock_replenish_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    store_id: Optional[int] = Query(None, gt=0),
+):
     return templates.TemplateResponse(
-        request, "stock.html", _stock_page_context(db, "replenish")
+        request, "stock.html", _stock_page_context(db, "replenish", store_id)
     )
 
 
 @pages_router.get("/stock/consume")
-def stock_consume_page(request: Request, db: Session = Depends(get_db)):
+def stock_consume_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    store_id: Optional[int] = Query(None, gt=0),
+):
     return templates.TemplateResponse(
-        request, "stock.html", _stock_page_context(db, "consume")
+        request, "stock.html", _stock_page_context(db, "consume", store_id)
     )
 
 ALLOWED_TYPES = {

@@ -21,7 +21,15 @@
 
 <div class="toolbar card">
   <label for="store-select" class="toolbar-label">店舗 *</label>
-  <select id="store-select" class="select" required></select>
+  <select id="store-select" class="select" required>
+    {% if stores %}
+      {% for s in stores %}
+      <option value="{{ s.id }}"{% if default_store_id and s.id == default_store_id %} selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    {% else %}
+      <option value="">店舗がありません</option>
+    {% endif %}
+  </select>
   <p id="store-required-hint" class="error-msg store-required-hint" hidden>店舗を選択してください。在庫の増減は必ず店舗と紐づけて記録します。</p>
 </div>
 
@@ -36,15 +44,30 @@
   <div class="filter-row form-row">
     <div class="form-group">
       <label for="filter-category">カテゴリ</label>
-      <select id="filter-category" class="select"><option value="">すべて</option></select>
+      <select id="filter-category" class="select">
+        <option value="">すべて</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
     </div>
     <div class="form-group">
       <label for="filter-maker">メーカー</label>
-      <select id="filter-maker" class="select"><option value="">すべて</option></select>
+      <select id="filter-maker" class="select">
+        <option value="">すべて</option>
+        {% for m in makers %}
+        <option value="{{ m.id }}">{{ m.name }}</option>
+        {% endfor %}
+      </select>
     </div>
     <div class="form-group">
       <label for="filter-dealer">ディーラー</label>
-      <select id="filter-dealer" class="select"><option value="">すべて</option></select>
+      <select id="filter-dealer" class="select">
+        <option value="">すべて</option>
+        {% for d in dealers %}
+        <option value="{{ d.id }}">{{ d.name }}</option>
+        {% endfor %}
+      </select>
     </div>
     <div class="form-group flex-grow">
       <label for="filter-name">商品名</label>
@@ -233,5 +256,5 @@
 {% block scripts %}
 <script>window.STOCK_MODE = "{{ stock_mode }}";</script>
 <script>window.STOCK_PAGE_DATA = {{ stock_page_data_json | safe }};</script>
-<script src="/static/js/stock.js?v=5"></script>
+<script src="/static/js/stock.js?v=6"></script>
 {% endblock %}

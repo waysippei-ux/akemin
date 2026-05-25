@@ -61,18 +61,40 @@
     bindScanTab();
     bindBulkTab();
 
+    applyPageBootstrapData();
+    syncStoresFromDomIfNeeded();
+    setupStoreSelect();
+    fillFilters();
+    fillNewProductMasters();
+    switchTab("search");
+
     try {
-      applyPageBootstrapData();
       currentUser = await Api.get("/api/auth/me");
-      await loadMasterData();
+      filterStoresForUser();
       setupStoreSelect();
+    } catch (err) {
+      console.warn("auth/me:", err);
+    }
+
+    try {
+      await loadMasterData();
       fillFilters();
       fillNewProductMasters();
-      await loadInventory();
-      updateStoreDependentUI();
     } catch (err) {
-      showError(err.message);
+      showError(err.message || "マスタデータの取得に失敗しました。");
     }
+
+    try {
+      if (!inventory.length) applyInventoryBootstrap();
+      await loadInventory();
+    } catch (err) {
+      if (!inventory.length) applyInventoryBootstrap();
+      if (!inventory.length) {
+        showError(err.message || "在庫一覧の取得に失敗しました。");
+      }
+    }
+
+    updateStoreDependentUI();
   }
 
   function hasValidStoreId() {
@@ -206,24 +228,46 @@
   function applyPageBootstrapData() {
     const boot = window.STOCK_PAGE_DATA;
     if (!boot || typeof boot !== "object") return;
-    if (Array.isArray(boot.stores)) stores = boot.stores;
-    if (Array.isArray(boot.categories)) categories = boot.categories;
-    if (Array.isArray(boot.makers)) makers = boot.makers;
-    if (Array.isArray(boot.dealers)) dealers = boot.dealers;
+    if (Array.isArray(boot.stores) && boot.stores.length) stores = boot.stores;
+    if (Array.isArray(boot.categories) && boot.categories.length) categories = boot.categories;
+    if (Array.isArray(boot.makers) && boot.makers.length) makers = boot.makers;
+    if (Array.isArray(boot.dealers) && boot.dealers.length) dealers = boot.dealers;
+    if (Array.isArray(boot.inventory)) inventory = boot.inventory;
+    if (boot.default_store_id && storeSelect) {
+      storeSelect.value = String(boot.default_store_id);
+    }
+  }
+
+  function applyInventoryBootstrap() {
+    const boot = window.STOCK_PAGE_DATA;
+    if (!boot || !Array.isArray(boot.inventory) || !boot.inventory.length) return;
+    const storeId = getStoreId();
+    if (storeId && boot.default_store_id && storeId !== boot.default_store_id) return;
+    inventory = boot.inventory;
+    renderSkuList();
+  }
+
+  /** SSR 済みの店舗セレクトから stores を復元 */
+  function syncStoresFromDomIfNeeded() {
+    if (stores.length || !storeSelect) return;
+    const parsed = [];
+    storeSelect.querySelectorAll("option").forEach((opt) => {
+      const id = parseInt(opt.value, 10);
+      if (!id) return;
+      parsed.push({ id, name: opt.textContent.trim() });
+    });
+    if (parsed.length) stores = parsed;
   }
 
   async function loadMasterData() {
-    if (stores.length && categories.length && makers.length && dealers.length) return;
-    const [s, c, m, d] = await Promise.all([
-      Api.get("/api/stores"),
-      Api.get("/api/categories"),
-      Api.get("/api/makers"),
-      Api.get("/api/dealers"),
-    ]);
-    stores = s;
-    categories = c;
-    makers = m;
-    dealers = d;
+    const tasks = [];
+    if (!stores.length) tasks.push(Api.get("/api/stores").then((s) => { stores = s; }));
+    if (!categories.length) {
+      tasks.push(Api.get("/api/categories").then((c) => { categories = c; }));
+    }
+    if (!makers.length) tasks.push(Api.get("/api/makers").then((m) => { makers = m; }));
+    if (!dealers.length) tasks.push(Api.get("/api/dealers").then((d) => { dealers = d; }));
+    if (tasks.length) await Promise.all(tasks);
   }
 
   function filterStoresForUser() {
@@ -264,17 +308,23 @@
 
   function fillFilters() {
     const cat = document.getElementById("filter-category");
-    cat.innerHTML =
-      '<option value="">すべて</option>' +
-      categories.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+    if (cat) {
+      cat.innerHTML =
+        '<option value="">すべて</option>' +
+        categories.map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+    }
     const mk = document.getElementById("filter-maker");
-    mk.innerHTML =
-      '<option value="">すべて</option>' +
-      makers.map((m) => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join("");
+    if (mk) {
+      mk.innerHTML =
+        '<option value="">すべて</option>' +
+        makers.map((m) => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join("");
+    }
     const dl = document.getElementById("filter-dealer");
-    dl.innerHTML =
-      '<option value="">すべて</option>' +
-      dealers.map((d) => `<option value="${d.id}">${escapeHtml(d.name)}</option>`).join("");
+    if (dl) {
+      dl.innerHTML =
+        '<option value="">すべて</option>' +
+        dealers.map((d) => `<option value="${d.id}">${escapeHtml(d.name)}</option>`).join("");
+    }
   }
 
   function fillNewProductMasters() {
@@ -298,9 +348,15 @@
 
   async function loadInventory() {
     const storeId = getStoreId();
-    if (!storeId) return;
+    if (!storeId) {
+      inventory = [];
+      if (skuList) skuList.innerHTML = "";
+      const empty = document.getElementById("sku-empty");
+      if (empty) empty.hidden = false;
+      return;
+    }
     hideError();
-    skuList.innerHTML = '<li class="loading">読み込み中…</li>';
+    if (skuList) skuList.innerHTML = '<li class="loading">読み込み中…</li>';
     const activeOnly = MODE === "replenish" ? "false" : "true";
     inventory = await Api.get(
       `/api/inventory/store/${storeId}?active_only=${activeOnly}`
@@ -313,10 +369,10 @@
   }
 
   function filteredInventory() {
-    const cat = document.getElementById("filter-category").value;
-    const maker = document.getElementById("filter-maker").value;
-    const dealer = document.getElementById("filter-dealer").value;
-    const nameQ = (document.getElementById("filter-name").value || "").trim().toLowerCase();
+    const cat = document.getElementById("filter-category")?.value || "";
+    const maker = document.getElementById("filter-maker")?.value || "";
+    const dealer = document.getElementById("filter-dealer")?.value || "";
+    const nameQ = (document.getElementById("filter-name")?.value || "").trim().toLowerCase();
 
     return inventory.filter((item) => {
       if (cat && String(item.category_id) !== cat) return false;
@@ -328,14 +384,15 @@
   }
 
   function renderSkuList() {
+    if (!skuList) return;
     const items = filteredInventory();
     const empty = document.getElementById("sku-empty");
     if (!items.length) {
       skuList.innerHTML = "";
-      empty.hidden = false;
+      if (empty) empty.hidden = false;
       return;
     }
-    empty.hidden = true;
+    if (empty) empty.hidden = true;
     skuList.innerHTML = items
       .map(
         (item) => `
