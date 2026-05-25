@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}ログイン — AKEMIN{% endblock %}
+
+{% block nav %}{% endblock %}
+
+{% block content %}
+<section class="login-page">
+  <div class="login-card card">
+    <h1 class="login-title">AKEMIN</h1>
+    <p class="login-subtitle">サロン在庫管理システム</p>
+
+    <form id="login-form" class="login-form">
+      <div class="form-group">
+        <label for="username">ユーザー名</label>
+        <input type="text" id="username" name="username" required autocomplete="username"
+               placeholder="admin">
+      </div>
+      <div class="form-group">
+        <label for="password">パスワード</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password"
+               placeholder="••••••••">
+      </div>
+      <p id="login-error" class="error-msg" hidden></p>
+      <button type="submit" class="btn btn-primary btn-block" id="btn-login">ログイン</button>
+    </form>
+
+    <details class="login-hint">
+      <summary>テスト用アカウント</summary>
+      <ul>
+        <li>管理者: admin / admin123</li>
+        <li>店舗A: staff_a / staff123</li>
+        <li>店舗B: staff_b / staff123</li>
+      </ul>
+    </details>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/auth.js"></script>
+{% endblock %}

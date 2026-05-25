@@ -1,0 +1,27 @@
+# Render Blueprint（GitHub 連携後に「New +」→ Blueprint で読み込み可能）
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: akemin
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "480"
+      - key: DATABASE_URL
+        value: sqlite:////data/inventory.db
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-4-5-20250929
+    disk:
+      name: akemin-data
+      mountPath: /data
+      sizeGB: 1

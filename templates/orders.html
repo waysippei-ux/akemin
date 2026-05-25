@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}発注データ分析 — AKEMIN{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<section class="page-header orders-page-header">
+  <div class="orders-header-row">
+    <div>
+      <h1>発注データ分析</h1>
+      <p class="page-desc">発注金額・数量の集計と履歴</p>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm" id="btn-export-all">全データCSVダウンロード</button>
+  </div>
+</section>
+
+<!-- フィルターバー -->
+<div class="card orders-filter-bar" id="filter-bar">
+  <div class="filter-row">
+    <label class="filter-label">期間</label>
+    <select id="filter-period-mode" class="select select-sm">
+      <option value="month">月選択</option>
+      <option value="range">期間指定</option>
+    </select>
+    <input type="month" id="filter-month" class="input-text input-sm">
+    <span id="filter-range-wrap" class="filter-range" hidden>
+      <input type="date" id="filter-date-from" class="input-text input-sm">
+      <span>〜</span>
+      <input type="date" id="filter-date-to" class="input-text input-sm">
+    </span>
+  </div>
+  <div class="filter-row">
+    <label class="filter-label">店舗</label>
+    <select id="filter-store" class="select select-sm"><option value="">すべて</option></select>
+    <label class="filter-label">区分</label>
+    <select id="filter-section" class="select select-sm">
+      <option value="">すべて</option>
+      <option value="1">材料在庫</option>
+      <option value="2">販売商品在庫</option>
+    </select>
+    <label class="filter-label">カテゴリ</label>
+    <select id="filter-category" class="select select-sm"><option value="">すべて</option></select>
+    <label class="filter-label">ディーラー</label>
+    <select id="filter-dealer" class="select select-sm"><option value="">すべて</option></select>
+    <label class="filter-label">メーカー</label>
+    <select id="filter-maker" class="select select-sm"><option value="">すべて</option></select>
+  </div>
+</div>
+
+<div id="orders-empty" class="card orders-empty" hidden>
+  <p>発注データがありません。<br>納品書取込から登録してください。</p>
+  <button type="button" class="btn btn-primary btn-sm" id="btn-show-import">納品書を取込む</button>
+</div>
+
+<div id="orders-main" hidden>
+  <!-- サマリー -->
+  <div class="orders-summary-grid" id="summary-cards">
+    <div class="summary-card card">
+      <span class="summary-label">総発注金額</span>
+      <span class="summary-value" id="sum-amount">¥0</span>
+    </div>
+    <div class="summary-card card">
+      <span class="summary-label">総発注数量</span>
+      <span class="summary-value" id="sum-quantity">0</span>
+      <span class="summary-unit">本／個</span>
+    </div>
+    <div class="summary-card card">
+      <span class="summary-label">発注件数</span>
+      <span class="summary-value" id="sum-orders">0</span>
+      <span class="summary-unit">納品書</span>
+    </div>
+    <div class="summary-card card">
+      <span class="summary-label">発注商品種類数</span>
+      <span class="summary-value" id="sum-sku">0</span>
+      <span class="summary-unit">SKU</span>
+    </div>
+  </div>
+
+  <!-- タブ -->
+  <div class="tabs card orders-tabs">
+    <button type="button" class="tab-btn active" data-tab="store">店舗別</button>
+    <button type="button" class="tab-btn" data-tab="section">区分別</button>
+    <button type="button" class="tab-btn" data-tab="category">カテゴリ別</button>
+    <button type="button" class="tab-btn" data-tab="dealer">ディーラー別</button>
+    <button type="button" class="tab-btn" data-tab="maker">メーカー別</button>
+    <button type="button" class="tab-btn" data-tab="history">発注履歴</button>
+  </div>
+
+  <div class="tab-panel active" id="panel-store">
+    <div class="panel-toolbar">
+      <button type="button" class="btn btn-secondary btn-sm btn-tab-csv" data-tab="store">CSVダウンロード</button>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-store"></canvas></div>
+    <div class="table-wrap" id="table-store"></div>
+  </div>
+  <div class="tab-panel" id="panel-section" hidden>
+    <div class="panel-toolbar">
+      <button type="button" class="btn btn-secondary btn-sm btn-tab-csv" data-tab="section">CSVダウンロード</button>
+    </div>
+    <div class="charts-row">
+      <div class="chart-wrap chart-pie"><canvas id="chart-section-pie"></canvas></div>
+      <div class="chart-wrap"><canvas id="chart-section-bar"></canvas></div>
+    </div>
+    <div class="table-wrap" id="table-section"></div>
+  </div>
+  <div class="tab-panel" id="panel-category" hidden>
+    <div class="panel-toolbar">
+      <button type="button" class="btn btn-secondary btn-sm btn-tab-csv" data-tab="category">CSVダウンロード</button>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-category"></canvas></div>
+    <div class="table-wrap" id="table-category"></div>
+  </div>
+  <div class="tab-panel" id="panel-dealer" hidden>
+    <div class="panel-toolbar">
+      <button type="button" class="btn btn-secondary btn-sm btn-tab-csv" data-tab="dealer">CSVダウンロード</button>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-dealer"></canvas></div>
+    <div class="table-wrap" id="table-dealer"></div>
+  </div>
+  <div class="tab-panel" id="panel-maker" hidden>
+    <div class="panel-toolbar">
+      <button type="button" class="btn btn-secondary btn-sm btn-tab-csv" data-tab="maker">CSVダウンロード</button>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-maker"></canvas></div>
+    <div class="table-wrap" id="table-maker"></div>
+  </div>
+  <div class="tab-panel" id="panel-history" hidden>
+    <div class="panel-toolbar">
+      <button type="button" class="btn btn-secondary btn-sm btn-tab-csv" data-tab="history">CSVダウンロード</button>
+    </div>
+    <div class="table-wrap" id="table-history"></div>
+  </div>
+</div>
+
+<!-- 納品書取込（既存機能） -->
+<details class="card orders-import" id="import-section">
+  <summary>納品書取込</summary>
+  <p class="help-text">写真（JPEG/PNG）または PDF。商品コード・数量・日付・納品元のみ読み取ります。</p>
+  <input type="file" id="invoice-file" accept="image/*,application/pdf">
+  <button type="button" class="btn btn-primary btn-sm" id="btn-parse-invoice">読み取り</button>
+  <div id="import-confirm-section" hidden>
+    <div class="toolbar">
+      <label>店舗</label>
+      <select id="import-store" class="select"></select>
+      <label>ディーラー</label>
+      <select id="import-dealer" class="select"></select>
+      <label>納品日</label>
+      <input type="date" id="import-date" class="input-text">
+    </div>
+    <p id="import-notice" class="error-msg card" hidden></p>
+    <div class="table-wrap">
+      <table class="data-table" id="import-table">
+        <thead>
+          <tr>
+            <th>商品コード</th>
+            <th>照合</th>
+            <th>商品名</th>
+            <th>数量</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <button type="button" class="btn btn-primary" id="btn-confirm-import">この内容で在庫に反映する</button>
+    <p id="import-msg" class="scan-result" hidden></p>
+  </div>
+</details>
+
+<!-- 明細モーダル -->
+<div class="modal-overlay" id="order-modal" hidden>
+  <div class="modal card">
+    <div class="modal-header">
+      <h3>納品書明細</h3>
+      <button type="button" class="btn-icon" id="modal-close" aria-label="閉じる">×</button>
+    </div>
+    <div id="modal-meta" class="modal-meta"></div>
+    <div class="table-wrap" id="modal-body"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/orders.js?v=2"></script>
+{% endblock %}

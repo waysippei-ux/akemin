@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}在庫 — AKEMIN{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <h1 id="page-title">在庫</h1>
+  <p class="page-desc" id="user-greeting">読み込み中…</p>
+</section>
+
+<div class="toolbar card">
+  <label for="store-select" class="toolbar-label">店舗</label>
+  <select id="store-select" class="select"></select>
+  <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh">更新</button>
+</div>
+
+<!-- TOP: 2セクション -->
+<div id="view-categories">
+  <p id="categories-loading" class="loading">読み込み中…</p>
+
+  <section class="dashboard-section section-materials">
+    <h2 class="section-heading">サロンで使う材料在庫</h2>
+    <div id="cards-materials" class="category-cards"></div>
+  </section>
+
+  <section class="dashboard-section section-retail">
+    <h2 class="section-heading">店で販売する商品在庫</h2>
+    <div id="cards-retail" class="category-cards"></div>
+  </section>
+</div>
+
+<!-- カテゴリ内: 在庫一覧 + AI -->
+<div id="view-detail" hidden>
+  <nav class="breadcrumb card">
+    <button type="button" class="btn btn-ghost btn-sm" id="btn-back-categories">← カテゴリ一覧</button>
+    <span id="breadcrumb-category"></span>
+  </nav>
+
+  <section class="advice-section card">
+    <h2 class="section-title">AI 発注アドバイス</h2>
+    <div id="advice-loading" class="loading">分析中…</div>
+    <p id="advice-text" class="advice-text" hidden></p>
+  </section>
+
+  <section class="inventory-section">
+    <h2 class="section-title">在庫状況</h2>
+    <div class="stock-legend">
+      <span class="legend-item legend-green">十分</span>
+      <span class="legend-item legend-yellow">要発注</span>
+      <span class="legend-item legend-red">至急</span>
+    </div>
+    <div id="inventory-loading" class="loading">読み込み中…</div>
+    <div id="inventory-list" class="inventory-list" hidden></div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/dashboard.js?v=3"></script>
+{% endblock %}

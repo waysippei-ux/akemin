@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}バーコードスキャン — AKEMIN{% endblock %}
+
+{% block extra_head %}
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <h1>バーコードスキャン</h1>
+  <p class="page-desc">使用時は「使用」、入荷時は「補充」を選んでスキャン</p>
+</section>
+
+<div class="toolbar card">
+  <label for="store-select" class="toolbar-label">店舗</label>
+  <select id="store-select" class="select"></select>
+</div>
+
+<div class="scan-actions card">
+  <div class="action-toggle" role="group" aria-label="操作種別">
+    <button type="button" class="toggle-btn active" data-action="use" id="btn-use">使用 (−)</button>
+    <button type="button" class="toggle-btn" data-action="restock" id="btn-restock">補充 (+)</button>
+  </div>
+  <div class="form-group">
+    <label for="quantity">数量</label>
+    <input type="number" id="quantity" class="input-number" value="1" min="1" max="99">
+  </div>
+</div>
+
+<section class="scanner-section card">
+  <h2 class="section-title">カメラスキャン</h2>
+  <div id="reader" class="barcode-reader"></div>
+  <button type="button" class="btn btn-ghost btn-sm" id="btn-toggle-camera">カメラの開始/停止</button>
+</section>
+
+<section class="manual-section card">
+  <h2 class="section-title">手入力</h2>
+  <div class="manual-row">
+    <input type="text" id="barcode-input" class="input-text" placeholder="JANコード / バーコード"
+           inputmode="numeric" autocomplete="off">
+    <button type="button" class="btn btn-primary" id="btn-manual-submit">送信</button>
+  </div>
+</section>
+
+<p id="scan-result" class="scan-result" hidden></p>
+<p id="scan-error" class="error-msg" hidden></p>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/scan.js"></script>
+{% endblock %}

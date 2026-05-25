@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}AKEMIN - サロン在庫管理システム{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  {% block nav %}
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/dashboard" class="logo">AKEMIN</a>
+      <nav class="main-nav" id="main-nav">
+        <a href="/dashboard" class="nav-link">在庫</a>
+        <a href="/orders" class="nav-link">発注データ分析</a>
+        <a href="/scan" class="nav-link">スキャン</a>
+        <a href="/admin/products" class="nav-link nav-admin" id="nav-admin" hidden>商品管理</a>
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-logout">ログアウト</button>
+      </nav>
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-label="メニュー">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+  {% endblock %}
+
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <p>AKEMIN — サロン在庫管理システム</p>
+  </footer>
+
+  <script src="/static/js/api.js?v=3"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

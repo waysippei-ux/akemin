@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}商品管理 — AKEMIN{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <h1>マスタ管理</h1>
+  <p class="page-desc">管理者のみ — 商品・店舗・カテゴリ・ディーラー・メーカー</p>
+</section>
+
+<p id="admin-denied" class="error-msg card" hidden>この画面は管理者のみ利用できます。</p>
+
+<div id="admin-content" hidden>
+  <div class="tabs card admin-tabs">
+    <button type="button" class="tab-btn active" data-admin-tab="products">商品</button>
+    <button type="button" class="tab-btn" data-admin-tab="categories">カテゴリ</button>
+    <button type="button" class="tab-btn" data-admin-tab="dealers">ディーラー</button>
+    <button type="button" class="tab-btn" data-admin-tab="makers">メーカー</button>
+    <button type="button" class="tab-btn" data-admin-tab="stores">店舗</button>
+    <button type="button" class="tab-btn" data-admin-tab="links">紐付け</button>
+  </div>
+
+  <!-- 商品タブ -->
+  <div class="admin-tab-panel" id="admin-tab-products">
+    <section class="card admin-section">
+      <h2 class="section-title">CSV 一括インポート</h2>
+      <p class="help-text">
+        列: <code>name, barcode, unit, warning_threshold, critical_threshold, category_id, jan_code,
+        delivery_code_1〜5, dealer_id_1〜5</code>（1行目ヘッダー推奨）
+      </p>
+      <div class="csv-row">
+        <input type="file" id="csv-file" accept=".csv,text/csv">
+        <button type="button" class="btn btn-secondary" id="btn-import-csv">インポート</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-csv-template">テンプレートDL</button>
+      </div>
+      <pre id="import-result" class="import-result" hidden></pre>
+    </section>
+    <section class="card admin-section">
+      <h2 class="section-title" id="form-title">商品を追加</h2>
+      <form id="product-form" class="product-form">
+        <input type="hidden" id="product-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="name">商品名 *</label>
+            <input type="text" id="name" required>
+          </div>
+          <div class="form-group">
+            <label for="barcode">バーコード *</label>
+            <input type="text" id="barcode" required inputmode="numeric">
+          </div>
+          <div class="form-group">
+            <label for="jan_code">納品コード</label>
+            <input type="text" id="jan_code" placeholder="ディーラーの商品コード">
+          </div>
+          <div class="form-group">
+            <label for="category_id">カテゴリ *</label>
+            <select id="category_id" class="select" required></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="maker_id">メーカー</label>
+            <select id="maker_id" class="select"><option value="">—</option></select>
+          </div>
+          <div class="form-group">
+            <label for="dealer_id">仕入ディーラー</label>
+            <select id="dealer_id" class="select"><option value="">—</option></select>
+          </div>
+          <div class="form-group">
+            <label for="unit">単位</label>
+            <input type="text" id="unit" value="本">
+          </div>
+          <div class="form-group">
+            <label for="warning_threshold">黄 ≤</label>
+            <input type="number" id="warning_threshold" value="4" min="0">
+          </div>
+          <div class="form-group">
+            <label for="critical_threshold">赤 ≤</label>
+            <input type="number" id="critical_threshold" value="2" min="0">
+          </div>
+        </div>
+        <p id="form-error" class="error-msg" hidden></p>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">保存</button>
+          <button type="button" class="btn btn-ghost" id="btn-cancel" hidden>キャンセル</button>
+        </div>
+      </form>
+    </section>
+    <section class="admin-section">
+      <h2 class="section-title">商品一覧 <span id="product-count" class="badge-count"></span></h2>
+      <div id="products-loading" class="loading">読み込み中…</div>
+      <div class="table-wrap" id="table-wrap" hidden>
+        <table class="data-table">
+          <thead>
+            <tr><th>商品名</th><th>コード</th><th>カテゴリ</th><th>黄/赤</th><th></th></tr>
+          </thead>
+          <tbody id="products-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- カテゴリ -->
+  <div class="admin-tab-panel" id="admin-tab-categories" hidden>
+    <section class="card">
+      <form id="category-form" class="form-row">
+        <input type="hidden" id="cat-id">
+        <input type="text" id="cat-name" placeholder="カテゴリ名" required>
+        <select id="cat-section" class="select" required title="セクション">
+          <option value="1">① 材料在庫</option>
+          <option value="2">② 販売商品在庫</option>
+        </select>
+        <input type="number" id="cat-sort" placeholder="並び順" value="0">
+        <button type="submit" class="btn btn-primary btn-sm">保存</button>
+      </form>
+      <ul id="category-list" class="master-list"></ul>
+    </section>
+  </div>
+
+  <!-- ディーラー -->
+  <div class="admin-tab-panel" id="admin-tab-dealers" hidden>
+    <section class="card">
+      <form id="dealer-form">
+        <input type="hidden" id="dealer-edit-id">
+        <input type="text" id="dealer-name" placeholder="ディーラー名" required>
+        <input type="text" id="dealer-contact" placeholder="連絡先">
+        <button type="submit" class="btn btn-primary btn-sm">保存</button>
+      </form>
+      <ul id="dealer-list" class="master-list"></ul>
+    </section>
+  </div>
+
+  <!-- メーカー -->
+  <div class="admin-tab-panel" id="admin-tab-makers" hidden>
+    <section class="card">
+      <form id="maker-form">
+        <input type="hidden" id="maker-edit-id">
+        <input type="text" id="maker-name" placeholder="メーカー名" required>
+        <button type="submit" class="btn btn-primary btn-sm">保存</button>
+      </form>
+      <ul id="maker-list" class="master-list"></ul>
+    </section>
+  </div>
+
+  <!-- 店舗 -->
+  <div class="admin-tab-panel" id="admin-tab-stores" hidden>
+    <section class="card">
+      <form id="store-form">
+        <input type="hidden" id="store-edit-id">
+        <input type="text" id="store-name" placeholder="店舗名" required>
+        <button type="submit" class="btn btn-primary btn-sm">保存</button>
+      </form>
+      <ul id="store-list" class="master-list"></ul>
+    </section>
+  </div>
+
+  <!-- 紐付け -->
+  <div class="admin-tab-panel" id="admin-tab-links" hidden>
+    <section class="card">
+      <form id="link-form" class="form-row">
+        <select id="link-dealer" class="select"></select>
+        <select id="link-maker" class="select"></select>
+        <button type="submit" class="btn btn-primary btn-sm">紐付け追加</button>
+      </form>
+      <ul id="link-list" class="master-list"></ul>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/admin_products.js"></script>
+<script src="/static/js/admin_masters.js"></script>
+{% endblock %}

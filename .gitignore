@@ -1,0 +1,28 @@
+# 環境変数（APIキー・秘密鍵を含む）
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+
+# SQLiteデータベース
+data/
+*.db
+
+# IDE・OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# ログ・キャッシュ
+*.log
+.pytest_cache/
+.mypy_cache/
