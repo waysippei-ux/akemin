@@ -14,9 +14,11 @@ from app.schemas import (
     StockBulkParseLineOut,
     StockBulkParseResult,
     StockBulkRegisterRequest,
+    StockConsumeRequest,
     StockLookupOut,
     StockRegisterRequest,
     StockRegisterWithProductRequest,
+    StockReplenishRequest,
 )
 
 
@@ -122,6 +124,36 @@ def register_stock(
         data.store_id,
         data.product_id,
         data.action,
+        data.quantity,
+        data.recorded_at,
+    )
+
+
+def replenish_stock(
+    db: Session, user: User, data: StockReplenishRequest
+) -> InventoryScanResponse:
+    crud.require_store_id_for_stock(data.store_id)
+    return _apply_stock_by_product(
+        db,
+        user,
+        data.store_id,
+        data.product_id,
+        InventoryAction.RESTOCK,
+        data.quantity,
+        data.recorded_at,
+    )
+
+
+def consume_stock(
+    db: Session, user: User, data: StockConsumeRequest
+) -> InventoryScanResponse:
+    crud.require_store_id_for_stock(data.store_id)
+    return _apply_stock_by_product(
+        db,
+        user,
+        data.store_id,
+        data.product_id,
+        InventoryAction.USE,
         data.quantity,
         data.recorded_at,
     )

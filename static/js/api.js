@@ -185,6 +185,32 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  const stockToggle = document.getElementById("nav-stock-toggle");
+  const stockMenu = document.getElementById("nav-stock-menu");
+  const stockDropdown = document.getElementById("nav-stock");
+  if (stockToggle && stockMenu && stockDropdown) {
+    stockToggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = stockMenu.hidden;
+      stockMenu.hidden = !open;
+      stockToggle.setAttribute("aria-expanded", open ? "true" : "false");
+      stockDropdown.classList.toggle("open", open);
+    });
+    document.addEventListener("click", () => {
+      stockMenu.hidden = true;
+      stockToggle.setAttribute("aria-expanded", "false");
+      stockDropdown.classList.remove("open");
+    });
+    stockMenu.addEventListener("click", (e) => e.stopPropagation());
+  }
+
+  const path = window.location.pathname;
+  if (path.startsWith("/stock/replenish")) {
+    stockToggle?.classList.add("active");
+  } else if (path.startsWith("/stock/consume")) {
+    stockToggle?.classList.add("active");
+  }
+
   // 保護ページ: 未ログインならログインへ
   const protectedPaths = ["/dashboard", "/scan", "/stock", "/admin", "/orders"];
   if (

@@ -210,6 +210,22 @@ class StockRegisterRequest(BaseModel):
     recorded_at: Optional[datetime] = None
 
 
+class StockReplenishRequest(BaseModel):
+    """棚補充登録"""
+    store_id: int = Field(gt=0, description="店舗ID（必須）")
+    product_id: int = Field(gt=0)
+    quantity: int = Field(ge=1)
+    recorded_at: Optional[datetime] = None
+
+
+class StockConsumeRequest(BaseModel):
+    """使用済み登録（在庫減）"""
+    store_id: int = Field(gt=0, description="店舗ID（必須）")
+    product_id: int = Field(gt=0)
+    quantity: int = Field(ge=1)
+    recorded_at: Optional[datetime] = None
+
+
 class StockRegisterWithProductRequest(BaseModel):
     """未登録商品を新規登録してから棚に反映"""
     store_id: int = Field(gt=0, description="店舗ID（必須）")

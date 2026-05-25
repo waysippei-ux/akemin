@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}使用済みゴミ箱 — AKEMIN{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <h1>使用済みゴミ箱</h1>
+  <p class="page-desc">使用した分を在庫から減らします（棚にある商品のみ）</p>
+</section>
+
+<div class="toolbar card">
+  <label for="store-select" class="toolbar-label">店舗 *</label>
+  <select id="store-select" class="select" required>
+    {% if stores %}
+      {% for s in stores %}
+      <option value="{{ s.id }}"{% if default_store_id and s.id == default_store_id %} selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    {% else %}
+      <option value="">店舗がありません</option>
+    {% endif %}
+  </select>
+  <p id="store-hint" class="error-msg store-required-hint" hidden>店舗を選択してください。</p>
+</div>
+
+<div class="filter-row card form-row">
+  <div class="form-group">
+    <label for="filter-category">カテゴリ</label>
+    <select id="filter-category" class="select">
+      <option value="">すべて</option>
+      {% for c in categories %}
+      <option value="{{ c.id }}">{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="filter-maker">メーカー</label>
+    <select id="filter-maker" class="select">
+      <option value="">すべて</option>
+      {% for m in makers %}
+      <option value="{{ m.id }}">{{ m.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="filter-dealer">ディーラー</label>
+    <select id="filter-dealer" class="select">
+      <option value="">すべて</option>
+      {% for d in dealers %}
+      <option value="{{ d.id }}">{{ d.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-group flex-grow">
+    <label for="filter-name">商品名</label>
+    <input type="search" id="filter-name" class="input-text" placeholder="部分一致で検索" autocomplete="off">
+  </div>
+</div>
+
+<div id="product-grid" class="product-grid"></div>
+<p id="product-empty" class="empty-msg" hidden>該当する商品がありません</p>
+<p id="page-toast" class="scan-result" hidden></p>
+<p id="page-error" class="error-msg" hidden></p>
+
+<div class="modal-overlay" id="register-modal" hidden>
+  <div class="modal card" role="dialog" aria-labelledby="register-modal-title">
+    <div class="modal-header">
+      <h3 id="register-modal-title">使用済みにする</h3>
+      <button type="button" class="btn-icon" id="register-modal-close" aria-label="閉じる">×</button>
+    </div>
+    <form id="register-form">
+      <input type="hidden" id="reg-product-id">
+      <p class="reg-product-name" id="reg-product-name"></p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>バーコード</label>
+          <p id="reg-barcode" class="reg-readonly"></p>
+        </div>
+        <div class="form-group">
+          <label>現在在庫（選択店舗）</label>
+          <p id="reg-current-qty" class="reg-readonly">—</p>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="reg-quantity">数量 *</label>
+          <input type="number" id="reg-quantity" class="input-number" value="1" min="1" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-datetime">使用日時</label>
+          <input type="datetime-local" id="reg-datetime" class="input-text" required>
+        </div>
+      </div>
+      <p id="register-form-error" class="error-msg" hidden></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="register-modal-cancel">キャンセル</button>
+        <button type="submit" class="btn btn-primary" id="reg-submit-btn" disabled>登録する</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="not-on-shelf-modal" hidden>
+  <div class="modal card" role="dialog" aria-labelledby="not-on-shelf-modal-title">
+    <div class="modal-header">
+      <h3 id="not-on-shelf-modal-title">棚にない商品</h3>
+      <button type="button" class="btn-icon" id="not-on-shelf-modal-close" aria-label="閉じる">×</button>
+    </div>
+    <p class="not-registered-message">棚にない商品です。先に補充登録してください。</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="not-on-shelf-close">閉じる</button>
+      <a href="/stock/replenish" class="btn btn-primary">棚に補充する</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>window.STOCK_PAGE = {{ page_json | safe }};</script>
+<script src="/static/js/stock_consume.js?v=1"></script>
+{% endblock %}
