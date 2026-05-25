@@ -280,5 +280,5 @@ class StoreProductSetting(Base):
     product: Mapped["Product"] = relationship(back_populates="store_settings")
 
     __table_args__ = (
-        UniqueConstraint("store_id", "product_id", name="uq_store_product"),
+        UniqueConstraint("store_id", "product_id", name="uq_store_product_setting"),
     )
