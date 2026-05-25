@@ -1,6 +1,8 @@
 """
 SQLite データベースへの接続を管理するモジュール
 """
+from __future__ import annotations
+
 from pathlib import Path
 
 from sqlalchemy import create_engine
@@ -9,21 +11,41 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from app.config import BASE_DIR, settings
 
 
+def _sqlite_file_path(url: str) -> Path | None:
+    """DATABASE_URL から SQLite ファイルの Path を返す（SQLite 以外は None）"""
+    if not url.startswith("sqlite:///"):
+        return None
+    raw = url.replace("sqlite:///", "", 1)
+    if raw.startswith("./"):
+        raw = raw[2:]
+    path = Path(raw)
+    if not path.is_absolute():
+        path = BASE_DIR / path
+    return path
+
+
+def ensure_data_directory() -> None:
+    """
+    SQLite 用の親ディレクトリを作成する。
+    ローカル: data/ 、Render: /data/ など DATABASE_URL に合わせる。
+    """
+    db_path = _sqlite_file_path(settings.DATABASE_URL)
+    if db_path is not None:
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        (BASE_DIR / "data").mkdir(parents=True, exist_ok=True)
+
+
 def _resolve_sqlite_path(url: str) -> str:
     """
-    sqlite:///./data/inventory.db のような相対パスを
-    プロジェクトルート基準の絶対パスに変換する
+    sqlite:///./data/inventory.db や sqlite:////data/inventory.db を
+    絶対パスに正規化し、親ディレクトリを自動作成する
     """
-    if not url.startswith("sqlite:///"):
+    path = _sqlite_file_path(url)
+    if path is None:
         return url
-
-    db_path = url.replace("sqlite:///", "", 1)
-    if db_path.startswith("./"):
-        absolute = BASE_DIR / db_path[2:]
-        absolute.parent.mkdir(parents=True, exist_ok=True)
-        return f"sqlite:///{absolute}"
-
-    return url
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return f"sqlite:///{path}"
 
 
 DATABASE_URL = _resolve_sqlite_path(settings.DATABASE_URL)
@@ -115,5 +137,6 @@ def init_db():
     """テーブルを作成し、既存 DB をマイグレーションする"""
     from app import models  # noqa: F401
 
+    ensure_data_directory()
     Base.metadata.create_all(bind=engine)
     migrate_schema()

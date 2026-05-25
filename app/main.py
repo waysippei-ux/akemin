@@ -4,8 +4,9 @@ FastAPI アプリケーションのエントリーポイント
 起動方法（プロジェクトルートで）:
     uvicorn app.main:app --reload
 """
+import logging
+import sys
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
@@ -13,7 +14,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.config import BASE_DIR
-from app.database import init_db
+from app.database import ensure_data_directory, init_db
+
+logger = logging.getLogger(__name__)
 
 # 静的ファイル・HTMLテンプレートのパス（プロジェクトルート基準の絶対パス）
 STATIC_DIR = (BASE_DIR / "static").resolve()
@@ -26,10 +29,28 @@ STATIC_DIR.mkdir(parents=True, exist_ok=True)
 TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _run_seed_if_empty() -> None:
+    """
+    初回起動時に初期データを投入する。
+    Render 無料プランでは SQLite が永続化されないため、
+    起動のたびに DB が空なら seed を実行する。
+    """
+    if str(BASE_DIR) not in sys.path:
+        sys.path.insert(0, str(BASE_DIR))
+    try:
+        from scripts.seed import seed
+
+        seed()
+    except Exception:
+        logger.exception("初期データ（seed）の投入に失敗しました")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """アプリ起動時・終了時の処理"""
+    ensure_data_directory()
     init_db()
+    _run_seed_if_empty()
     yield
 
 
