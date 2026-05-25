@@ -20,14 +20,15 @@ router = APIRouter()
 @router.get("/store/{store_id}", response_model=list[InventoryItemOut])
 def get_store_inventory(
     store_id: int,
+    active_only: bool = True,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """店舗の在庫一覧（色分け付き）"""
+    """店舗の在庫一覧（色分け付き）。active_only=false で補充画面用に全商品"""
     check_store_access(current_user, store_id)
     if not crud.get_store(db, store_id):
         raise HTTPException(status_code=404, detail="店舗が見つかりません。")
-    return crud.get_inventory_list(db, store_id)
+    return crud.get_inventory_list(db, store_id, active_only=active_only)
 
 
 @router.get("/store/{store_id}/category/{category_id}", response_model=list[InventoryItemOut])
@@ -41,7 +42,9 @@ def get_store_inventory_by_category(
     check_store_access(current_user, store_id)
     if not crud.get_store(db, store_id):
         raise HTTPException(status_code=404, detail="店舗が見つかりません。")
-    return crud.get_inventory_list(db, store_id, category_id=category_id)
+    return crud.get_inventory_list(
+        db, store_id, category_id=category_id, active_only=True
+    )
 
 
 @router.post("/scan", response_model=InventoryScanResponse)

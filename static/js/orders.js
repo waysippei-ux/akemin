@@ -9,6 +9,7 @@
     dealer: "/api/orders/by-dealer",
     maker: "/api/orders/by-maker",
     history: "/api/orders/history",
+    insights: "/api/orders/inventory-insights",
   };
 
   const TAB_LABELS = {
@@ -18,6 +19,7 @@
     dealer: "ディーラー別",
     maker: "メーカー別",
     history: "発注履歴",
+    insights: "棚の動き",
   };
 
   let stores = [];
@@ -184,17 +186,23 @@
     try {
       const summary = await Api.get(`/api/orders/summary?${q}`);
       hasData = summary.has_data;
-      document.getElementById("orders-empty").hidden = hasData;
-      document.getElementById("orders-main").hidden = !hasData;
-      if (!hasData) {
+      document.getElementById("orders-empty").hidden = hasData || currentTab === "insights";
+      document.getElementById("orders-main").hidden = !hasData && currentTab !== "insights";
+      if (!hasData && currentTab !== "insights") {
         destroyCharts();
         return;
       }
-      document.getElementById("sum-amount").textContent = "¥" + summary.total_amount.toLocaleString();
-      document.getElementById("sum-quantity").textContent = summary.total_quantity.toLocaleString();
-      document.getElementById("sum-orders").textContent = summary.order_count.toLocaleString();
-      document.getElementById("sum-sku").textContent = summary.sku_count.toLocaleString();
-      await loadTab(currentTab);
+      if (hasData) {
+        document.getElementById("sum-amount").textContent =
+          "¥" + summary.total_amount.toLocaleString();
+        document.getElementById("sum-quantity").textContent =
+          summary.total_quantity.toLocaleString();
+        document.getElementById("sum-orders").textContent =
+          summary.order_count.toLocaleString();
+        document.getElementById("sum-sku").textContent = summary.sku_count.toLocaleString();
+      }
+      if (currentTab === "insights") await loadInsightsTab(q);
+      else await loadTab(currentTab);
     } catch (err) {
       alert(err.message);
     }
@@ -210,7 +218,64 @@
       p.hidden = !active;
       p.classList.toggle("active", active);
     });
-    if (hasData) loadTab(tab);
+    if (tab === "insights" || hasData) {
+      if (tab === "insights") loadInsightsTab(buildFilterQuery());
+      else loadTab(tab);
+    }
+  }
+
+  async function loadInsightsTab(q) {
+    const data = await Api.get(`/api/orders/inventory-insights?${q}`);
+    const pop = document.getElementById("table-popularity");
+    if (pop) {
+      if (!data.popularity?.length) {
+        pop.innerHTML = "<p class=\"empty-msg\">該当する使用ログがありません</p>";
+      } else {
+        pop.innerHTML = tableHtml(
+          ["順位", "店舗", "商品", "使用回数", "使用数量"],
+          data.popularity.map((r) => [
+            r.rank,
+            r.store_name,
+            r.product_name,
+            r.use_count.toLocaleString(),
+            r.use_quantity.toLocaleString(),
+          ])
+        );
+      }
+    }
+    const stag = document.getElementById("table-stagnant");
+    if (stag) {
+      if (!data.stagnant?.length) {
+        stag.innerHTML = "<p class=\"empty-msg\">動きのない商品はありません</p>";
+      } else {
+        stag.innerHTML = tableHtml(
+          ["店舗", "商品", "現在庫", "未変動日数"],
+          data.stagnant.map((r) => [
+            r.store_name,
+            r.product_name,
+            `${r.quantity}${r.unit}`,
+            `${r.days_without_movement}日`,
+          ])
+        );
+      }
+    }
+    const ass = document.getElementById("table-assortment");
+    if (ass) {
+      if (!data.assortment?.length) {
+        ass.innerHTML = "<p class=\"empty-msg\">データがありません</p>";
+      } else {
+        ass.innerHTML = tableHtml(
+          ["店舗", "棚SKU数", "カテゴリ内訳"],
+          data.assortment.map((r) => [
+            r.store_name,
+            r.active_sku_count.toLocaleString(),
+            Object.entries(r.category_breakdown || {})
+              .map(([k, v]) => `${k}:${v}`)
+              .join(" / ") || "—",
+          ])
+        );
+      }
+    }
   }
 
   async function loadTab(tab) {

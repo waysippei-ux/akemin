@@ -20,8 +20,9 @@
 </nav>
 
 <div class="toolbar card">
-  <label for="store-select" class="toolbar-label">店舗</label>
-  <select id="store-select" class="select"></select>
+  <label for="store-select" class="toolbar-label">店舗 *</label>
+  <select id="store-select" class="select" required></select>
+  <p id="store-required-hint" class="error-msg store-required-hint" hidden>店舗を選択してください。在庫の増減は必ず店舗と紐づけて記録します。</p>
 </div>
 
 <div class="tabs card" role="tablist">
@@ -76,7 +77,7 @@
   <p id="bulk-parse-note" class="hint-text" hidden></p>
   <div id="bulk-lines-wrap" hidden>
     <ul id="bulk-lines" class="bulk-lines"></ul>
-    <button type="button" class="btn btn-primary" id="btn-bulk-submit">まとめて登録する</button>
+    <button type="button" class="btn btn-primary" id="btn-bulk-submit" disabled>まとめて登録する</button>
   </div>
   <p id="bulk-empty" class="empty-msg">カメラでスキャンするか、ファイルをアップロードしてください</p>
 </section>
@@ -100,14 +101,14 @@
           <p id="reg-barcode" class="reg-readonly"></p>
         </div>
         <div class="form-group">
-          <label>現在在庫</label>
-          <p id="reg-current-qty" class="reg-readonly"></p>
+          <label>現在在庫（選択店舗）</label>
+          <p id="reg-current-qty" class="reg-readonly reg-current-qty-live">—</p>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label for="reg-quantity">数量 *</label>
-          <input type="number" id="reg-quantity" class="input-number" value="1" min="1" max="999" required>
+          <input type="number" id="reg-quantity" class="input-number" value="1" min="1" required>
         </div>
         <div class="form-group">
           <label for="reg-datetime" id="reg-datetime-label">補充日時</label>
@@ -117,9 +118,25 @@
       <p id="register-form-error" class="error-msg" hidden></p>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="register-modal-cancel">キャンセル</button>
-        <button type="submit" class="btn btn-primary" id="reg-submit-btn">登録する</button>
+        <button type="submit" class="btn btn-primary" id="reg-submit-btn" disabled>登録する</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- 使用済み: この店舗の棚にない -->
+<div class="modal-overlay" id="not-on-shelf-modal" hidden>
+  <div class="modal card" role="dialog" aria-labelledby="not-on-shelf-modal-title">
+    <div class="modal-header">
+      <h3 id="not-on-shelf-modal-title">棚にない商品</h3>
+      <button type="button" class="btn-icon" id="not-on-shelf-modal-close" aria-label="閉じる">×</button>
+    </div>
+    <p class="not-registered-message">この店舗の棚にない商品です。</p>
+    <p class="hint-text" id="not-on-shelf-code-wrap" hidden>コード: <strong id="not-on-shelf-code"></strong></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="not-on-shelf-close">閉じる</button>
+      <a href="/stock/replenish" class="btn btn-primary">棚に補充する</a>
+    </div>
   </div>
 </div>
 
@@ -215,5 +232,6 @@
 
 {% block scripts %}
 <script>window.STOCK_MODE = "{{ stock_mode }}";</script>
-<script src="/static/js/stock.js?v=2"></script>
+<script>window.STOCK_PAGE_DATA = {{ stock_page_data_json | safe }};</script>
+<script src="/static/js/stock.js?v=5"></script>
 {% endblock %}

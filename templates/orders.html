@@ -87,6 +87,7 @@
     <button type="button" class="tab-btn" data-tab="dealer">ディーラー別</button>
     <button type="button" class="tab-btn" data-tab="maker">メーカー別</button>
     <button type="button" class="tab-btn" data-tab="history">発注履歴</button>
+    <button type="button" class="tab-btn" data-tab="insights">棚の動き</button>
   </div>
 
   <div class="tab-panel active" id="panel-store">
@@ -132,6 +133,21 @@
       <button type="button" class="btn btn-secondary btn-sm btn-tab-csv" data-tab="history">CSVダウンロード</button>
     </div>
     <div class="table-wrap" id="table-history"></div>
+  </div>
+  <div class="tab-panel" id="panel-insights" hidden>
+    <p class="help-text">在庫の増減ログに基づく分析です。フィルターの店舗・期間が反映されます。</p>
+    <section class="insights-block card">
+      <h3 class="section-title">店舗別人気商品（使用回数・数量）</h3>
+      <div class="table-wrap" id="table-popularity"></div>
+    </section>
+    <section class="insights-block card">
+      <h3 class="section-title">動きのない商品（30日以上増減なし・棚配置中）</h3>
+      <div class="table-wrap" id="table-stagnant"></div>
+    </section>
+    <section class="insights-block card">
+      <h3 class="section-title">店舗別品揃え比較（棚に並んでいるSKU数）</h3>
+      <div class="table-wrap" id="table-assortment"></div>
+    </section>
   </div>
 </div>
 

@@ -203,6 +203,7 @@ class Inventory(Base):
     store_id: Mapped[int] = mapped_column(ForeignKey("stores.id"), nullable=False)
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     store: Mapped["Store"] = relationship(back_populates="inventories")
     product: Mapped["Product"] = relationship(back_populates="inventories")

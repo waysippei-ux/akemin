@@ -20,13 +20,8 @@ from app.schemas import (
 )
 
 
-def _inventory_qty(db: Session, store_id: int, product_id: int) -> int:
-    inv = (
-        db.query(Inventory)
-        .filter(Inventory.store_id == store_id, Inventory.product_id == product_id)
-        .first()
-    )
-    return inv.quantity if inv else 0
+def _inventory_row(db: Session, store_id: int, product_id: int) -> Inventory | None:
+    return crud.get_inventory_row(db, store_id, product_id)
 
 
 def lookup_stock_product(db: Session, store_id: int, code: str) -> StockLookupOut:
@@ -34,6 +29,8 @@ def lookup_stock_product(db: Session, store_id: int, code: str) -> StockLookupOu
     product = crud.resolve_product_for_scan(db, scan_code)
     if not product:
         return StockLookupOut(code=scan_code, found=False)
+    inv = _inventory_row(db, store_id, product.id)
+    on_shelf = inv is not None and inv.is_active
     return StockLookupOut(
         code=scan_code,
         found=True,
@@ -41,8 +38,9 @@ def lookup_stock_product(db: Session, store_id: int, code: str) -> StockLookupOu
         product_name=product.name,
         barcode=product.barcode,
         unit=product.unit,
-        quantity=_inventory_qty(db, store_id, product.id),
+        quantity=inv.quantity if inv else 0,
         category_id=product.category_id,
+        is_on_shelf=on_shelf,
     )
 
 
@@ -55,20 +53,18 @@ def _apply_stock_by_product(
     quantity: int,
     recorded_at=None,
 ) -> InventoryScanResponse:
+    crud.require_store_id_for_stock(store_id)
     product = crud.get_product_by_id(db, product_id)
     if not product:
         raise ValueError("商品が見つかりません。")
 
-    inv = crud.get_or_create_inventory(db, store_id, product.id)
-
     if action == InventoryAction.USE:
-        if inv.quantity < quantity:
-            raise ValueError(
-                f"在庫が足りません（現在: {inv.quantity}{product.unit}）"
-            )
+        inv = crud.assert_product_on_shelf_for_use(db, store_id, product.id)
+        crud.assert_use_quantity_allowed(inv.quantity, quantity, product.unit)
         inv.quantity -= quantity
         action_label = "使用"
     else:
+        inv = crud.activate_inventory_at_store(db, store_id, product.id, commit=False)
         inv.quantity += quantity
         action_label = "補充"
 
@@ -102,9 +98,24 @@ def _apply_stock_by_product(
     )
 
 
+def get_product_quantity_at_store(
+    db: Session, store_id: int, product_id: int
+) -> tuple[int, str, bool]:
+    """店舗×商品の現在庫（単位・棚配置フラグ付き）"""
+    crud.require_store_id_for_stock(store_id)
+    product = crud.get_product_by_id(db, product_id)
+    if not product:
+        raise ValueError("商品が見つかりません。")
+    inv = _inventory_row(db, store_id, product_id)
+    qty = inv.quantity if inv else 0
+    on_shelf = inv is not None and inv.is_active
+    return qty, product.unit or "本", on_shelf
+
+
 def register_stock(
     db: Session, user: User, data: StockRegisterRequest
 ) -> InventoryScanResponse:
+    crud.require_store_id_for_stock(data.store_id)
     return _apply_stock_by_product(
         db,
         user,
@@ -119,6 +130,7 @@ def register_stock(
 def register_stock_with_new_product(
     db: Session, user: User, data: StockRegisterWithProductRequest
 ) -> InventoryScanResponse:
+    crud.require_store_id_for_stock(data.store_id)
     if data.product.critical_threshold > data.product.warning_threshold:
         raise ValueError("危険閾値は注意閾値以下にしてください。")
     product = crud.create_product(db, data.product)
@@ -136,6 +148,7 @@ def register_stock_with_new_product(
 def bulk_register_stock(
     db: Session, user: User, data: StockBulkRegisterRequest
 ) -> dict:
+    crud.require_store_id_for_stock(data.store_id)
     if not data.lines:
         raise ValueError("登録する行がありません。")
     messages: list[str] = []
@@ -177,6 +190,7 @@ def build_stock_bulk_parse_result(
             product = crud.match_product_for_invoice(db, code, dealer_id)
 
         if product:
+            inv = _inventory_row(db, store_id, product.id)
             lines_out.append(
                 StockBulkParseLineOut(
                     product_code=code,
@@ -185,7 +199,7 @@ def build_stock_bulk_parse_result(
                     product_id=product.id,
                     product_name=product.name,
                     unit=product.unit,
-                    current_quantity=_inventory_qty(db, store_id, product.id),
+                    current_quantity=inv.quantity if inv else 0,
                 )
             )
         else:

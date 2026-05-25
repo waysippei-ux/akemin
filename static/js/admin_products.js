@@ -6,6 +6,7 @@
   let categories = [];
   let makers = [];
   let dealers = [];
+  let adminStores = [];
   let editingId = null;
   let modalJanCode = null;
 
@@ -24,7 +25,9 @@
       document.querySelectorAll("[data-admin-tab]").forEach((btn) => {
         btn.addEventListener("click", () => {
           const tab = btn.dataset.adminTab;
-          document.querySelectorAll("[data-admin-tab]").forEach((b) => b.classList.toggle("active", b === btn));
+          document.querySelectorAll("[data-admin-tab]").forEach((b) =>
+            b.classList.toggle("active", b === btn)
+          );
           document.querySelectorAll(".admin-tab-panel").forEach((p) => {
             p.hidden = p.id !== `admin-tab-${tab}`;
           });
@@ -37,20 +40,62 @@
   });
 
   async function loadMasters() {
-    categories = await Api.get("/api/categories");
-    makers = await Api.get("/api/makers");
-    dealers = await Api.get("/api/dealers");
+    [categories, makers, dealers, adminStores] = await Promise.all([
+      Api.get("/api/categories"),
+      Api.get("/api/makers"),
+      Api.get("/api/dealers"),
+      Api.get("/api/stores"),
+    ]);
     document.getElementById("modal-category_id").innerHTML = categories
       .map((c) => `<option value="${c.id}">${c.name}</option>`)
       .join("");
     fillOptional("modal-maker_id", makers);
     fillOptional("modal-dealer_id", dealers);
+    renderStorePickList([]);
+    document.getElementById("modal-expand-all-stores")?.addEventListener("change", onExpandAllChange);
   }
 
   function fillOptional(id, items) {
     const el = document.getElementById(id);
     el.innerHTML =
-      '<option value="">—</option>' + items.map((i) => `<option value="${i.id}">${i.name}</option>`).join("");
+      '<option value="">—</option>' +
+      items.map((i) => `<option value="${i.id}">${i.name}</option>`).join("");
+  }
+
+  function onExpandAllChange() {
+    const expandAll = document.getElementById("modal-expand-all-stores").checked;
+    const list = document.getElementById("modal-store-pick-list");
+    if (list) list.hidden = expandAll;
+  }
+
+  function renderStorePickList(selectedIds) {
+    const list = document.getElementById("modal-store-pick-list");
+    if (!list) return;
+    const selected = new Set(selectedIds || []);
+    list.innerHTML = adminStores
+      .map(
+        (s) => `
+      <label class="store-pick-item">
+        <input type="checkbox" class="modal-store-cb" value="${s.id}" ${
+          selected.has(s.id) ? "checked" : ""
+        }>
+        ${esc(s.name)}
+      </label>`
+      )
+      .join("");
+  }
+
+  function getDeployment() {
+    const expandAll = document.getElementById("modal-expand-all-stores").checked;
+    const storeIds = expandAll
+      ? []
+      : [...document.querySelectorAll(".modal-store-cb:checked")].map((cb) =>
+          parseInt(cb.value, 10)
+        );
+    if (!expandAll && !storeIds.length) {
+      throw new Error("展開する店舗を1つ以上選択してください。");
+    }
+    return { expand_all_stores: expandAll, store_ids: storeIds };
   }
 
   function bindProductEvents() {
@@ -78,6 +123,7 @@
       critical_threshold: parseInt(document.getElementById("modal-critical_threshold").value, 10),
       maker_id: maker ? parseInt(maker, 10) : null,
       dealer_id: dealer ? parseInt(dealer, 10) : null,
+      deployment: getDeployment(),
     };
   }
 
@@ -105,6 +151,12 @@
     document.getElementById("modal-maker_id").value = "";
     document.getElementById("modal-dealer_id").value = "";
     modalJanCode = null;
+    const expandAll = document.getElementById("modal-expand-all-stores");
+    if (expandAll) {
+      expandAll.checked = true;
+      onExpandAllChange();
+    }
+    renderStorePickList(adminStores.map((s) => s.id));
   }
 
   function openAddModal() {
@@ -116,7 +168,9 @@
   }
 
   async function openEditModal(id) {
-    const p = products.find((x) => x.id === id) || (await Api.get(`/api/products/${id}`));
+    const p =
+      products.find((x) => x.id === id) ||
+      (await Api.get(`/api/products/${id}`));
     editingId = id;
     modalJanCode = p.jan_code || null;
     document.getElementById("product-modal-title").textContent = "商品を編集";
@@ -129,6 +183,12 @@
     document.getElementById("modal-unit").value = p.unit;
     document.getElementById("modal-warning_threshold").value = p.warning_threshold;
     document.getElementById("modal-critical_threshold").value = p.critical_threshold;
+    const expandAll = document.getElementById("modal-expand-all-stores");
+    if (expandAll) {
+      expandAll.checked = p.expand_all_stores !== false;
+      onExpandAllChange();
+    }
+    renderStorePickList(p.active_store_ids || []);
     openModal();
   }
 
@@ -147,6 +207,7 @@
         <td data-label="商品名">${esc(p.name)}</td>
         <td data-label="コード"><code>${esc(p.barcode)}</code>${p.jan_code ? `<br><small>納品:${esc(p.jan_code)}</small>` : ""}</td>
         <td data-label="カテゴリ">${esc(p.category_name || "")}</td>
+        <td data-label="展開店舗">${p.expand_all_stores ? "全店舗" : esc((p.active_store_ids || []).join(","))}</td>
         <td data-label="閾値">${p.warning_threshold}/${p.critical_threshold}</td>
         <td class="cell-actions">
           <button type="button" class="btn btn-ghost btn-sm" data-edit="${p.id}">編集</button>
@@ -168,7 +229,14 @@
     e.preventDefault();
     const err = document.getElementById("modal-form-error");
     err.hidden = true;
-    const data = getModalFormData();
+    let data;
+    try {
+      data = getModalFormData();
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.hidden = false;
+      return;
+    }
     if (data.critical_threshold > data.warning_threshold) {
       err.textContent = "赤アラートは黄アラート以下にしてください。";
       err.hidden = false;
@@ -204,12 +272,12 @@
 
   function downloadTemplate() {
     const header =
-      "name,barcode,unit,warning_threshold,critical_threshold,category_id,jan_code," +
+      "name,barcode,unit,warning_threshold,critical_threshold,category_id,jan_code,stores," +
       "delivery_code_1,dealer_id_1,delivery_code_2,dealer_id_2,delivery_code_3,dealer_id_3," +
       "delivery_code_4,dealer_id_4,delivery_code_5,dealer_id_5";
     const csv =
       header +
-      "\nサンプル,4901001000099,本,4,2,1,DL001,DL001,1,DL002,2,,,,,\n";
+      "\nサンプル,4901001000099,本,4,2,1,,all,DL001,1,,,,,,,\n";
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     a.download = "products_template.csv";

@@ -136,6 +136,18 @@ def migrate_schema() -> None:
     if "store_product_settings" not in insp.get_table_names():
         models.StoreProductSetting.__table__.create(bind=engine, checkfirst=True)
 
+    if "inventories" in insp.get_table_names():
+        inv_cols = {c["name"] for c in insp.get_columns("inventories")}
+        if "is_active" not in inv_cols:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "ALTER TABLE inventories ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 0"
+                    )
+                )
+                # 既存データは棚に並んでいるものとして有効化
+                conn.execute(text("UPDATE inventories SET is_active = 1"))
+
 
 def init_db():
     """テーブルを作成し、既存 DB をマイグレーションする"""

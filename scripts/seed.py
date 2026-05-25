@@ -178,6 +178,7 @@ def seed():
                         store_id=store_id,
                         product_id=product.id,
                         quantity=INITIAL_QUANTITY,
+                        is_active=True,
                     )
                 )
             print(f"  在庫: {store_name} — {len(products)} SKU × {INITIAL_QUANTITY}本")

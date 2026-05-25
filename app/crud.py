@@ -205,11 +205,15 @@ def get_product_by_id(db: Session, product_id: int) -> Product | None:
 
 
 def create_product(db: Session, data: ProductCreate) -> Product:
-    dump = data.model_dump()
+    dump = data.model_dump(exclude={"deployment"})
     jan = dump.get("jan_code")
     dump["jan_code"] = (jan or "").strip() or None
     product = Product(**dump)
     db.add(product)
+    db.flush()
+    apply_product_store_deployment(
+        db, product.id, data.deployment.expand_all_stores, data.deployment.store_ids
+    )
     db.commit()
     db.refresh(product)
     return product
@@ -225,6 +229,9 @@ def update_product(db: Session, product: Product, data: ProductUpdate) -> Produc
     product.category_id = data.category_id
     product.maker_id = data.maker_id
     product.dealer_id = data.dealer_id
+    apply_product_store_deployment(
+        db, product.id, data.deployment.expand_all_stores, data.deployment.store_ids
+    )
     db.commit()
     db.refresh(product)
     return product
@@ -335,6 +342,7 @@ def _parse_csv_row_dict(row: dict, row_num: int) -> dict | None:
             (col(f"dealer_id_{i}", f"dealer_{i}"), col(f"delivery_code_{i}", f"delivery_{i}"))
             for i in range(1, 6)
         ],
+        "stores": col("stores", "store_ids", "展開店舗"),
     }
 
 
@@ -394,6 +402,7 @@ def import_products_csv(db: Session, csv_text: str) -> dict:
             cat_id_raw = data["category_id"]
             jan_code = data["jan_code"] or None
             delivery_pairs = data["delivery_pairs"]
+            stores_raw = data.get("stores", "")
         else:
             cells = data
             if len(cells) < 2:
@@ -412,7 +421,8 @@ def import_products_csv(db: Session, csv_text: str) -> dict:
             cat_id_raw = cells[5] if len(cells) > 5 else ""
             jan_code = cells[6].strip() if len(cells) > 6 and cells[6] else None
             delivery_pairs = []
-            base = 7
+            stores_raw = (cells[7].strip() if len(cells) > 7 else "") or ""
+            base = 8
             for i in range(5):
                 d_idx = base + i * 2
                 c_idx = d_idx + 1
@@ -470,6 +480,12 @@ def import_products_csv(db: Session, csv_text: str) -> dict:
                 except Exception as ex:
                     result.errors.append(f"{row_num}行目 納品コード: {ex}")
 
+            try:
+                expand_all, store_ids = parse_stores_column(stores_raw)
+                apply_product_store_deployment(db, product.id, expand_all, store_ids)
+            except Exception as ex:
+                result.errors.append(f"{row_num}行目 展開店舗: {ex}")
+
         except Exception as e:
             result.errors.append(f"{row_num}行目: {e}")
             result.skipped += 1
@@ -482,61 +498,225 @@ def import_products_csv(db: Session, csv_text: str) -> dict:
 # 在庫
 # ---------------------------------------------------------------------------
 
-def get_or_create_inventory(db: Session, store_id: int, product_id: int) -> Inventory:
-    """店舗×商品の在庫レコードを取得（なければ0で作成）"""
-    inv = (
+
+def require_store_id_for_stock(store_id: int | None) -> int:
+    """補充・使用は必ず店舗IDと紐づける"""
+    if store_id is None or int(store_id) < 1:
+        raise ValueError("店舗を選択してください。")
+    return int(store_id)
+
+
+def format_stock_shortage_message(current_qty: int, unit: str = "本") -> str:
+    """使用登録で在庫がマイナスになる場合のメッセージ"""
+    u = unit or "本"
+    return (
+        f"在庫が不足しています。現在の在庫数：{current_qty}{u}。"
+        f"使用できる最大数：{current_qty}{u}。"
+    )
+
+
+def assert_use_quantity_allowed(
+    current_qty: int, quantity: int, unit: str = "本"
+) -> None:
+    """使用済み登録: 在庫マイナス禁止"""
+    if quantity < 1:
+        raise ValueError("数量は1以上を指定してください。")
+    if current_qty - quantity < 0:
+        raise ValueError(format_stock_shortage_message(current_qty, unit))
+
+
+INVENTORY_NOT_ON_SHELF_MSG = "この店舗の棚にない商品です。"
+
+
+def parse_stores_column(raw: str) -> tuple[bool, list[int]]:
+    """
+    CSV stores 列: 空欄・all → 全店舗 / "1,3,5" → 指定店舗ID
+    """
+    text = (raw or "").strip().lower()
+    if not text or text in ("all", "全店舗", "全店", "*"):
+        return True, []
+    ids: list[int] = []
+    for part in text.replace("，", ",").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if not part.isdigit():
+            raise ValueError(f"店舗IDは数値で指定してください: {part}")
+        ids.append(int(part))
+    if not ids:
+        return True, []
+    return False, ids
+
+
+def get_active_store_ids_for_product(db: Session, product_id: int) -> list[int]:
+    rows = (
+        db.query(Inventory.store_id)
+        .filter(Inventory.product_id == product_id, Inventory.is_active.is_(True))
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
+def apply_product_store_deployment(
+    db: Session,
+    product_id: int,
+    expand_all_stores: bool,
+    store_ids: list[int],
+) -> None:
+    """選択店舗の inventories.is_active = true、それ以外は false"""
+    stores = get_stores(db, active_only=True)
+    all_ids = [s.id for s in stores]
+    if expand_all_stores:
+        active_ids = set(all_ids)
+    else:
+        active_ids = {sid for sid in store_ids if sid in all_ids}
+        unknown = set(store_ids) - active_ids
+        if unknown:
+            raise ValueError(f"無効な店舗ID: {', '.join(str(x) for x in sorted(unknown))}")
+
+    for sid in all_ids:
+        inv = get_or_create_inventory(db, store_id=sid, product_id=product_id, commit=False)
+        inv.is_active = sid in active_ids
+    db.commit()
+
+
+def get_inventory_row(
+    db: Session, store_id: int, product_id: int
+) -> Inventory | None:
+    return (
         db.query(Inventory)
         .filter(Inventory.store_id == store_id, Inventory.product_id == product_id)
         .first()
     )
-    if inv:
-        return inv
-    inv = Inventory(store_id=store_id, product_id=product_id, quantity=0)
-    db.add(inv)
-    db.commit()
-    db.refresh(inv)
+
+
+def is_product_on_shelf(db: Session, store_id: int, product_id: int) -> bool:
+    inv = get_inventory_row(db, store_id, product_id)
+    return inv is not None and inv.is_active
+
+
+def assert_product_on_shelf_for_use(
+    db: Session, store_id: int, product_id: int
+) -> Inventory:
+    """使用登録: その店舗で is_active であること"""
+    inv = get_inventory_row(db, store_id, product_id)
+    if not inv or not inv.is_active:
+        raise ValueError(INVENTORY_NOT_ON_SHELF_MSG)
     return inv
 
 
+def activate_inventory_at_store(
+    db: Session, store_id: int, product_id: int, *, commit: bool = True
+) -> Inventory:
+    """補充登録時に棚へ並べる"""
+    inv = get_or_create_inventory(
+        db, store_id, product_id, commit=False
+    )
+    inv.is_active = True
+    if commit:
+        db.commit()
+        db.refresh(inv)
+    return inv
+
+
+def get_or_create_inventory(
+    db: Session, store_id: int, product_id: int, *, commit: bool = True
+) -> Inventory:
+    """店舗×商品の在庫レコードを取得（なければ quantity=0, is_active=False で作成）"""
+    inv = get_inventory_row(db, store_id, product_id)
+    if inv:
+        return inv
+    inv = Inventory(
+        store_id=store_id, product_id=product_id, quantity=0, is_active=False
+    )
+    db.add(inv)
+    if commit:
+        db.commit()
+        db.refresh(inv)
+    else:
+        db.flush()
+    return inv
+
+
+def _inventory_item_from_row(
+    db: Session,
+    store_id: int,
+    product: Product,
+    inv: Inventory,
+    settings_map: dict,
+) -> InventoryItemOut:
+    warning, critical = resolve_thresholds(product, settings_map.get(product.id))
+    level = calc_stock_level(inv.quantity, warning, critical)
+    return InventoryItemOut(
+        product_id=product.id,
+        product_name=product.name,
+        barcode=product.barcode,
+        unit=product.unit,
+        quantity=inv.quantity,
+        stock_level=level,
+        warning_threshold=warning,
+        critical_threshold=critical,
+        category_id=product.category_id,
+        category_name=product.category.name if product.category else "",
+        maker_id=product.maker_id,
+        maker_name=product.maker.name if product.maker else None,
+        dealer_id=product.dealer_id,
+        dealer_name=product.dealer.name if product.dealer else None,
+        is_on_shelf=inv.is_active,
+    )
+
+
 def get_inventory_list(
-    db: Session, store_id: int, category_id: int | None = None
+    db: Session,
+    store_id: int,
+    category_id: int | None = None,
+    *,
+    active_only: bool = True,
 ) -> list[InventoryItemOut]:
-    """店舗の在庫一覧（未登録は quantity=0）。category_id で絞り込み可"""
-    products = get_products(db, category_id=category_id)
+    """
+    店舗の在庫一覧。
+    active_only=True（ダッシュボード）: is_active の商品のみ。
+    active_only=False（補充画面の検索）: マスタ全商品＋在庫数。
+    """
     settings_map = get_settings_map(db, store_id)
     result: list[InventoryItemOut] = []
 
-    for product in products:
-        inv = (
+    if active_only:
+        q = (
             db.query(Inventory)
+            .options(
+                joinedload(Inventory.product).joinedload(Product.category),
+                joinedload(Inventory.product).joinedload(Product.maker),
+                joinedload(Inventory.product).joinedload(Product.dealer),
+            )
             .filter(
                 Inventory.store_id == store_id,
-                Inventory.product_id == product.id,
+                Inventory.is_active.is_(True),
             )
-            .first()
         )
-        quantity = inv.quantity if inv else 0
-        warning, critical = resolve_thresholds(
-            product, settings_map.get(product.id)
-        )
-        level = calc_stock_level(quantity, warning, critical)
-        result.append(
-            InventoryItemOut(
+        rows = q.all()
+        for inv in rows:
+            product = inv.product
+            if category_id and product.category_id != category_id:
+                continue
+            result.append(
+                _inventory_item_from_row(db, store_id, product, inv, settings_map)
+            )
+        result.sort(key=lambda x: x.product_name)
+        return result
+
+    products = get_products(db, category_id=category_id)
+    for product in products:
+        inv = get_inventory_row(db, store_id, product.id)
+        if not inv:
+            inv = Inventory(
+                store_id=store_id,
                 product_id=product.id,
-                product_name=product.name,
-                barcode=product.barcode,
-                unit=product.unit,
-                quantity=quantity,
-                stock_level=level,
-                warning_threshold=warning,
-                critical_threshold=critical,
-                category_id=product.category_id,
-                category_name=product.category.name if product.category else "",
-                maker_id=product.maker_id,
-                maker_name=product.maker.name if product.maker else None,
-                dealer_id=product.dealer_id,
-                dealer_name=product.dealer.name if product.dealer else None,
+                quantity=0,
+                is_active=False,
             )
+        result.append(
+            _inventory_item_from_row(db, store_id, product, inv, settings_map)
         )
     return result
 
@@ -551,16 +731,15 @@ def scan_inventory(
     if not product:
         raise ValueError(f"コード {data.barcode} の商品が見つかりません（JANコードを確認してください）。")
 
-    inv = get_or_create_inventory(db, data.store_id, product.id)
+    require_store_id_for_stock(data.store_id)
 
     if data.action == InventoryAction.USE:
-        if inv.quantity < data.quantity:
-            raise ValueError(
-                f"在庫が足りません（現在: {inv.quantity}{product.unit}）"
-            )
+        inv = assert_product_on_shelf_for_use(db, data.store_id, product.id)
+        assert_use_quantity_allowed(inv.quantity, data.quantity, product.unit)
         inv.quantity -= data.quantity
         action_label = "使用"
     else:
+        inv = activate_inventory_at_store(db, data.store_id, product.id, commit=False)
         inv.quantity += data.quantity
         action_label = "補充"
 

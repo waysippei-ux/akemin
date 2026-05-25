@@ -18,6 +18,10 @@
   let bulkCameraOn = false;
   let scanCooldown = false;
   let pendingScanCode = null;
+  let registerModalProductId = null;
+  let registerModalUnit = "本";
+  let registerModalCurrentQty = 0;
+  let registerModalOnShelf = true;
 
   const storeSelect = document.getElementById("store-select");
   const skuList = document.getElementById("sku-list");
@@ -27,18 +31,22 @@
   document.addEventListener("DOMContentLoaded", init);
 
   async function init() {
-    document.getElementById("reg-datetime-label").textContent = DATETIME_LABEL;
-    document.getElementById("new-reg-datetime-label").textContent = DATETIME_LABEL;
-    document.getElementById("reg-submit-btn").textContent = "登録する";
+    const regLabel = document.getElementById("reg-datetime-label");
+    if (regLabel) regLabel.textContent = DATETIME_LABEL;
+    const newRegLabel = document.getElementById("new-reg-datetime-label");
+    if (newRegLabel) newRegLabel.textContent = DATETIME_LABEL;
+    const regSubmit = document.getElementById("reg-submit-btn");
+    if (regSubmit) regSubmit.textContent = "登録する";
 
     document.querySelectorAll("[data-stock-tab]").forEach((btn) => {
       btn.addEventListener("click", () => switchTab(btn.dataset.stockTab));
     });
 
-    storeSelect?.addEventListener("change", () => {
-      loadInventory();
+    storeSelect?.addEventListener("change", async () => {
+      await loadInventory();
       bulkPending = [];
       renderBulkLines();
+      updateStoreDependentUI();
     });
 
     ["filter-category", "filter-maker", "filter-dealer", "filter-name"].forEach((id) => {
@@ -49,45 +57,209 @@
     bindRegisterModal();
     if (MODE === "replenish") bindNewProductModal();
     bindNotRegisteredModal();
+    bindNotOnShelfModal();
     bindScanTab();
     bindBulkTab();
 
     try {
+      applyPageBootstrapData();
       currentUser = await Api.get("/api/auth/me");
-      [stores, categories, makers, dealers] = await Promise.all([
-        Api.get("/api/stores"),
-        Api.get("/api/categories"),
-        Api.get("/api/makers"),
-        Api.get("/api/dealers"),
-      ]);
+      await loadMasterData();
       setupStoreSelect();
       fillFilters();
       fillNewProductMasters();
       await loadInventory();
+      updateStoreDependentUI();
     } catch (err) {
       showError(err.message);
     }
   }
 
+  function hasValidStoreId() {
+    const id = getStoreId();
+    return Number.isFinite(id) && id > 0;
+  }
+
+  function updateStoreDependentUI() {
+    const ok = hasValidStoreId();
+    const hint = document.getElementById("store-required-hint");
+    if (hint) hint.hidden = ok;
+    const modalOpen =
+      document.getElementById("register-modal") &&
+      !document.getElementById("register-modal").hidden;
+    if (modalOpen) refreshRegisterModalStock();
+    else {
+      const regBtn = document.getElementById("reg-submit-btn");
+      if (regBtn) regBtn.disabled = !ok;
+    }
+    const bulkBtn = document.getElementById("btn-bulk-submit");
+    if (bulkBtn) bulkBtn.disabled = !ok || !bulkPending.length;
+  }
+
+  function stockShortageMessage(current, unit) {
+    const u = unit || "本";
+    return `在庫が不足しています。現在の在庫数：${current}${u}。使用できる最大数：${current}${u}。`;
+  }
+
+  async function fetchProductQuantity(productId) {
+    if (!hasValidStoreId()) return null;
+    const data = await Api.get(
+      `/api/stock/quantity?store_id=${getStoreId()}&product_id=${productId}`
+    );
+    const invItem = inventory.find((x) => x.product_id === productId);
+    if (invItem) invItem.quantity = data.quantity;
+    return data;
+  }
+
+  async function refreshRegisterModalStock() {
+    const qtyEl = document.getElementById("reg-current-qty");
+    if (!registerModalProductId) return;
+
+    if (!hasValidStoreId()) {
+      registerModalCurrentQty = 0;
+      if (qtyEl) qtyEl.textContent = "—（店舗を選択してください）";
+      applyRegisterQuantityLimits();
+      updateRegisterSubmitState();
+      return;
+    }
+
+    try {
+      const data = await fetchProductQuantity(registerModalProductId);
+      registerModalCurrentQty = data.quantity;
+      registerModalUnit = data.unit || "本";
+      registerModalOnShelf = data.is_on_shelf !== false;
+      if (qtyEl) {
+        qtyEl.textContent = `${data.quantity}${registerModalUnit}`;
+        if (MODE === "consume" && !registerModalOnShelf) {
+          qtyEl.textContent += "（この店舗の棚に未配置）";
+        }
+      }
+      if (MODE === "consume" && !registerModalOnShelf) {
+        const errEl = document.getElementById("register-form-error");
+        if (errEl) {
+          errEl.textContent = "この店舗の棚にない商品です。";
+          errEl.hidden = false;
+        }
+      }
+      applyRegisterQuantityLimits();
+      updateRegisterSubmitState();
+    } catch {
+      registerModalCurrentQty = 0;
+      if (qtyEl) qtyEl.textContent = "取得できませんでした";
+      updateRegisterSubmitState();
+    }
+  }
+
+  function applyRegisterQuantityLimits() {
+    const input = document.getElementById("reg-quantity");
+    if (!input) return;
+    if (MODE === "consume") {
+      const maxQ = Math.max(0, registerModalCurrentQty);
+      input.max = maxQ;
+      input.min = maxQ > 0 ? 1 : 0;
+      if (maxQ < 1) {
+        input.value = "0";
+        input.disabled = true;
+      } else {
+        input.disabled = false;
+        const v = parseInt(input.value, 10) || 1;
+        if (v > maxQ) input.value = String(maxQ);
+        if (v < 1) input.value = "1";
+      }
+    } else {
+      input.disabled = false;
+      input.min = 1;
+      input.max = 999;
+    }
+  }
+
+  function updateRegisterSubmitState() {
+    const btn = document.getElementById("reg-submit-btn");
+    if (!btn) return;
+    let ok = hasValidStoreId();
+    const q = parseInt(document.getElementById("reg-quantity")?.value, 10) || 0;
+    if (MODE === "consume") {
+      ok =
+        ok &&
+        registerModalOnShelf &&
+        registerModalCurrentQty > 0 &&
+        q >= 1 &&
+        q <= registerModalCurrentQty;
+    } else {
+      ok = ok && q >= 1;
+    }
+    btn.disabled = !ok;
+  }
+
+  function validateStoreForSubmit() {
+    if (!hasValidStoreId()) return "店舗を選択してください。";
+    return null;
+  }
+
+  function validateConsumeQuantity(current, quantity, unit) {
+    if (quantity < 1) return "数量は1以上を指定してください。";
+    if (current - quantity < 0) return stockShortageMessage(current, unit);
+    return null;
+  }
+
+  /** テンプレート埋め込みデータ（stock.py から渡される） */
+  function applyPageBootstrapData() {
+    const boot = window.STOCK_PAGE_DATA;
+    if (!boot || typeof boot !== "object") return;
+    if (Array.isArray(boot.stores)) stores = boot.stores;
+    if (Array.isArray(boot.categories)) categories = boot.categories;
+    if (Array.isArray(boot.makers)) makers = boot.makers;
+    if (Array.isArray(boot.dealers)) dealers = boot.dealers;
+  }
+
+  async function loadMasterData() {
+    if (stores.length && categories.length && makers.length && dealers.length) return;
+    const [s, c, m, d] = await Promise.all([
+      Api.get("/api/stores"),
+      Api.get("/api/categories"),
+      Api.get("/api/makers"),
+      Api.get("/api/dealers"),
+    ]);
+    stores = s;
+    categories = c;
+    makers = m;
+    dealers = d;
+  }
+
+  function filterStoresForUser() {
+    if (currentUser?.role === "staff" && currentUser.store_id) {
+      stores = stores.filter((s) => s.id === currentUser.store_id);
+    }
+  }
+
   function switchTab(tab) {
+    if (!tab) return;
     document.querySelectorAll("[data-stock-tab]").forEach((b) => {
       b.classList.toggle("active", b.dataset.stockTab === tab);
     });
-    document.querySelectorAll(".stock-tab-panel").forEach((p) => {
-      const id = `stock-tab-${tab}`;
-      p.hidden = p.id !== id;
+    ["search", "scan", "bulk"].forEach((name) => {
+      const panel = document.getElementById(`stock-tab-${name}`);
+      if (panel) panel.hidden = name !== tab;
     });
     if (tab !== "bulk" && bulkCameraOn) stopBulkCamera();
   }
 
   function setupStoreSelect() {
+    if (!storeSelect) return;
+    filterStoresForUser();
+    if (!stores.length) {
+      storeSelect.innerHTML = '<option value="">店舗がありません</option>';
+      updateStoreDependentUI();
+      return;
+    }
     storeSelect.innerHTML = stores
       .map((s) => `<option value="${s.id}">${escapeHtml(s.name)}</option>`)
       .join("");
-    if (currentUser.store_id) {
+    if (currentUser?.store_id) {
       storeSelect.value = String(currentUser.store_id);
       if (currentUser.role === "staff") storeSelect.disabled = true;
     }
+    updateStoreDependentUI();
   }
 
   function fillFilters() {
@@ -106,7 +278,10 @@
   }
 
   function fillNewProductMasters() {
-    document.getElementById("new-category_id").innerHTML = categories
+    if (MODE !== "replenish") return;
+    const catEl = document.getElementById("new-category_id");
+    if (!catEl) return;
+    catEl.innerHTML = categories
       .map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`)
       .join("");
     fillOptional("new-maker_id", makers);
@@ -115,6 +290,7 @@
 
   function fillOptional(id, items) {
     const el = document.getElementById(id);
+    if (!el) return;
     el.innerHTML =
       '<option value="">—</option>' +
       items.map((i) => `<option value="${i.id}">${escapeHtml(i.name)}</option>`).join("");
@@ -125,7 +301,10 @@
     if (!storeId) return;
     hideError();
     skuList.innerHTML = '<li class="loading">読み込み中…</li>';
-    inventory = await Api.get(`/api/inventory/store/${storeId}`);
+    const activeOnly = MODE === "replenish" ? "false" : "true";
+    inventory = await Api.get(
+      `/api/inventory/store/${storeId}?active_only=${activeOnly}`
+    );
     renderSkuList();
   }
 
@@ -163,7 +342,7 @@
       <li class="sku-item stock-${item.stock_level}">
         <button type="button" class="sku-btn" data-product-id="${item.product_id}">
           <span class="sku-name">${escapeHtml(item.product_name)}</span>
-          <span class="sku-meta">${escapeHtml(item.barcode)} · 在庫 ${item.quantity}${escapeHtml(item.unit)}</span>
+          <span class="sku-meta">${escapeHtml(item.barcode)} · 在庫 ${item.quantity}${escapeHtml(item.unit)}${MODE === "replenish" && !item.is_on_shelf ? " · 未配置" : ""}</span>
         </button>
       </li>`
       )
@@ -173,7 +352,7 @@
       btn.addEventListener("click", () => {
         const id = parseInt(btn.dataset.productId, 10);
         const item = inventory.find((x) => x.product_id === id);
-        if (item) openRegisterModal(item);
+        if (item) void openRegisterModal(item);
       });
     });
   }
@@ -191,30 +370,68 @@
     return d.toISOString();
   }
 
-  function openRegisterModal(item, scanCode) {
+  async function openRegisterModal(item, scanCode) {
+    registerModalProductId = item.product_id;
+    registerModalUnit = item.unit || "本";
+    registerModalCurrentQty = item.quantity ?? 0;
     document.getElementById("reg-product-id").value = item.product_id;
     document.getElementById("reg-product-name").textContent = item.product_name;
     document.getElementById("reg-barcode").textContent = item.barcode || scanCode || "—";
-    document.getElementById("reg-current-qty").textContent = `${item.quantity}${item.unit || "本"}`;
     document.getElementById("reg-quantity").value = "1";
     document.getElementById("reg-datetime").value = nowLocalDatetime();
     document.getElementById("register-form-error").hidden = true;
     document.getElementById("register-modal").hidden = false;
     document.body.style.overflow = "hidden";
+    await refreshRegisterModalStock();
   }
 
   function closeRegisterModal() {
     document.getElementById("register-modal").hidden = true;
     document.body.style.overflow = "";
+    registerModalProductId = null;
+    registerModalCurrentQty = 0;
+    updateStoreDependentUI();
   }
 
   function bindRegisterModal() {
+    document.getElementById("reg-quantity")?.addEventListener("input", () => {
+      applyRegisterQuantityLimits();
+      updateRegisterSubmitState();
+    });
+
     document.getElementById("register-form")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const errEl = document.getElementById("register-form-error");
       errEl.hidden = true;
+      const storeErr = validateStoreForSubmit();
+      if (storeErr) {
+        errEl.textContent = storeErr;
+        errEl.hidden = false;
+        return;
+      }
       const productId = parseInt(document.getElementById("reg-product-id").value, 10);
-      const quantity = parseInt(document.getElementById("reg-quantity").value, 10) || 1;
+      const quantity = parseInt(document.getElementById("reg-quantity").value, 10) || 0;
+      if (MODE === "consume") {
+        if (!registerModalOnShelf) {
+          errEl.textContent = "この店舗の棚にない商品です。";
+          errEl.hidden = false;
+          return;
+        }
+        const consumeErr = validateConsumeQuantity(
+          registerModalCurrentQty,
+          quantity,
+          registerModalUnit
+        );
+        if (consumeErr) {
+          errEl.textContent = consumeErr;
+          errEl.hidden = false;
+          return;
+        }
+      } else if (quantity < 1) {
+        errEl.textContent = "数量は1以上を指定してください。";
+        errEl.hidden = false;
+        return;
+      }
       const recorded_at = datetimeToIso(document.getElementById("reg-datetime").value);
 
       try {
@@ -260,6 +477,12 @@
         maker_id: maker ? parseInt(maker, 10) : null,
         dealer_id: dealer ? parseInt(dealer, 10) : null,
       };
+      const storeErr = validateStoreForSubmit();
+      if (storeErr) {
+        errEl.textContent = storeErr;
+        errEl.hidden = false;
+        return;
+      }
       const quantity = parseInt(document.getElementById("new-reg-quantity").value, 10) || 1;
       const recorded_at = datetimeToIso(document.getElementById("new-reg-datetime").value);
 
@@ -334,12 +557,51 @@
     });
   }
 
+  function openNotOnShelfModal(code) {
+    const codeWrap = document.getElementById("not-on-shelf-code-wrap");
+    const codeEl = document.getElementById("not-on-shelf-code");
+    if (code && codeEl) {
+      codeEl.textContent = code;
+      if (codeWrap) codeWrap.hidden = false;
+    } else if (codeWrap) codeWrap.hidden = true;
+    document.getElementById("not-on-shelf-modal").hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeNotOnShelfModal() {
+    document.getElementById("not-on-shelf-modal").hidden = true;
+    document.body.style.overflow = "";
+  }
+
+  function bindNotOnShelfModal() {
+    document.getElementById("not-on-shelf-close")?.addEventListener("click", closeNotOnShelfModal);
+    document.getElementById("not-on-shelf-modal-close")?.addEventListener("click", closeNotOnShelfModal);
+    document.getElementById("not-on-shelf-modal")?.addEventListener("click", (e) => {
+      if (e.target.id === "not-on-shelf-modal") closeNotOnShelfModal();
+    });
+  }
+
   function handleUnregisteredProduct(code) {
     if (MODE === "consume") {
       openNotRegisteredModal(code);
       return;
     }
     openNewProductModal(code);
+  }
+
+  function handleConsumeProduct(lookup, code) {
+    if (!lookup.is_on_shelf) {
+      openNotOnShelfModal(code);
+      return;
+    }
+    const item = inventory.find((x) => x.product_id === lookup.product_id) || {
+      product_id: lookup.product_id,
+      product_name: lookup.product_name,
+      barcode: lookup.barcode,
+      quantity: lookup.quantity,
+      unit: lookup.unit || "本",
+    };
+    void openRegisterModal(item, code);
   }
 
   function bindScanTab() {
@@ -369,14 +631,17 @@
         `/api/stock/lookup?store_id=${getStoreId()}&code=${encodeURIComponent(code)}`
       );
       if (lookup.found) {
-        const item = inventory.find((x) => x.product_id === lookup.product_id) || {
-          product_id: lookup.product_id,
-          product_name: lookup.product_name,
-          barcode: lookup.barcode,
-          quantity: lookup.quantity,
-          unit: lookup.unit || "本",
-        };
-        openRegisterModal(item, code);
+        if (MODE === "consume") handleConsumeProduct(lookup, code);
+        else {
+          const item = inventory.find((x) => x.product_id === lookup.product_id) || {
+            product_id: lookup.product_id,
+            product_name: lookup.product_name,
+            barcode: lookup.barcode,
+            quantity: lookup.quantity,
+            unit: lookup.unit || "本",
+          };
+          void openRegisterModal(item, code);
+        }
       } else {
         handleUnregisteredProduct(code);
       }
@@ -451,11 +716,12 @@
         `/api/stock/lookup?store_id=${getStoreId()}&code=${encodeURIComponent(code)}`
       );
       if (!lookup.found) {
-        if (MODE === "consume") {
-          handleUnregisteredProduct(code);
-        } else {
-          showError(`未登録: ${code}`);
-        }
+        if (MODE === "consume") handleUnregisteredProduct(code);
+        else showError(`未登録: ${code}`);
+        return;
+      }
+      if (MODE === "consume" && !lookup.is_on_shelf) {
+        openNotOnShelfModal(code);
         return;
       }
       mergeBulkLine({
@@ -534,16 +800,26 @@
     const dt = nowLocalDatetime();
     list.innerHTML = bulkPending
       .map(
-        (ln, idx) => `
+        (ln, idx) => {
+          const maxQ =
+            MODE === "consume" ? Math.max(0, ln.current_quantity ?? 0) : 999;
+          const minQ = MODE === "consume" && maxQ < 1 ? 0 : 1;
+          const val =
+            MODE === "consume" && maxQ > 0
+              ? Math.min(ln.quantity || 1, maxQ)
+              : ln.quantity || 1;
+          return `
       <li class="bulk-line card" data-idx="${idx}">
         <div class="bulk-line-head">
           <strong>${escapeHtml(ln.product_name)}</strong>
-          <span class="bulk-line-meta">在庫 ${ln.current_quantity}${escapeHtml(ln.unit)}</span>
+          <span class="bulk-line-meta bulk-line-stock" data-idx="${idx}">在庫 ${ln.current_quantity}${escapeHtml(ln.unit)}</span>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>数量</label>
-            <input type="number" class="input-number bulk-qty" data-idx="${idx}" value="${ln.quantity}" min="1" max="999">
+            <input type="number" class="input-number bulk-qty" data-idx="${idx}" value="${val}" min="${minQ}" max="${maxQ}" ${
+            MODE === "consume" && maxQ < 1 ? "disabled" : ""
+          }>
           </div>
           <div class="form-group">
             <label>${DATETIME_LABEL}</label>
@@ -574,9 +850,29 @@
         renderBulkLines();
       });
     });
+    updateStoreDependentUI();
+  }
+
+  async function refreshBulkLinesStock() {
+    if (!hasValidStoreId() || !bulkPending.length) return;
+    for (const ln of bulkPending) {
+      try {
+        const data = await fetchProductQuantity(ln.product_id);
+        ln.current_quantity = data.quantity;
+        ln.unit = data.unit || ln.unit;
+      } catch {
+        /* keep previous */
+      }
+    }
+    renderBulkLines();
   }
 
   async function submitBulk() {
+    const storeErr = validateStoreForSubmit();
+    if (storeErr) {
+      showError(storeErr);
+      return;
+    }
     if (!bulkPending.length) {
       showError("登録する商品がありません");
       return;
@@ -591,6 +887,18 @@
         recorded_at: datetimeToIso(dtVal),
       };
     });
+
+    if (MODE === "consume") {
+      for (let i = 0; i < bulkPending.length; i++) {
+        const ln = bulkPending[i];
+        const qty = lines[i].quantity;
+        const err = validateConsumeQuantity(ln.current_quantity ?? 0, qty, ln.unit);
+        if (err) {
+          showError(`${ln.product_name}: ${err}`);
+          return;
+        }
+      }
+    }
 
     try {
       const res = await Api.post("/api/stock/bulk-register", {

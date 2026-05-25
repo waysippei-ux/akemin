@@ -92,20 +92,6 @@ def scan_redirect():
     return RedirectResponse(url="/stock/replenish", status_code=302)
 
 
-@app.get("/stock/replenish")
-def stock_replenish_page(request: Request):
-    return templates.TemplateResponse(
-        request, "stock.html", {"stock_mode": "replenish"}
-    )
-
-
-@app.get("/stock/consume")
-def stock_consume_page(request: Request):
-    return templates.TemplateResponse(
-        request, "stock.html", {"stock_mode": "consume"}
-    )
-
-
 @app.get("/admin/products")
 def admin_products_page(request: Request):
     return templates.TemplateResponse(request, "admin_products.html")
@@ -146,6 +132,7 @@ app.include_router(dealers.router, prefix="/api/dealers", tags=["ディーラー
 app.include_router(makers.router, prefix="/api/makers", tags=["メーカー"])
 app.include_router(products.router, prefix="/api/products", tags=["商品"])
 app.include_router(inventory.router, prefix="/api/inventory", tags=["在庫"])
+app.include_router(stock.pages_router)
 app.include_router(stock.router, prefix="/api/stock", tags=["棚補充・使用"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["AI分析"])
 app.include_router(orders.router, prefix="/api/orders", tags=["発注"])

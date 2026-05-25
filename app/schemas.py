@@ -109,6 +109,12 @@ class ProductDeliveryCodeCreate(BaseModel):
     note: Optional[str] = None
 
 
+class ProductDeploymentIn(BaseModel):
+    """店舗への展開（inventories.is_active）"""
+    expand_all_stores: bool = True
+    store_ids: list[int] = Field(default_factory=list)
+
+
 class ProductOut(BaseModel):
     id: int
     name: str
@@ -124,6 +130,8 @@ class ProductOut(BaseModel):
     dealer_id: Optional[int] = None
     dealer_name: Optional[str] = None
     delivery_codes: list[ProductDeliveryCodeOut] = []
+    expand_all_stores: bool = True
+    active_store_ids: list[int] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 
@@ -138,6 +146,7 @@ class ProductCreate(BaseModel):
     critical_threshold: int = 2
     maker_id: Optional[int] = None
     dealer_id: Optional[int] = None
+    deployment: ProductDeploymentIn = Field(default_factory=ProductDeploymentIn)
 
 
 class ProductUpdate(BaseModel):
@@ -150,6 +159,7 @@ class ProductUpdate(BaseModel):
     critical_threshold: int = Field(ge=0)
     maker_id: Optional[int] = None
     dealer_id: Optional[int] = None
+    deployment: ProductDeploymentIn = Field(default_factory=ProductDeploymentIn)
 
 
 class ProductImportResult(BaseModel):
@@ -179,6 +189,7 @@ class InventoryItemOut(BaseModel):
     maker_name: Optional[str] = None
     dealer_id: Optional[int] = None
     dealer_name: Optional[str] = None
+    is_on_shelf: bool = False
 
 
 class InventoryScanRequest(BaseModel):
@@ -186,13 +197,13 @@ class InventoryScanRequest(BaseModel):
     barcode: str
     action: InventoryAction
     quantity: int = Field(default=1, ge=1, description="増減する数量")
-    store_id: int
+    store_id: int = Field(gt=0, description="店舗ID（必須）")
     recorded_at: Optional[datetime] = None
 
 
 class StockRegisterRequest(BaseModel):
     """棚補充・使用登録（商品ID指定）"""
-    store_id: int
+    store_id: int = Field(gt=0, description="店舗ID（必須）")
     product_id: int
     action: InventoryAction
     quantity: int = Field(ge=1)
@@ -201,7 +212,7 @@ class StockRegisterRequest(BaseModel):
 
 class StockRegisterWithProductRequest(BaseModel):
     """未登録商品を新規登録してから棚に反映"""
-    store_id: int
+    store_id: int = Field(gt=0, description="店舗ID（必須）")
     action: InventoryAction
     quantity: int = Field(ge=1)
     recorded_at: Optional[datetime] = None
@@ -215,9 +226,18 @@ class StockBulkLineIn(BaseModel):
 
 
 class StockBulkRegisterRequest(BaseModel):
-    store_id: int
+    store_id: int = Field(gt=0, description="店舗ID（必須）")
     action: InventoryAction
     lines: list[StockBulkLineIn]
+
+
+class StockQuantityOut(BaseModel):
+    """店舗×商品の現在庫（モーダル表示用）"""
+    store_id: int
+    product_id: int
+    quantity: int
+    unit: str = "本"
+    is_on_shelf: bool = False
 
 
 class StockLookupOut(BaseModel):
@@ -229,6 +249,41 @@ class StockLookupOut(BaseModel):
     unit: Optional[str] = None
     quantity: int = 0
     category_id: Optional[int] = None
+    is_on_shelf: bool = False
+
+
+# 増減ログに基づく分析（発注データ分析画面）
+class StorePopularityRowOut(BaseModel):
+    store_id: int
+    store_name: str
+    product_id: int
+    product_name: str
+    use_count: int
+    use_quantity: int
+    rank: int = 0
+
+
+class StagnantProductRowOut(BaseModel):
+    store_id: int
+    store_name: str
+    product_id: int
+    product_name: str
+    quantity: int
+    unit: str = "本"
+    days_without_movement: int
+
+
+class StoreAssortmentRowOut(BaseModel):
+    store_id: int
+    store_name: str
+    active_sku_count: int
+    category_breakdown: dict[str, int] = Field(default_factory=dict)
+
+
+class InventoryAnalyticsOut(BaseModel):
+    popularity: list[StorePopularityRowOut] = []
+    stagnant: list[StagnantProductRowOut] = []
+    assortment: list[StoreAssortmentRowOut] = []
 
 
 class StockBulkParseLineOut(BaseModel):

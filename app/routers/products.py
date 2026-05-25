@@ -26,7 +26,7 @@ def list_products(
     current_user: User = Depends(get_current_user),
 ):
     """商品マスタ一覧（ログイン必須）"""
-    return [crud_masters.product_to_out(p) for p in crud.get_products(db)]
+    return [crud_masters.product_to_out(db, p) for p in crud.get_products(db)]
 
 
 @router.post("/import/csv", response_model=ProductImportResult)
@@ -126,7 +126,7 @@ def get_product(
     product = crud.get_product_by_id(db, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="商品が見つかりません。")
-    return crud_masters.product_to_out(product, include_delivery_codes=True)
+    return crud_masters.product_to_out(db, product, include_delivery_codes=True)
 
 
 @router.post("", response_model=ProductOut, status_code=status.HTTP_201_CREATED)
@@ -148,7 +148,7 @@ def create_product_endpoint(
         )
     p = crud.create_product(db, body)
     p = crud.get_product_by_id(db, p.id)
-    return crud_masters.product_to_out(p)
+    return crud_masters.product_to_out(db, p)
 
 
 @router.put("/{product_id}", response_model=ProductOut)
@@ -178,7 +178,7 @@ def update_product_endpoint(
 
     crud.update_product(db, product, body)
     product = crud.get_product_by_id(db, product_id)
-    return crud_masters.product_to_out(product)
+    return crud_masters.product_to_out(db, product)
 
 
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)

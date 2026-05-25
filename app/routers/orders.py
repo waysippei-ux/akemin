@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app import crud, crud_masters
 from app.auth import check_store_access, get_current_user
+from app.crud_inventory_analytics import get_inventory_analytics
 from app.crud_order_analytics import (
     TAB_LABELS,
     OrderFilter,
@@ -32,6 +33,7 @@ from app.schemas import (
     InvoiceLineDraft,
     InvoiceMatchRequest,
     InvoiceParseResult,
+    InventoryAnalyticsOut,
     OrderAnalyticsListOut,
     OrderSummaryOut,
     PurchaseOrderConfirmRequest,
@@ -188,6 +190,15 @@ def orders_by_maker(f: OrderFilter = Depends(_filter_dep), db: Session = Depends
 def orders_history(f: OrderFilter = Depends(_filter_dep), db: Session = Depends(get_db)):
     items = get_history(db, f)
     return OrderAnalyticsListOut(has_data=has_order_data(db, f), items=items)
+
+
+@router.get("/inventory-insights", response_model=InventoryAnalyticsOut)
+def inventory_insights(
+    f: OrderFilter = Depends(_filter_dep),
+    db: Session = Depends(get_db),
+):
+    """棚の動き: 人気商品・動きのない商品・店舗別品揃え"""
+    return get_inventory_analytics(db, f)
 
 
 @router.get("/export/csv")

@@ -243,7 +243,13 @@ def delivery_code_to_out(row) -> "ProductDeliveryCodeOut":
     )
 
 
-def product_to_out(product: Product, include_delivery_codes: bool = False) -> ProductOut:
+def product_to_out(
+    db: Session,
+    product: Product,
+    include_delivery_codes: bool = False,
+) -> ProductOut:
+    from app import crud as crud_core
+
     codes = []
     if include_delivery_codes and product.delivery_codes is not None:
         codes = [
@@ -251,6 +257,9 @@ def product_to_out(product: Product, include_delivery_codes: bool = False) -> Pr
             for c in product.delivery_codes
             if c.is_active
         ]
+    active_ids = crud_core.get_active_store_ids_for_product(db, product.id)
+    stores = crud_core.get_stores(db, active_only=True)
+    expand_all = bool(stores) and len(active_ids) == len(stores)
     return ProductOut(
         id=product.id,
         name=product.name,
@@ -266,6 +275,8 @@ def product_to_out(product: Product, include_delivery_codes: bool = False) -> Pr
         dealer_id=product.dealer_id,
         dealer_name=product.dealer.name if product.dealer else None,
         delivery_codes=codes,
+        expand_all_stores=expand_all,
+        active_store_ids=active_ids,
     )
 
 
@@ -274,20 +285,26 @@ def product_to_out(product: Product, include_delivery_codes: bool = False) -> Pr
 # ---------------------------------------------------------------------------
 
 def _summarize_category(db: Session, store_id: int, cat: Category) -> CategorySummaryOut:
-    products = db.query(Product).filter(Product.category_id == cat.id).all()
+    """is_active=true の商品のみ集計（アラート対象）"""
+    rows = (
+        db.query(Inventory)
+        .options(joinedload(Inventory.product))
+        .join(Product, Product.id == Inventory.product_id)
+        .filter(
+            Inventory.store_id == store_id,
+            Inventory.is_active.is_(True),
+            Product.category_id == cat.id,
+        )
+        .all()
+    )
     settings_map = get_settings_map(db, store_id)
     yellow = red = 0
-    for product in products:
-        inv = (
-            db.query(Inventory)
-            .filter(Inventory.store_id == store_id, Inventory.product_id == product.id)
-            .first()
-        )
-        qty = inv.quantity if inv else 0
+    for inv in rows:
+        product = inv.product
         warning, critical = resolve_thresholds(
             product, settings_map.get(product.id)
         )
-        level = calc_stock_level(qty, warning, critical)
+        level = calc_stock_level(inv.quantity, warning, critical)
         if level == "yellow":
             yellow += 1
         elif level == "red":
@@ -296,7 +313,7 @@ def _summarize_category(db: Session, store_id: int, cat: Category) -> CategorySu
         category_id=cat.id,
         category_name=cat.name,
         section=cat.section,
-        total_sku=len(products),
+        total_sku=len(rows),
         yellow_count=yellow,
         red_count=red,
     )
@@ -433,7 +450,8 @@ def confirm_purchase_order(
                 unit_price=int(unit_price) if unit_price is not None else None,
             )
         )
-        inv = get_or_create_inventory(db, store_id, product_id)
+        inv = get_or_create_inventory(db, store_id, product_id, commit=False)
+        inv.is_active = True
         inv.quantity += quantity
         db.add(
             InventoryLog(
