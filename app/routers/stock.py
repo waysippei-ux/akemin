@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -21,16 +21,28 @@ from app.schemas import (
     InventoryItemOut,
     InventoryScanResponse,
     MakerOut,
+    StockBulkParseResult,
+    StockBulkRegisterRequest,
     StockConsumeRequest,
+    StockLookupOut,
     StockQuantityOut,
+    StockRegisterWithProductRequest,
     StockReplenishRequest,
     StoreOut,
 )
+from app.services.invoice_parser import parse_invoice_file
 
 templates = Jinja2Templates(directory=str((BASE_DIR / "templates").resolve()))
 
 pages_router = APIRouter(tags=["棚補充・使用 画面"])
 router = APIRouter()
+
+ALLOWED_UPLOAD_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/pdf",
+}
 
 
 def _masters(db: Session) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
@@ -198,3 +210,71 @@ def consume_stock(
         return crud_stock.consume_stock(db, current_user, body)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get("/lookup", response_model=StockLookupOut)
+def lookup_product(
+    store_id: int = Query(..., gt=0),
+    code: str = Query(..., min_length=1),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """バーコードで商品照合"""
+    check_store_access(current_user, store_id)
+    _validate_store(db, store_id)
+    return crud_stock.lookup_stock_product(db, store_id, code)
+
+
+@router.post("/register-with-product", response_model=InventoryScanResponse)
+def register_with_new_product(
+    body: StockRegisterWithProductRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """未登録商品を新規登録してから棚に反映（補充用）"""
+    check_store_access(current_user, body.store_id)
+    _validate_store(db, body.store_id)
+    try:
+        return crud_stock.register_stock_with_new_product(db, current_user, body)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/bulk-register")
+def bulk_register(
+    body: StockBulkRegisterRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """複数商品をまとめて在庫反映"""
+    check_store_access(current_user, body.store_id)
+    _validate_store(db, body.store_id)
+    try:
+        return crud_stock.bulk_register_stock(db, current_user, body)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/bulk-parse", response_model=StockBulkParseResult)
+async def bulk_parse(
+    file: UploadFile = File(...),
+    store_id: int = Query(..., gt=0),
+    dealer_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """写真・PDFから明細を読み取りマスタと照合"""
+    check_store_access(current_user, store_id)
+    _validate_store(db, store_id)
+
+    media = file.content_type or "image/jpeg"
+    if media not in ALLOWED_UPLOAD_TYPES:
+        raise HTTPException(400, "JPEG / PNG / WebP / PDF のみ対応しています。")
+
+    raw = await file.read()
+    try:
+        parsed = parse_invoice_file(raw, media)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    return crud_stock.build_stock_bulk_parse_result(db, store_id, parsed, dealer_id)

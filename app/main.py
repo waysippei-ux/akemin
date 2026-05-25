@@ -103,7 +103,13 @@ def admin_store_settings_page(request: Request):
 
 
 @app.get("/orders")
-def orders_page(request: Request):
+def orders_redirect():
+    """旧URL → 発注データ分析"""
+    return RedirectResponse(url="/orders/analytics", status_code=302)
+
+
+@app.get("/orders/analytics")
+def orders_analytics_page(request: Request):
     return templates.TemplateResponse(request, "orders.html")
 
 

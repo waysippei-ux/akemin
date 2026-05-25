@@ -508,6 +508,11 @@ input[type="number"],
   color: var(--stock-green-text);
 }
 
+/* 補充・使用 — タブパネル */
+.stock-tab-content {
+  margin-bottom: 1rem;
+}
+
 /* 補充・使用 — 商品カード一覧 */
 .product-grid {
   display: grid;

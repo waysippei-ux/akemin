@@ -1,0 +1,28 @@
+{# スキャン・一括タブ（補充・使用共通） #}
+<div id="tab-scan" class="stock-tab-content" style="display:none">
+  <div class="card">
+    <p class="hint-text">Bluetoothスキャナーはキーボード入力として動作します。接続後、下の入力欄にフォーカスしてスキャンしてください。</p>
+    <button type="button" class="btn btn-primary" id="btn-bluetooth-focus">スキャナーとBluetooth接続する</button>
+    <input type="text" id="scanner-input" class="scanner-hidden-input" autocomplete="off" aria-label="バーコードスキャン入力">
+    <p id="scanner-status" class="scanner-status" style="display:none">スキャン待機中…</p>
+  </div>
+</div>
+
+<div id="tab-bulk" class="stock-tab-content" style="display:none">
+  <div class="card">
+    <div class="bulk-actions">
+      <button type="button" class="btn btn-primary" id="btn-bulk-camera">カメラ開始</button>
+      <label class="btn btn-secondary">
+        写真/PDFアップロード
+        <input type="file" id="bulk-file" accept="image/jpeg,image/png,image/webp,application/pdf" hidden>
+      </label>
+    </div>
+    <div id="reader-bulk" class="barcode-reader" style="display:none"></div>
+    <p id="bulk-parse-note" class="hint-text" style="display:none"></p>
+    <div id="bulk-lines-wrap" style="display:none">
+      <ul id="bulk-lines" class="bulk-lines"></ul>
+      <button type="button" class="btn btn-primary" id="btn-bulk-submit" disabled>まとめて登録する</button>
+    </div>
+    <p id="bulk-empty" class="empty-msg">カメラでスキャンするか、ファイルをアップロードしてください</p>
+  </div>
+</div>

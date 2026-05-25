@@ -14,16 +14,9 @@
       <a href="/dashboard" class="logo">AKEMIN</a>
       <nav class="main-nav" id="main-nav">
         <a href="/dashboard" class="nav-link">棚を見る</a>
-        <a href="/orders" class="nav-link">発注データ分析</a>
-        <div class="nav-dropdown" id="nav-stock">
-          <button type="button" class="nav-link nav-dropdown-toggle" id="nav-stock-toggle" aria-expanded="false" aria-haspopup="true">
-            補充/使用
-          </button>
-          <div class="nav-dropdown-menu" id="nav-stock-menu" role="menu" hidden>
-            <a href="/stock/replenish" class="nav-dropdown-item" role="menuitem">棚に補充する</a>
-            <a href="/stock/consume" class="nav-dropdown-item" role="menuitem">使用済みゴミ箱</a>
-          </div>
-        </div>
+        <a href="/orders/analytics" class="nav-link">発注データ分析</a>
+        <a href="/stock/replenish" class="nav-link">棚に補充する</a>
+        <a href="/stock/consume" class="nav-link">使用済みゴミ箱</a>
         <a href="/admin/products" class="nav-link nav-admin" id="nav-admin" hidden>マスタ管理 &amp; 設定 ⚙️</a>
         <button type="button" class="btn btn-ghost btn-sm" id="btn-logout">ログアウト</button>
       </nav>
@@ -42,7 +35,7 @@
     <p>AKEMIN — サロン在庫管理システム</p>
   </footer>
 
-  <script src="/static/js/api.js?v=3"></script>
+  <script src="/static/js/api.js?v=4"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

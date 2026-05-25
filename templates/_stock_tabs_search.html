@@ -1,0 +1,38 @@
+{# 商品検索タブ（補充・使用共通） #}
+<div id="tab-search" class="stock-tab-content" style="display:block">
+  <div class="filter-row card form-row">
+    <div class="form-group">
+      <label for="filter-category">カテゴリ</label>
+      <select id="filter-category" class="select">
+        <option value="">すべて</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="filter-maker">メーカー</label>
+      <select id="filter-maker" class="select">
+        <option value="">すべて</option>
+        {% for m in makers %}
+        <option value="{{ m.id }}">{{ m.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="filter-dealer">ディーラー</label>
+      <select id="filter-dealer" class="select">
+        <option value="">すべて</option>
+        {% for d in dealers %}
+        <option value="{{ d.id }}">{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group flex-grow">
+      <label for="filter-name">商品名</label>
+      <input type="search" id="filter-name" class="input-text" placeholder="部分一致で検索" autocomplete="off">
+    </div>
+  </div>
+  <div id="product-grid" class="product-grid"></div>
+  <p id="product-empty" class="empty-msg" hidden>該当する商品がありません</p>
+</div>
