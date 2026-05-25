@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}商品管理 — AKEMIN{% endblock %}
+{% block title %}マスタ管理 &amp; 設定 ⚙️ — AKEMIN{% endblock %}
 
 {% block content %}
 <section class="page-header">
-  <h1>マスタ管理</h1>
+  <h1>マスタ管理 &amp; 設定 ⚙️</h1>
   <p class="page-desc">管理者のみ — 商品・店舗・カテゴリ・ディーラー・メーカー</p>
   <p><a href="/admin/store-settings" class="btn btn-secondary btn-sm">店舗別発注目安設定</a></p>
 </section>
@@ -60,8 +60,8 @@
         <input type="hidden" id="cat-id">
         <input type="text" id="cat-name" placeholder="カテゴリ名" required>
         <select id="cat-section" class="select" required title="セクション">
-          <option value="1">① 材料在庫</option>
-          <option value="2">② 販売商品在庫</option>
+          <option value="1">① 材料の棚</option>
+          <option value="2">② 販売商品の棚</option>
         </select>
         <input type="number" id="cat-sort" placeholder="並び順" value="0">
         <button type="submit" class="btn btn-primary btn-sm">保存</button>

@@ -531,6 +531,11 @@ def get_inventory_list(
                 warning_threshold=warning,
                 critical_threshold=critical,
                 category_id=product.category_id,
+                category_name=product.category.name if product.category else "",
+                maker_id=product.maker_id,
+                maker_name=product.maker.name if product.maker else None,
+                dealer_id=product.dealer_id,
+                dealer_name=product.dealer.name if product.dealer else None,
             )
         )
     return result
@@ -571,6 +576,8 @@ def scan_inventory(
         quantity_change=data.quantity,
         quantity_after=inv.quantity,
     )
+    if data.recorded_at:
+        log.created_at = data.recorded_at
     db.add(log)
     db.commit()
     db.refresh(inv)

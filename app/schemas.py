@@ -174,6 +174,11 @@ class InventoryItemOut(BaseModel):
     warning_threshold: int
     critical_threshold: int
     category_id: int
+    category_name: str = ""
+    maker_id: Optional[int] = None
+    maker_name: Optional[str] = None
+    dealer_id: Optional[int] = None
+    dealer_name: Optional[str] = None
 
 
 class InventoryScanRequest(BaseModel):
@@ -182,6 +187,63 @@ class InventoryScanRequest(BaseModel):
     action: InventoryAction
     quantity: int = Field(default=1, ge=1, description="増減する数量")
     store_id: int
+    recorded_at: Optional[datetime] = None
+
+
+class StockRegisterRequest(BaseModel):
+    """棚補充・使用登録（商品ID指定）"""
+    store_id: int
+    product_id: int
+    action: InventoryAction
+    quantity: int = Field(ge=1)
+    recorded_at: Optional[datetime] = None
+
+
+class StockRegisterWithProductRequest(BaseModel):
+    """未登録商品を新規登録してから棚に反映"""
+    store_id: int
+    action: InventoryAction
+    quantity: int = Field(ge=1)
+    recorded_at: Optional[datetime] = None
+    product: ProductCreate
+
+
+class StockBulkLineIn(BaseModel):
+    product_id: int
+    quantity: int = Field(ge=1)
+    recorded_at: Optional[datetime] = None
+
+
+class StockBulkRegisterRequest(BaseModel):
+    store_id: int
+    action: InventoryAction
+    lines: list[StockBulkLineIn]
+
+
+class StockLookupOut(BaseModel):
+    code: str
+    found: bool
+    product_id: Optional[int] = None
+    product_name: Optional[str] = None
+    barcode: Optional[str] = None
+    unit: Optional[str] = None
+    quantity: int = 0
+    category_id: Optional[int] = None
+
+
+class StockBulkParseLineOut(BaseModel):
+    product_code: str
+    quantity: int
+    matched: bool
+    product_id: Optional[int] = None
+    product_name: Optional[str] = None
+    unit: str = "本"
+    current_quantity: int = 0
+
+
+class StockBulkParseResult(BaseModel):
+    lines: list[StockBulkParseLineOut] = []
+    note: Optional[str] = None
 
 
 class InventoryScanResponse(BaseModel):
@@ -238,7 +300,7 @@ class CategoryOut(BaseModel):
 
 class CategoryCreate(BaseModel):
     name: str
-    section: int = Field(ge=1, le=2, description="1=材料在庫, 2=販売商品在庫")
+    section: int = Field(ge=1, le=2, description="1=材料の棚, 2=販売商品の棚")
     sort_order: int = 0
 
 

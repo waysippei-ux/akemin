@@ -463,6 +463,168 @@ input[type="number"],
   color: var(--stock-red-text);
 }
 
+/* 棚補充・使用 */
+.stock-mode-nav {
+  display: flex;
+  gap: 0;
+  padding: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.stock-mode-link {
+  flex: 1;
+  text-align: center;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--color-text-muted);
+  border-radius: 6px;
+}
+
+.stock-mode-link.active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.stock-mode-link[data-mode="consume"].active {
+  background: #fecaca;
+  color: var(--stock-red-text);
+}
+
+.stock-mode-link[data-mode="replenish"].active {
+  background: var(--stock-green-bg);
+  color: var(--stock-green-text);
+}
+
+.stock-tab-panel {
+  margin-bottom: 1rem;
+}
+
+.filter-row .flex-grow {
+  flex: 1;
+  min-width: 140px;
+}
+
+.sku-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.sku-item {
+  margin-bottom: 0.35rem;
+}
+
+.sku-btn {
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.sku-btn:hover {
+  border-color: var(--color-primary);
+}
+
+.sku-name {
+  display: block;
+  font-weight: 600;
+}
+
+.sku-meta {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-top: 0.2rem;
+}
+
+.scanner-hidden-input {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.scanner-status {
+  margin-top: 0.75rem;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.reg-readonly {
+  margin: 0;
+  font-weight: 600;
+}
+
+.reg-product-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+}
+
+.bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.bulk-lines {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.bulk-line {
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+}
+
+.bulk-line-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+  gap: 0.5rem;
+}
+
+.bulk-line-meta {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.confirm-prompt {
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+}
+
+.not-registered-message {
+  margin: 0 0 1rem;
+  line-height: 1.65;
+  font-weight: 500;
+}
+
+.hint-text {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0 0 1rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
 /* Messages */
 .error-msg {
   color: var(--stock-red-text);
@@ -625,7 +787,7 @@ input[type="number"],
   background: var(--stock-red-bg);
 }
 
-/* Admin — 商品管理 */
+/* Admin — マスタ管理 & 設定 */
 .admin-section {
   margin-bottom: 1.25rem;
 }

@@ -1,5 +1,5 @@
 /**
- * 在庫ダッシュボード — 2セクション → カテゴリ内一覧
+ * 棚を見る — 2セクション → カテゴリ内一覧
  */
 (function () {
   let currentUser = null;
@@ -145,7 +145,7 @@
 
   function showCategories() {
     currentCategoryId = null;
-    $("page-title").textContent = "在庫";
+    $("page-title").textContent = "棚を見る";
     setHidden(viewDetail, true);
     setHidden(viewCategories, false);
     loadCategoryCards();

@@ -17,7 +17,7 @@ def dashboard_sections(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """TOP 2セクション（材料在庫 / 販売商品在庫）"""
+    """TOP 2セクション（材料の棚 / 販売商品の棚）"""
     check_store_access(current_user, store_id)
     return crud_masters.get_dashboard_sections(db, store_id)
 

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}在庫 — AKEMIN{% endblock %}
+{% block title %}棚を見る — AKEMIN{% endblock %}
 
 {% block content %}
 <section class="page-header">
-  <h1 id="page-title">在庫</h1>
+  <h1 id="page-title">棚を見る</h1>
   <p class="page-desc" id="user-greeting">読み込み中…</p>
 </section>
 
@@ -19,17 +19,17 @@
   <p id="categories-loading" class="loading">読み込み中…</p>
 
   <section class="dashboard-section section-materials">
-    <h2 class="section-heading">サロンで使う材料在庫</h2>
+    <h2 class="section-heading">サロンで使う材料の棚</h2>
     <div id="cards-materials" class="category-cards"></div>
   </section>
 
   <section class="dashboard-section section-retail">
-    <h2 class="section-heading">店で販売する商品在庫</h2>
+    <h2 class="section-heading">店で販売する商品の棚</h2>
     <div id="cards-retail" class="category-cards"></div>
   </section>
 </div>
 
-<!-- カテゴリ内: 在庫一覧 + AI -->
+<!-- カテゴリ内: 棚一覧 + AI -->
 <div id="view-detail" hidden>
   <nav class="breadcrumb card">
     <button type="button" class="btn btn-ghost btn-sm" id="btn-back-categories">← カテゴリ一覧</button>
@@ -43,7 +43,7 @@
   </section>
 
   <section class="inventory-section">
-    <h2 class="section-title">在庫状況</h2>
+    <h2 class="section-title">棚の状況</h2>
     <div class="stock-legend">
       <span class="legend-item legend-green">十分</span>
       <span class="legend-item legend-yellow">要発注</span>
@@ -56,5 +56,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/dashboard.js?v=3"></script>
+<script src="/static/js/dashboard.js?v=4"></script>
 {% endblock %}

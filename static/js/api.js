@@ -186,7 +186,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // 保護ページ: 未ログインならログインへ
-  const protectedPaths = ["/dashboard", "/scan", "/admin", "/orders"];
+  const protectedPaths = ["/dashboard", "/scan", "/stock", "/admin", "/orders"];
   if (
     protectedPaths.some((p) => window.location.pathname.startsWith(p)) &&
     !Api.isLoggedIn()
@@ -194,7 +194,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.href = "/login";
   }
 
-  // 管理者のみ「商品管理」リンクを表示
+  // 管理者のみ「マスタ管理 & 設定」リンクを表示
   if (Api.isLoggedIn()) {
     Api.get("/api/auth/me")
       .then((user) => {

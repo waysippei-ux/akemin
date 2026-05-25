@@ -24,8 +24,8 @@ from app.models import (
 )
 
 SECTION_NAMES = {
-    CategorySection.MATERIALS.value: "材料在庫",
-    CategorySection.RETAIL.value: "販売商品在庫",
+    CategorySection.MATERIALS.value: "材料の棚",
+    CategorySection.RETAIL.value: "販売商品の棚",
 }
 
 LINE_AMOUNT = PurchaseOrderItem.quantity * func.coalesce(PurchaseOrderItem.unit_price, 0)
