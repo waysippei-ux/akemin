@@ -65,7 +65,12 @@ class StoreProductSettingRowOut(BaseModel):
     product_id: int
     product_name: str
     barcode: str
+    category_id: int
     category_name: str = ""
+    maker_id: Optional[int] = None
+    maker_name: Optional[str] = None
+    dealer_id: Optional[int] = None
+    dealer_name: Optional[str] = None
     unit: str = "本"
     default_warning_threshold: int
     default_critical_threshold: int

@@ -18,6 +18,28 @@
     <a href="/admin/products" class="btn btn-ghost btn-sm">商品管理へ</a>
   </section>
 
+  <section class="card settings-filter-bar" id="settings-filter-bar">
+    <h2 class="section-title">絞り込み</h2>
+    <div class="filter-row">
+      <label class="filter-label">カテゴリ</label>
+      <select id="filter-category" class="select select-sm">
+        <option value="">すべて</option>
+      </select>
+      <label class="filter-label">メーカー</label>
+      <select id="filter-maker" class="select select-sm">
+        <option value="">すべて</option>
+      </select>
+      <label class="filter-label">ディーラー</label>
+      <select id="filter-dealer" class="select select-sm">
+        <option value="">すべて</option>
+      </select>
+      <label class="filter-label">商品名</label>
+      <input type="search" id="filter-name" class="input-text input-sm" placeholder="部分一致で検索">
+      <button type="button" class="btn btn-ghost btn-sm" id="btn-filter-reset">絞り込みリセット</button>
+    </div>
+    <p class="filter-count" id="filter-count"></p>
+  </section>
+
   <section class="card">
     <p class="help-text">
       「デフォルト」は商品マスタの値です。「適用中」は在庫ダッシュボードの色分けに使われる値です。

@@ -1025,3 +1025,31 @@ input[type="number"],
     grid-template-columns: 1fr;
   }
 }
+
+/* 店舗別発注目安 — 絞り込み */
+.settings-filter-bar {
+  margin-bottom: 1rem;
+}
+
+.settings-filter-bar .section-title {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.settings-filter-bar .filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.settings-filter-bar .filter-count {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.settings-filter-bar #filter-name {
+  min-width: 160px;
+  flex: 1 1 180px;
+}
