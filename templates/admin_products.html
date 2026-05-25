@@ -36,59 +36,11 @@
       </div>
       <pre id="import-result" class="import-result" hidden></pre>
     </section>
-    <section class="card admin-section">
-      <h2 class="section-title" id="form-title">商品を追加</h2>
-      <form id="product-form" class="product-form">
-        <input type="hidden" id="product-id">
-        <div class="form-row">
-          <div class="form-group">
-            <label for="name">商品名 *</label>
-            <input type="text" id="name" required>
-          </div>
-          <div class="form-group">
-            <label for="barcode">バーコード *</label>
-            <input type="text" id="barcode" required inputmode="numeric">
-          </div>
-          <div class="form-group">
-            <label for="jan_code">納品コード</label>
-            <input type="text" id="jan_code" placeholder="ディーラーの商品コード">
-          </div>
-          <div class="form-group">
-            <label for="category_id">カテゴリ *</label>
-            <select id="category_id" class="select" required></select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="maker_id">メーカー</label>
-            <select id="maker_id" class="select"><option value="">—</option></select>
-          </div>
-          <div class="form-group">
-            <label for="dealer_id">仕入ディーラー</label>
-            <select id="dealer_id" class="select"><option value="">—</option></select>
-          </div>
-          <div class="form-group">
-            <label for="unit">単位</label>
-            <input type="text" id="unit" value="本">
-          </div>
-          <div class="form-group">
-            <label for="warning_threshold">黄 ≤</label>
-            <input type="number" id="warning_threshold" value="4" min="0">
-          </div>
-          <div class="form-group">
-            <label for="critical_threshold">赤 ≤</label>
-            <input type="number" id="critical_threshold" value="2" min="0">
-          </div>
-        </div>
-        <p id="form-error" class="error-msg" hidden></p>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">保存</button>
-          <button type="button" class="btn btn-ghost" id="btn-cancel" hidden>キャンセル</button>
-        </div>
-      </form>
-    </section>
     <section class="admin-section">
-      <h2 class="section-title">商品一覧 <span id="product-count" class="badge-count"></span></h2>
+      <div class="panel-toolbar">
+        <h2 class="section-title">商品一覧 <span id="product-count" class="badge-count"></span></h2>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-add-product">新規商品を追加</button>
+      </div>
       <div id="products-loading" class="loading">読み込み中…</div>
       <div class="table-wrap" id="table-wrap" hidden>
         <table class="data-table">
@@ -165,6 +117,60 @@
       </form>
       <ul id="link-list" class="master-list"></ul>
     </section>
+  </div>
+</div>
+
+<!-- 商品 追加・編集モーダル -->
+<div class="modal-overlay" id="product-modal" hidden>
+  <div class="modal card product-modal" role="dialog" aria-labelledby="product-modal-title">
+    <div class="modal-header">
+      <h3 id="product-modal-title">商品を編集</h3>
+      <button type="button" class="btn-icon" id="product-modal-close" aria-label="閉じる">×</button>
+    </div>
+    <form id="product-modal-form" class="product-form">
+      <input type="hidden" id="modal-product-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="modal-name">商品名 *</label>
+          <input type="text" id="modal-name" required>
+        </div>
+        <div class="form-group">
+          <label for="modal-barcode">バーコード *</label>
+          <input type="text" id="modal-barcode" required inputmode="numeric">
+        </div>
+        <div class="form-group">
+          <label for="modal-category_id">カテゴリ *</label>
+          <select id="modal-category_id" class="select" required></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="modal-maker_id">メーカー</label>
+          <select id="modal-maker_id" class="select"><option value="">—</option></select>
+        </div>
+        <div class="form-group">
+          <label for="modal-dealer_id">仕入ディーラー</label>
+          <select id="modal-dealer_id" class="select"><option value="">—</option></select>
+        </div>
+        <div class="form-group">
+          <label for="modal-unit">単位</label>
+          <input type="text" id="modal-unit" value="本">
+        </div>
+        <div class="form-group">
+          <label for="modal-warning_threshold">黄アラート ≤</label>
+          <input type="number" id="modal-warning_threshold" value="4" min="0">
+        </div>
+        <div class="form-group">
+          <label for="modal-critical_threshold">赤アラート ≤</label>
+          <input type="number" id="modal-critical_threshold" value="2" min="0">
+        </div>
+      </div>
+      <p id="modal-form-error" class="error-msg" hidden></p>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">保存</button>
+        <button type="button" class="btn btn-ghost" id="product-modal-cancel">キャンセル</button>
+      </div>
+    </form>
   </div>
 </div>
 {% endblock %}

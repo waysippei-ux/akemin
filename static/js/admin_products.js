@@ -4,7 +4,10 @@
 (function () {
   let products = [];
   let categories = [];
+  let makers = [];
+  let dealers = [];
   let editingId = null;
+  let modalJanCode = null;
 
   document.addEventListener("DOMContentLoaded", async () => {
     try {
@@ -35,41 +38,98 @@
 
   async function loadMasters() {
     categories = await Api.get("/api/categories");
-    const makers = await Api.get("/api/makers");
-    const dealers = await Api.get("/api/dealers");
-    const catSel = document.getElementById("category_id");
-    catSel.innerHTML = categories.map((c) => `<option value="${c.id}">${c.name}</option>`).join("");
-    fillOptional("maker_id", makers);
-    fillOptional("dealer_id", dealers);
+    makers = await Api.get("/api/makers");
+    dealers = await Api.get("/api/dealers");
+    document.getElementById("modal-category_id").innerHTML = categories
+      .map((c) => `<option value="${c.id}">${c.name}</option>`)
+      .join("");
+    fillOptional("modal-maker_id", makers);
+    fillOptional("modal-dealer_id", dealers);
   }
 
   function fillOptional(id, items) {
     const el = document.getElementById(id);
-    el.innerHTML = '<option value="">—</option>' + items.map((i) => `<option value="${i.id}">${i.name}</option>`).join("");
+    el.innerHTML =
+      '<option value="">—</option>' + items.map((i) => `<option value="${i.id}">${i.name}</option>`).join("");
   }
 
   function bindProductEvents() {
-    document.getElementById("product-form").addEventListener("submit", onSave);
-    document.getElementById("btn-cancel").addEventListener("click", resetForm);
-    document.getElementById("btn-import-csv").addEventListener("click", onImportCsv);
-    document.getElementById("btn-csv-template").addEventListener("click", downloadTemplate);
+    document.getElementById("btn-add-product")?.addEventListener("click", openAddModal);
+    document.getElementById("product-modal-form")?.addEventListener("submit", onModalSave);
+    document.getElementById("product-modal-cancel")?.addEventListener("click", closeModal);
+    document.getElementById("product-modal-close")?.addEventListener("click", closeModal);
+    document.getElementById("product-modal")?.addEventListener("click", (e) => {
+      if (e.target.id === "product-modal") closeModal();
+    });
+    document.getElementById("btn-import-csv")?.addEventListener("click", onImportCsv);
+    document.getElementById("btn-csv-template")?.addEventListener("click", downloadTemplate);
   }
 
-  function getFormData() {
-    const maker = document.getElementById("maker_id").value;
-    const dealer = document.getElementById("dealer_id").value;
-    const jan = document.getElementById("jan_code").value.trim();
+  function getModalFormData() {
+    const maker = document.getElementById("modal-maker_id").value;
+    const dealer = document.getElementById("modal-dealer_id").value;
     return {
-      name: document.getElementById("name").value.trim(),
-      barcode: document.getElementById("barcode").value.trim(),
-      jan_code: jan || null,
-      category_id: parseInt(document.getElementById("category_id").value, 10),
-      unit: document.getElementById("unit").value.trim() || "本",
-      warning_threshold: parseInt(document.getElementById("warning_threshold").value, 10),
-      critical_threshold: parseInt(document.getElementById("critical_threshold").value, 10),
+      name: document.getElementById("modal-name").value.trim(),
+      barcode: document.getElementById("modal-barcode").value.trim(),
+      jan_code: modalJanCode,
+      category_id: parseInt(document.getElementById("modal-category_id").value, 10),
+      unit: document.getElementById("modal-unit").value.trim() || "本",
+      warning_threshold: parseInt(document.getElementById("modal-warning_threshold").value, 10),
+      critical_threshold: parseInt(document.getElementById("modal-critical_threshold").value, 10),
       maker_id: maker ? parseInt(maker, 10) : null,
       dealer_id: dealer ? parseInt(dealer, 10) : null,
     };
+  }
+
+  function openModal() {
+    document.getElementById("product-modal").hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeModal() {
+    document.getElementById("product-modal").hidden = true;
+    document.body.style.overflow = "";
+    editingId = null;
+    modalJanCode = null;
+    document.getElementById("modal-form-error").hidden = true;
+  }
+
+  function resetModalDefaults() {
+    document.getElementById("modal-product-id").value = "";
+    document.getElementById("modal-name").value = "";
+    document.getElementById("modal-barcode").value = "";
+    document.getElementById("modal-unit").value = "本";
+    document.getElementById("modal-warning_threshold").value = "4";
+    document.getElementById("modal-critical_threshold").value = "2";
+    if (categories.length) document.getElementById("modal-category_id").value = categories[0].id;
+    document.getElementById("modal-maker_id").value = "";
+    document.getElementById("modal-dealer_id").value = "";
+    modalJanCode = null;
+  }
+
+  function openAddModal() {
+    editingId = null;
+    modalJanCode = null;
+    document.getElementById("product-modal-title").textContent = "商品を追加";
+    resetModalDefaults();
+    openModal();
+  }
+
+  async function openEditModal(id) {
+    const p = products.find((x) => x.id === id) || (await Api.get(`/api/products/${id}`));
+    editingId = id;
+    modalJanCode = p.jan_code || null;
+    document.getElementById("product-modal-title").textContent = "商品を編集";
+    document.getElementById("modal-product-id").value = id;
+    document.getElementById("modal-name").value = p.name;
+    document.getElementById("modal-barcode").value = p.barcode;
+    document.getElementById("modal-category_id").value = p.category_id;
+    document.getElementById("modal-maker_id").value = p.maker_id || "";
+    document.getElementById("modal-dealer_id").value = p.dealer_id || "";
+    document.getElementById("modal-unit").value = p.unit;
+    document.getElementById("modal-warning_threshold").value = p.warning_threshold;
+    document.getElementById("modal-critical_threshold").value = p.critical_threshold;
+    openModal();
   }
 
   async function loadProducts() {
@@ -97,56 +157,27 @@
       .join("");
     wrap.hidden = false;
     document.querySelectorAll("[data-edit]").forEach((b) =>
-      b.addEventListener("click", () => startEdit(+b.dataset.edit))
+      b.addEventListener("click", () => openEditModal(+b.dataset.edit))
     );
     document.querySelectorAll("[data-del]").forEach((b) =>
       b.addEventListener("click", () => onDelete(+b.dataset.del))
     );
   }
 
-  async function startEdit(id) {
-    const p = products.find((x) => x.id === id) || (await Api.get(`/api/products/${id}`));
-    editingId = id;
-    document.getElementById("product-id").value = id;
-    document.getElementById("name").value = p.name;
-    document.getElementById("barcode").value = p.barcode;
-    document.getElementById("jan_code").value = p.jan_code || "";
-    document.getElementById("category_id").value = p.category_id;
-    document.getElementById("maker_id").value = p.maker_id || "";
-    document.getElementById("dealer_id").value = p.dealer_id || "";
-    document.getElementById("unit").value = p.unit;
-    document.getElementById("warning_threshold").value = p.warning_threshold;
-    document.getElementById("critical_threshold").value = p.critical_threshold;
-    document.getElementById("form-title").textContent = "商品を編集";
-    document.getElementById("btn-cancel").hidden = false;
-  }
-
-  function resetForm() {
-    editingId = null;
-    document.getElementById("product-form").reset();
-    document.getElementById("unit").value = "本";
-    document.getElementById("warning_threshold").value = "4";
-    document.getElementById("critical_threshold").value = "2";
-    if (categories.length) document.getElementById("category_id").value = categories[0].id;
-    document.getElementById("form-title").textContent = "商品を追加";
-    document.getElementById("btn-cancel").hidden = true;
-    document.getElementById("form-error").hidden = true;
-  }
-
-  async function onSave(e) {
+  async function onModalSave(e) {
     e.preventDefault();
-    const err = document.getElementById("form-error");
+    const err = document.getElementById("modal-form-error");
     err.hidden = true;
-    const data = getFormData();
+    const data = getModalFormData();
     if (data.critical_threshold > data.warning_threshold) {
-      err.textContent = "危険閾値は警告閾値以下にしてください。";
+      err.textContent = "赤アラートは黄アラート以下にしてください。";
       err.hidden = false;
       return;
     }
     try {
       if (editingId) await Api.put(`/api/products/${editingId}`, data);
       else await Api.post("/api/products", data);
-      resetForm();
+      closeModal();
       await loadProducts();
     } catch (ex) {
       err.textContent = ex.message;
@@ -158,7 +189,7 @@
     const p = products.find((x) => x.id === id);
     if (!p || !confirm(`「${p.name}」を削除しますか？`)) return;
     await Api.delete(`/api/products/${id}`);
-    if (editingId === id) resetForm();
+    if (editingId === id) closeModal();
     await loadProducts();
   }
 
