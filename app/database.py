@@ -132,6 +132,10 @@ def migrate_schema() -> None:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE products ADD COLUMN jan_code VARCHAR(50)"))
 
+    # 店舗別発注目安（新規テーブルのみ作成・既存テーブルは変更しない）
+    if "store_product_settings" not in insp.get_table_names():
+        models.StoreProductSetting.__table__.create(bind=engine, checkfirst=True)
+
 
 def init_db():
     """テーブルを作成し、既存 DB をマイグレーションする"""

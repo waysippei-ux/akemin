@@ -58,6 +58,7 @@ class Store(Base):
     users: Mapped[list["User"]] = relationship(back_populates="store")
     inventories: Mapped[list["Inventory"]] = relationship(back_populates="store")
     purchase_orders: Mapped[list["PurchaseOrder"]] = relationship(back_populates="store")
+    product_settings: Mapped[list["StoreProductSetting"]] = relationship(back_populates="store")
 
 
 class User(Base):
@@ -167,6 +168,7 @@ class Product(Base):
         back_populates="product",
         cascade="all, delete-orphan",
     )
+    store_settings: Mapped[list["StoreProductSetting"]] = relationship(back_populates="product")
 
 
 class ProductDeliveryCode(Base):
@@ -260,3 +262,23 @@ class PurchaseOrderItem(Base):
 
     purchase_order: Mapped["PurchaseOrder"] = relationship(back_populates="items")
     product: Mapped["Product"] = relationship(back_populates="purchase_order_items")
+
+
+# -----------------------------------------------------------------------
+# 店舗別発注目安設定
+# -----------------------------------------------------------------------
+class StoreProductSetting(Base):
+    __tablename__ = "store_product_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    store_id: Mapped[int] = mapped_column(Integer, ForeignKey("stores.id"), nullable=False)
+    product_id: Mapped[int] = mapped_column(Integer, ForeignKey("products.id"), nullable=False)
+    warning_threshold: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    critical_threshold: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    store: Mapped["Store"] = relationship(back_populates="product_settings")
+    product: Mapped["Product"] = relationship(back_populates="store_settings")
+
+    __table_args__ = (
+        UniqueConstraint("store_id", "product_id", name="uq_store_product"),
+    )
