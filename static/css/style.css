@@ -1264,37 +1264,29 @@ input[type="number"],
 
 /* マスタ管理 — 店舗別発注目安CTA */
 .admin-page-header .btn-store-settings-cta {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.2rem;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 300px;
+  max-width: 100%;
   margin-top: 0.75rem;
-  padding: 12px 24px;
-  background: #4a3fc7;
-  color: #fff;
-  border: none;
+  padding: 14px 24px;
+  background: transparent;
+  color: #4a3fc7;
+  border: 2px solid #4a3fc7;
   border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
   text-decoration: none;
   cursor: pointer;
   transition: background 0.15s ease;
 }
 
 .admin-page-header .btn-store-settings-cta:hover {
-  background: #3d34a8;
-  color: #fff;
-}
-
-.btn-store-settings-cta-title {
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.btn-store-settings-cta-sub {
-  font-size: 0.75rem;
-  font-weight: 400;
-  line-height: 1.3;
-  opacity: 0.92;
+  background: #eae9fd;
+  color: #4a3fc7;
 }
 
 /* マスタ管理 — タブ */
@@ -1313,21 +1305,22 @@ input[type="number"],
   padding: 12px 20px;
   font-size: 14px;
   font-weight: 600;
-  border: none;
+  border: 1.5px solid #d0cef0;
   border-radius: 8px;
-  background: #f4f4f8;
-  color: #5c5c6a;
+  background: #fff;
+  color: #4a3fc7;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .admin-tab-btn:hover:not(.active) {
-  background: #e8e8ee;
+  background: #f8f7fe;
 }
 
 .admin-tab-btn.active {
   background: #4a3fc7;
   color: #fff;
+  border: none;
 }
 
 @media (max-width: 768px) {
