@@ -1168,6 +1168,100 @@ input[type="number"],
   flex-shrink: 0;
 }
 
+/* 棚マスタ — カード */
+.shelf-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.shelf-card {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 1rem;
+  background: #fff;
+}
+
+.shelf-card-preview {
+  height: 48px;
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.shelf-card-name {
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+}
+
+.shelf-card-meta {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 0 0 0.75rem;
+}
+
+.shelf-card-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.input-color {
+  width: 100%;
+  height: 2.5rem;
+  padding: 0.15rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* カテゴリ — 棚グループ */
+.category-group {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.category-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.category-group-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.category-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.category-row-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.category-row-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.btn-order {
+  min-width: 2rem;
+  padding: 0.25rem 0.45rem;
+}
+
 .admin-tabs {
   margin-bottom: 1rem;
 }

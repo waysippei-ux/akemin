@@ -104,7 +104,7 @@ def _seed_categories(db) -> None:
                 is_active=True,
             )
         )
-        sort += 1
+        sort = 1
     for name in CATEGORIES_RETAIL:
         db.add(
             Category(

@@ -14,6 +14,7 @@
 <div id="admin-content" hidden>
   <div class="tabs card admin-tabs">
     <button type="button" class="tab-btn active" data-admin-tab="products">商品</button>
+    <button type="button" class="tab-btn" data-admin-tab="shelves">棚</button>
     <button type="button" class="tab-btn" data-admin-tab="categories">カテゴリ</button>
     <button type="button" class="tab-btn" data-admin-tab="dealers">ディーラー</button>
     <button type="button" class="tab-btn" data-admin-tab="makers">メーカー</button>
@@ -76,19 +77,20 @@
     </section>
   </div>
 
+  <!-- 棚 -->
+  <div class="admin-tab-panel" id="admin-tab-shelves" hidden>
+    <section class="card">
+      <p class="help-text">ダッシュボードの大区分（材料の棚・店販の棚など）を管理します。背景色は「棚を見る」画面に反映されます。</p>
+      <div id="shelf-cards" class="shelf-cards-grid"></div>
+      <button type="button" class="btn btn-secondary btn-sm" id="btn-add-shelf">+ 棚を追加する</button>
+    </section>
+  </div>
+
   <!-- カテゴリ -->
   <div class="admin-tab-panel" id="admin-tab-categories" hidden>
     <section class="card">
-      <form id="category-form" class="form-row">
-        <input type="text" id="cat-name" placeholder="カテゴリ名" required>
-        <select id="cat-section" class="select" required title="セクション">
-          <option value="1">① 材料の棚</option>
-          <option value="2">② 店販の棚</option>
-        </select>
-        <input type="number" id="cat-sort" placeholder="並び順" value="0">
-        <button type="submit" class="btn btn-primary btn-sm">保存</button>
-      </form>
-      <ul id="category-list" class="master-list"></ul>
+      <p class="help-text">棚ごとにカテゴリを並べ替え・編集できます。↑↓で並び順を変更し、ダッシュボードにも反映されます。</p>
+      <div id="category-groups"></div>
     </section>
   </div>
 
@@ -140,10 +142,35 @@
 </div>
 
 <!-- マスタ編集モーダル -->
+<div class="modal-overlay" id="section-edit-modal" hidden>
+  <div class="modal card" role="dialog">
+    <div class="modal-header">
+      <h3 id="section-modal-title">棚を編集</h3>
+      <button type="button" class="btn-icon master-modal-close" data-close="section-edit-modal" aria-label="閉じる">×</button>
+    </div>
+    <form id="section-edit-form">
+      <input type="hidden" id="edit-section-id">
+      <div class="form-group">
+        <label for="edit-section-name">棚名 *</label>
+        <input type="text" id="edit-section-name" class="input-text" required>
+      </div>
+      <div class="form-group">
+        <label for="edit-section-color">背景色</label>
+        <input type="color" id="edit-section-color" class="input-color" value="#eae9fd">
+      </div>
+      <p id="section-edit-error" class="error-msg" hidden></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost master-modal-close" data-close="section-edit-modal">キャンセル</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="modal-overlay" id="category-edit-modal" hidden>
   <div class="modal card" role="dialog">
     <div class="modal-header">
-      <h3>カテゴリを編集</h3>
+      <h3 id="category-modal-title">カテゴリを編集</h3>
       <button type="button" class="btn-icon master-modal-close" data-close="category-edit-modal" aria-label="閉じる">×</button>
     </div>
     <form id="category-edit-form">
@@ -153,11 +180,8 @@
         <input type="text" id="edit-cat-name" class="input-text" required>
       </div>
       <div class="form-group">
-        <label for="edit-cat-section">セクション *</label>
-        <select id="edit-cat-section" class="select" required>
-          <option value="1">① 材料の棚</option>
-          <option value="2">② 店販の棚</option>
-        </select>
+        <label for="edit-cat-section">所属する棚 *</label>
+        <select id="edit-cat-section" class="select" required></select>
       </div>
       <p id="category-edit-error" class="error-msg" hidden></p>
       <div class="modal-actions">
@@ -308,5 +332,5 @@
 
 {% block scripts %}
 <script src="/static/js/admin_products.js?v=3"></script>
-<script src="/static/js/admin_masters.js?v=2"></script>
+<script src="/static/js/admin_masters.js?v=3"></script>
 {% endblock %}

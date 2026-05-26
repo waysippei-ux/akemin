@@ -103,31 +103,37 @@
 
   async function loadCategoryCards() {
     const loading = $("categories-loading");
-    const materialsEl = $("cards-materials");
-    const retailEl = $("cards-retail");
+    const container = $("dashboard-sections");
 
     setHidden(loading, false);
     if (loading) loading.textContent = "読み込み中…";
-    if (materialsEl) materialsEl.innerHTML = "";
-    if (retailEl) retailEl.innerHTML = "";
+    if (container) container.innerHTML = "";
 
     try {
       const data = await Api.get(`/api/dashboard/sections?store_id=${getStoreId()}`);
       setHidden(loading, true);
 
-      if (materialsEl) {
-        materialsEl.innerHTML = data.materials.length
-          ? data.materials.map(renderCard).join("")
-          : '<p class="empty-msg">カテゴリがありません</p>';
-        bindCards(materialsEl);
+      if (!container) return;
+      const sections = data.sections || [];
+      if (!sections.length) {
+        container.innerHTML = '<p class="empty-msg">棚がありません</p>';
+        return;
       }
 
-      if (retailEl) {
-        retailEl.innerHTML = data.retail.length
-          ? data.retail.map(renderCard).join("")
-          : '<p class="empty-msg">カテゴリがありません</p>';
-        bindCards(retailEl);
-      }
+      container.innerHTML = sections
+        .map((sec) => {
+          const cards = sec.categories.length
+            ? sec.categories.map(renderCard).join("")
+            : '<p class="empty-msg">カテゴリがありません</p>';
+          return `
+        <section class="dashboard-section" style="background:${escapeHtml(sec.color)}">
+          <h2 class="section-heading">${escapeHtml(sec.section_name)}</h2>
+          <div class="category-cards" data-section-id="${sec.section_id}">${cards}</div>
+        </section>`;
+        })
+        .join("");
+
+      container.querySelectorAll(".category-cards").forEach((el) => bindCards(el));
     } catch (err) {
       showLoadError(loading, err.message);
     }

@@ -79,17 +79,35 @@ class User(Base):
 # ---------------------------------------------------------------------------
 
 
+class Section(Base):
+    """棚（ダッシュボードの大区分・材料/店販など）"""
+    __tablename__ = "sections"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    color: Mapped[str] = mapped_column(String(20), default="#eae9fd", nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    categories: Mapped[list["Category"]] = relationship(back_populates="shelf_section")
+
+
 class Category(Base):
-    """商品カテゴリ（セクション①材料 / セクション②販売商品）"""
+    """商品カテゴリ（所属棚 = sections.id）"""
     __tablename__ = "categories"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     section: Mapped[int] = mapped_column(
-        Integer, default=CategorySection.MATERIALS.value, nullable=False, index=True
+        ForeignKey("sections.id"),
+        default=CategorySection.MATERIALS.value,
+        nullable=False,
+        index=True,
     )
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    shelf_section: Mapped["Section"] = relationship(back_populates="categories")
 
     products: Mapped[list["Product"]] = relationship(back_populates="category")
 

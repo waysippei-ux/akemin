@@ -14,19 +14,10 @@
   <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh">更新</button>
 </div>
 
-<!-- TOP: 2セクション -->
+<!-- TOP: 棚ごとのカテゴリ -->
 <div id="view-categories">
   <p id="categories-loading" class="loading">読み込み中…</p>
-
-  <section class="dashboard-section section-materials">
-    <h2 class="section-heading">材料の棚</h2>
-    <div id="cards-materials" class="category-cards"></div>
-  </section>
-
-  <section class="dashboard-section section-retail">
-    <h2 class="section-heading">店販の棚</h2>
-    <div id="cards-retail" class="category-cards"></div>
-  </section>
+  <div id="dashboard-sections"></div>
 </div>
 
 <!-- カテゴリ内: 棚一覧 + AI -->
@@ -56,5 +47,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/dashboard.js?v=5"></script>
+<script src="/static/js/dashboard.js?v=6"></script>
 {% endblock %}

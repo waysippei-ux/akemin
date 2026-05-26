@@ -148,6 +148,47 @@ def migrate_schema() -> None:
                 # 既存データは棚に並んでいるものとして有効化
                 conn.execute(text("UPDATE inventories SET is_active = true"))
 
+    if "categories" in insp.get_table_names():
+        cat_cols = {c["name"] for c in insp.get_columns("categories")}
+        if "sort_order" not in cat_cols:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "ALTER TABLE categories ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0"
+                    )
+                )
+
+    _ensure_default_sections(engine, insp)
+
+
+def _ensure_default_sections(engine, insp) -> None:
+    """棚マスタ（材料の棚・店販の棚）を初期投入"""
+    from sqlalchemy import text
+
+    from app.models import CategorySection
+
+    if "sections" not in insp.get_table_names():
+        return
+
+    with engine.begin() as conn:
+        count = conn.execute(text("SELECT COUNT(*) FROM sections")).scalar()
+        if count and count > 0:
+            return
+        conn.execute(
+            text(
+                "INSERT INTO sections (id, name, color, sort_order, is_active) "
+                "VALUES (:id1, :n1, :c1, 1, true), (:id2, :n2, :c2, 2, true)"
+            ),
+            {
+                "id1": CategorySection.MATERIALS.value,
+                "n1": "材料の棚",
+                "c1": "#eae9fd",
+                "id2": CategorySection.RETAIL.value,
+                "n2": "店販の棚",
+                "c2": "#e4f2f6",
+            },
+        )
+
 
 def init_db():
     """テーブルを作成し、既存 DB をマイグレーションする"""

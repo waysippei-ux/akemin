@@ -361,10 +361,33 @@ class AnalysisResponse(BaseModel):
 # カテゴリ・ディーラー・メーカー
 # ---------------------------------------------------------------------------
 
+class SectionOut(BaseModel):
+    id: int
+    name: str
+    color: str
+    sort_order: int
+    is_active: bool = True
+    category_count: int = 0
+
+    model_config = {"from_attributes": True}
+
+
+class SectionCreate(BaseModel):
+    name: str
+    color: str = "#eae9fd"
+
+
+class SectionUpdate(BaseModel):
+    name: str
+    color: str
+    is_active: bool = True
+
+
 class CategoryOut(BaseModel):
     id: int
     name: str
     section: int
+    section_name: Optional[str] = None
     sort_order: int
     is_active: bool
 
@@ -373,15 +396,19 @@ class CategoryOut(BaseModel):
 
 class CategoryCreate(BaseModel):
     name: str
-    section: int = Field(ge=1, le=2, description="1=材料の棚, 2=販売商品の棚")
+    section: int = Field(gt=0, description="所属する棚（sections.id）")
     sort_order: int = 0
 
 
 class CategoryUpdate(BaseModel):
     name: str
-    section: int = Field(ge=1, le=2)
+    section: int = Field(gt=0)
     sort_order: int = 0
     is_active: bool = True
+
+
+class CategoryOrderUpdate(BaseModel):
+    direction: Literal["up", "down"]
 
 
 class DealerOut(BaseModel):
@@ -448,10 +475,18 @@ class CategorySummaryOut(BaseModel):
     red_count: int
 
 
+class DashboardSectionBlockOut(BaseModel):
+    """ダッシュボード TOP — 棚ごとのカテゴリカード"""
+    section_id: int
+    section_name: str
+    color: str
+    sort_order: int
+    categories: list[CategorySummaryOut]
+
+
 class DashboardSectionsOut(BaseModel):
-    """ダッシュボード TOP 用（2セクション）"""
-    materials: list[CategorySummaryOut]
-    retail: list[CategorySummaryOut]
+    """ダッシュボード TOP 用（棚一覧）"""
+    sections: list[DashboardSectionBlockOut]
 
 
 # ---------------------------------------------------------------------------

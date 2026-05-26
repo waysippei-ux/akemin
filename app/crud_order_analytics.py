@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     Category,
-    CategorySection,
     Dealer,
     Maker,
     Product,
@@ -23,10 +22,11 @@ from app.models import (
     Store,
 )
 
-SECTION_NAMES = {
-    CategorySection.MATERIALS.value: "材料の棚",
-    CategorySection.RETAIL.value: "店販の棚",
-}
+
+def _section_label(db: Session, section_id: int) -> str:
+    from app import crud_masters
+
+    return crud_masters.get_section_names_map(db).get(section_id, f"区分{section_id}")
 
 LINE_AMOUNT = PurchaseOrderItem.quantity * func.coalesce(PurchaseOrderItem.unit_price, 0)
 
@@ -169,7 +169,7 @@ def get_by_section(db: Session, f: OrderFilter) -> list[dict]:
     return [
         {
             "section": int(r[0]),
-            "section_name": SECTION_NAMES.get(int(r[0]), f"区分{r[0]}"),
+            "section_name": _section_label(db, int(r[0])),
             "amount": int(r[1] or 0),
             "quantity": int(r[2] or 0),
             "order_count": int(r[3] or 0),
@@ -199,7 +199,7 @@ def get_by_category(db: Session, f: OrderFilter) -> list[dict]:
             "category_id": r[0],
             "category_name": r[1],
             "section": int(r[2]),
-            "section_name": SECTION_NAMES.get(int(r[2]), ""),
+            "section_name": _section_label(db, int(r[2])),
             "amount": int(r[3] or 0),
             "quantity": int(r[4] or 0),
             "ratio_percent": _ratio(int(r[3] or 0), total),
@@ -379,7 +379,7 @@ def iter_detail_csv_rows(db: Session, f: Optional[OrderFilter] = None) -> list[l
             [
                 m["order_date"].isoformat() if m["order_date"] else "",
                 m["store_name"],
-                SECTION_NAMES.get(int(m["section"]), ""),
+                _section_label(db, int(m["section"])),
                 m["category_name"],
                 m["dealer_name"],
                 m["maker_name"] or "",

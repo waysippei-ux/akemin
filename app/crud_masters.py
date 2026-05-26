@@ -4,15 +4,15 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from sqlalchemy import extract, func
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import (
     Category,
-    CategorySection,
     Dealer,
+    Section,
     DealerMaker,
     Inventory,
     InventoryAction,
@@ -29,7 +29,11 @@ from app.schemas import (
     CategoryOut,
     CategorySummaryOut,
     CategoryUpdate,
+    DashboardSectionBlockOut,
     DashboardSectionsOut,
+    SectionCreate,
+    SectionOut,
+    SectionUpdate,
     DealerCreate,
     DealerMakerCreate,
     DealerMakerOut,
@@ -50,8 +54,93 @@ from app.crud_store_settings import get_settings_map, resolve_thresholds
 
 
 # ---------------------------------------------------------------------------
+# 棚（sections）
+# ---------------------------------------------------------------------------
+
+def get_sections(db: Session, active_only: bool = True) -> list[Section]:
+    q = db.query(Section)
+    if active_only:
+        q = q.filter(Section.is_active.is_(True))
+    return q.order_by(Section.sort_order, Section.id).all()
+
+
+def get_section(db: Session, section_id: int) -> Section | None:
+    return db.query(Section).filter(Section.id == section_id).first()
+
+
+def count_categories_for_section(db: Session, section_id: int) -> int:
+    return db.query(Category).filter(Category.section == section_id).count()
+
+
+def section_to_out(db: Session, section: Section) -> SectionOut:
+    return SectionOut(
+        id=section.id,
+        name=section.name,
+        color=section.color,
+        sort_order=section.sort_order,
+        is_active=section.is_active,
+        category_count=count_categories_for_section(db, section.id),
+    )
+
+
+def create_section(db: Session, data: SectionCreate) -> Section:
+    max_order = db.query(func.max(Section.sort_order)).scalar() or 0
+    sec = Section(
+        name=data.name.strip(),
+        color=(data.color or "#eae9fd").strip(),
+        sort_order=max_order + 1,
+        is_active=True,
+    )
+    db.add(sec)
+    db.commit()
+    db.refresh(sec)
+    return sec
+
+
+def update_section(db: Session, section: Section, data: SectionUpdate) -> Section:
+    section.name = data.name.strip()
+    section.color = data.color.strip()
+    section.is_active = data.is_active
+    db.commit()
+    db.refresh(section)
+    return section
+
+
+def delete_section(db: Session, section: Section) -> None:
+    if count_categories_for_section(db, section.id) > 0:
+        raise ValueError("この棚にカテゴリが登録されています")
+    db.delete(section)
+    db.commit()
+
+
+def get_section_names_map(db: Session) -> dict[int, str]:
+    return {s.id: s.name for s in get_sections(db, active_only=False)}
+
+
+# ---------------------------------------------------------------------------
 # カテゴリ
 # ---------------------------------------------------------------------------
+
+def category_to_out(db: Session, cat: Category) -> CategoryOut:
+    sec = get_section(db, cat.section)
+    return CategoryOut(
+        id=cat.id,
+        name=cat.name,
+        section=cat.section,
+        section_name=sec.name if sec else None,
+        sort_order=cat.sort_order,
+        is_active=cat.is_active,
+    )
+
+
+def next_category_sort_order(db: Session, section_id: int) -> int:
+    max_so = (
+        db.query(func.max(Category.sort_order))
+        .filter(Category.section == section_id)
+        .scalar()
+    )
+    return (max_so or 0) + 1
+
 
 def get_categories(
     db: Session, active_only: bool = True, section: Optional[int] = None
@@ -69,10 +158,13 @@ def get_category(db: Session, category_id: int) -> Category | None:
 
 
 def create_category(db: Session, data: CategoryCreate) -> Category:
+    if not get_section(db, data.section):
+        raise ValueError("指定された棚が見つかりません。")
+    sort_order = data.sort_order or next_category_sort_order(db, data.section)
     cat = Category(
         name=data.name,
         section=data.section,
-        sort_order=data.sort_order,
+        sort_order=sort_order,
         is_active=True,
     )
     db.add(cat)
@@ -108,6 +200,29 @@ def delete_category(db: Session, cat: Category) -> None:
         raise ValueError("このカテゴリには商品が登録されています")
     db.delete(cat)
     db.commit()
+
+
+def reorder_category(
+    db: Session, cat: Category, direction: Literal["up", "down"]
+) -> Category:
+    """同一棚内で sort_order を入れ替え"""
+    siblings = (
+        db.query(Category)
+        .filter(Category.section == cat.section)
+        .order_by(Category.sort_order, Category.id)
+        .all()
+    )
+    idx = next((i for i, c in enumerate(siblings) if c.id == cat.id), -1)
+    if idx < 0:
+        return cat
+    swap_idx = idx - 1 if direction == "up" else idx + 1
+    if swap_idx < 0 or swap_idx >= len(siblings):
+        return cat
+    other = siblings[swap_idx]
+    cat.sort_order, other.sort_order = other.sort_order, cat.sort_order
+    db.commit()
+    db.refresh(cat)
+    return cat
 
 
 # ---------------------------------------------------------------------------
@@ -397,15 +512,19 @@ def get_category_summaries(db: Session, store_id: int) -> list[CategorySummaryOu
 
 
 def get_dashboard_sections(db: Session, store_id: int) -> DashboardSectionsOut:
-    materials = [
-        _summarize_category(db, store_id, cat)
-        for cat in get_categories(db, active_only=True, section=CategorySection.MATERIALS.value)
-    ]
-    retail = [
-        _summarize_category(db, store_id, cat)
-        for cat in get_categories(db, active_only=True, section=CategorySection.RETAIL.value)
-    ]
-    return DashboardSectionsOut(materials=materials, retail=retail)
+    blocks: list[DashboardSectionBlockOut] = []
+    for sec in get_sections(db, active_only=True):
+        cats = get_categories(db, active_only=True, section=sec.id)
+        blocks.append(
+            DashboardSectionBlockOut(
+                section_id=sec.id,
+                section_name=sec.name,
+                color=sec.color,
+                sort_order=sec.sort_order,
+                categories=[_summarize_category(db, store_id, cat) for cat in cats],
+            )
+        )
+    return DashboardSectionsOut(sections=blocks)
 
 
 # ---------------------------------------------------------------------------
