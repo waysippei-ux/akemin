@@ -22,6 +22,9 @@
         .join("");
       sel.addEventListener("change", loadSettings);
       document.getElementById("btn-reload")?.addEventListener("click", loadSettings);
+      document.getElementById("btn-refresh-page")?.addEventListener("click", () => {
+        window.location.reload();
+      });
       document.getElementById("filter-category")?.addEventListener("change", applyFilters);
       document.getElementById("filter-maker")?.addEventListener("change", applyFilters);
       document.getElementById("filter-dealer")?.addEventListener("change", applyFilters);
@@ -103,7 +106,7 @@
     if (shown === total) {
       el.textContent = `全 ${total} 件を表示`;
     } else {
-      el.textContent = `絞り込み結果: ${shown} 件 / 全 ${total} 件`;
+      el.textContent = `${total}件中 ${shown}件表示`;
     }
   }
 

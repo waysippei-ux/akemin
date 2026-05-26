@@ -51,8 +51,83 @@
       .join("");
     fillOptional("modal-maker_id", makers);
     fillOptional("modal-dealer_id", dealers);
+    populateProductFilterSelects();
     renderStorePickList([]);
     document.getElementById("modal-expand-all-stores")?.addEventListener("change", onExpandAllChange);
+  }
+
+  function populateProductFilterSelects() {
+    fillFilterSelect(
+      "product-filter-category",
+      categories.map((c) => ({ id: c.id, name: c.name }))
+    );
+    fillFilterSelect(
+      "product-filter-maker",
+      makers.map((m) => ({ id: m.id, name: m.name }))
+    );
+    fillFilterSelect(
+      "product-filter-dealer",
+      dealers.map((d) => ({ id: d.id, name: d.name }))
+    );
+  }
+
+  function fillFilterSelect(elId, items) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    const prev = el.value;
+    el.innerHTML =
+      '<option value="">すべて</option>' +
+      items.map((i) => `<option value="${i.id}">${esc(i.name)}</option>`).join("");
+    if ([...el.options].some((o) => o.value === prev)) el.value = prev;
+    else el.value = "";
+  }
+
+  function getFilteredProducts() {
+    const catId = document.getElementById("product-filter-category")?.value || "";
+    const makerId = document.getElementById("product-filter-maker")?.value || "";
+    const dealerId = document.getElementById("product-filter-dealer")?.value || "";
+    const nameQ = (document.getElementById("product-filter-name")?.value || "")
+      .trim()
+      .toLowerCase();
+
+    return products.filter((p) => {
+      if (catId && String(p.category_id) !== catId) return false;
+      if (makerId && String(p.maker_id || "") !== makerId) return false;
+      if (dealerId && String(p.dealer_id || "") !== dealerId) return false;
+      if (nameQ && !(p.name || "").toLowerCase().includes(nameQ)) return false;
+      return true;
+    });
+  }
+
+  function updateProductFilterCount(shown, total) {
+    const el = document.getElementById("product-filter-count");
+    if (!el) return;
+    if (shown === total) {
+      el.textContent = `全 ${total} 件を表示`;
+    } else {
+      el.textContent = `${total}件中 ${shown}件表示`;
+    }
+  }
+
+  function applyProductFilters() {
+    const filtered = getFilteredProducts();
+    renderProductsTable(filtered);
+    updateProductFilterCount(filtered.length, products.length);
+  }
+
+  function resetProductFilters() {
+    const ids = [
+      "product-filter-category",
+      "product-filter-maker",
+      "product-filter-dealer",
+    ];
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    const nameEl = document.getElementById("product-filter-name");
+    if (nameEl) nameEl.value = "";
+    applyProductFilters();
   }
 
   function fillOptional(id, items) {
@@ -100,6 +175,9 @@
 
   function bindProductEvents() {
     document.getElementById("btn-add-product")?.addEventListener("click", openAddModal);
+    document.getElementById("btn-refresh-page")?.addEventListener("click", () => {
+      window.location.reload();
+    });
     document.getElementById("product-modal-form")?.addEventListener("submit", onModalSave);
     document.getElementById("product-modal-cancel")?.addEventListener("click", closeModal);
     document.getElementById("product-modal-close")?.addEventListener("click", closeModal);
@@ -108,6 +186,11 @@
     });
     document.getElementById("btn-import-csv")?.addEventListener("click", onImportCsv);
     document.getElementById("btn-csv-template")?.addEventListener("click", downloadTemplate);
+    document.getElementById("product-filter-category")?.addEventListener("change", applyProductFilters);
+    document.getElementById("product-filter-maker")?.addEventListener("change", applyProductFilters);
+    document.getElementById("product-filter-dealer")?.addEventListener("change", applyProductFilters);
+    document.getElementById("product-filter-name")?.addEventListener("input", applyProductFilters);
+    document.getElementById("btn-product-filter-reset")?.addEventListener("click", resetProductFilters);
   }
 
   function getModalFormData() {
@@ -200,7 +283,18 @@
     products = await Api.get("/api/products");
     loading.hidden = true;
     document.getElementById("product-count").textContent = `(${products.length})`;
-    document.getElementById("products-tbody").innerHTML = products
+    applyProductFilters();
+    wrap.hidden = false;
+  }
+
+  function renderProductsTable(list) {
+    const tbody = document.getElementById("products-tbody");
+    if (!list.length) {
+      tbody.innerHTML =
+        '<tr><td colspan="6" class="empty-msg">該当する商品がありません</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list
       .map(
         (p) => `
       <tr>
@@ -216,11 +310,10 @@
       </tr>`
       )
       .join("");
-    wrap.hidden = false;
-    document.querySelectorAll("[data-edit]").forEach((b) =>
+    tbody.querySelectorAll("[data-edit]").forEach((b) =>
       b.addEventListener("click", () => openEditModal(+b.dataset.edit))
     );
-    document.querySelectorAll("[data-del]").forEach((b) =>
+    tbody.querySelectorAll("[data-del]").forEach((b) =>
       b.addEventListener("click", () => onDelete(+b.dataset.del))
     );
   }

@@ -37,9 +37,32 @@
       <pre id="import-result" class="import-result" hidden></pre>
     </section>
     <section class="admin-section">
-      <div class="panel-toolbar">
+      <div class="panel-toolbar panel-toolbar-products">
         <h2 class="section-title">商品一覧 <span id="product-count" class="badge-count"></span></h2>
-        <button type="button" class="btn btn-primary btn-sm" id="btn-add-product">新規商品を追加</button>
+        <div class="panel-toolbar-actions">
+          <button type="button" class="btn-icon-round" id="btn-refresh-page" title="更新" aria-label="ページを更新">🔄</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-add-product">新規商品を追加</button>
+        </div>
+      </div>
+      <div class="product-filter-bar card">
+        <div class="filter-row">
+          <label class="filter-label" for="product-filter-category">カテゴリ</label>
+          <select id="product-filter-category" class="select select-sm">
+            <option value="">すべて</option>
+          </select>
+          <label class="filter-label" for="product-filter-maker">メーカー</label>
+          <select id="product-filter-maker" class="select select-sm">
+            <option value="">すべて</option>
+          </select>
+          <label class="filter-label" for="product-filter-dealer">ディーラー</label>
+          <select id="product-filter-dealer" class="select select-sm">
+            <option value="">すべて</option>
+          </select>
+          <label class="filter-label" for="product-filter-name">商品名</label>
+          <input type="search" id="product-filter-name" class="input-text input-sm" placeholder="部分一致で検索" autocomplete="off">
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-product-filter-reset">絞り込みリセット</button>
+        </div>
+        <p class="filter-count" id="product-filter-count"></p>
       </div>
       <div id="products-loading" class="loading">読み込み中…</div>
       <div class="table-wrap" id="table-wrap" hidden>
@@ -185,6 +208,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/admin_products.js"></script>
+<script src="/static/js/admin_products.js?v=2"></script>
 <script src="/static/js/admin_masters.js"></script>
 {% endblock %}
