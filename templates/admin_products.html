@@ -5,7 +5,7 @@
 {% block content %}
 <section class="page-header">
   <h1>マスタ管理 &amp; 設定 ⚙️</h1>
-  <p class="page-desc">管理者のみ — 商品・店舗・カテゴリ・ディーラー・メーカー</p>
+  <p class="page-desc">管理者のみ — 商品・棚・カテゴリ・ディーラー・メーカー・ブランド・店舗</p>
   <p><a href="/admin/store-settings" class="btn btn-secondary btn-sm">店舗別発注目安設定</a></p>
 </section>
 
@@ -18,6 +18,7 @@
     <button type="button" class="tab-btn" data-admin-tab="categories">カテゴリ</button>
     <button type="button" class="tab-btn" data-admin-tab="dealers">ディーラー</button>
     <button type="button" class="tab-btn" data-admin-tab="makers">メーカー</button>
+    <button type="button" class="tab-btn" data-admin-tab="brands">ブランド</button>
     <button type="button" class="tab-btn" data-admin-tab="stores">店舗</button>
     <button type="button" class="tab-btn" data-admin-tab="links">紐付け</button>
   </div>
@@ -89,6 +90,14 @@
           <tbody id="products-tbody"></tbody>
         </table>
       </div>
+      <nav id="product-pagination" class="product-pagination" aria-label="商品一覧のページ送り" hidden>
+        <p class="product-pagination-range" id="product-pagination-range"></p>
+        <div class="product-pagination-controls">
+          <button type="button" class="product-pagination-btn" id="product-pagination-prev" disabled>← 前へ</button>
+          <div class="product-pagination-pages" id="product-pagination-pages" role="group" aria-label="ページ番号"></div>
+          <button type="button" class="product-pagination-btn" id="product-pagination-next" disabled>次へ →</button>
+        </div>
+      </nav>
     </section>
   </div>
 
@@ -113,7 +122,7 @@
   <div class="admin-tab-panel" id="admin-tab-dealers" hidden>
     <section class="card">
       <p class="help-text">ディーラーごとに取扱メーカーを管理します。どのディーラーにも紐づいていないメーカーは「メーカー直（直取引）」に表示されます。</p>
-      <div id="dealer-groups"></div>
+      <div id="dealer-groups" class="hierarchy-tree"></div>
       <button type="button" class="btn btn-secondary btn-sm" id="btn-add-dealer">+ ディーラーを追加</button>
     </section>
   </div>
@@ -121,9 +130,17 @@
   <!-- メーカー -->
   <div class="admin-tab-panel" id="admin-tab-makers" hidden>
     <section class="card">
-      <p class="help-text">メーカーごとに紐づくディーラーを管理します。「メーカー直」の場合は「直取引」と表示されます。</p>
-      <div id="maker-groups"></div>
+      <p class="help-text">メーカーを起点に、所属ディーラーとブランドを一覧表示します。</p>
+      <div id="maker-groups" class="hierarchy-tree"></div>
       <button type="button" class="btn btn-secondary btn-sm" id="btn-add-maker">+ メーカーを追加</button>
+    </section>
+  </div>
+
+  <!-- ブランド -->
+  <div class="admin-tab-panel" id="admin-tab-brands" hidden>
+    <section class="card">
+      <p class="help-text">メーカーごとにブランドを管理します。</p>
+      <div id="brand-groups" class="hierarchy-tree"></div>
     </section>
   </div>
 
@@ -242,6 +259,28 @@
       <p id="maker-edit-error" class="error-msg" hidden></p>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost master-modal-close" data-close="maker-edit-modal">キャンセル</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="brand-edit-modal" hidden>
+  <div class="modal card" role="dialog">
+    <div class="modal-header">
+      <h3 id="brand-modal-title">ブランドを編集</h3>
+      <button type="button" class="btn-icon master-modal-close" data-close="brand-edit-modal" aria-label="閉じる">×</button>
+    </div>
+    <form id="brand-edit-form">
+      <input type="hidden" id="edit-brand-id">
+      <input type="hidden" id="edit-brand-maker-id">
+      <div class="form-group">
+        <label for="edit-brand-name">ブランド名 *</label>
+        <input type="text" id="edit-brand-name" class="input-text" required>
+      </div>
+      <p id="brand-edit-error" class="error-msg" hidden></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost master-modal-close" data-close="brand-edit-modal">キャンセル</button>
         <button type="submit" class="btn btn-primary">保存</button>
       </div>
     </form>
@@ -384,6 +423,6 @@
 
 {% block scripts %}
 <script src="/static/js/filter_helpers.js?v=1"></script>
-<script src="/static/js/admin_products.js?v=4"></script>
-<script src="/static/js/admin_masters.js?v=4"></script>
+<script src="/static/js/admin_products.js?v=5"></script>
+<script src="/static/js/admin_masters.js?v=5"></script>
 {% endblock %}

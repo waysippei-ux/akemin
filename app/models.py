@@ -138,7 +138,20 @@ class Maker(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     dealer_makers: Mapped[list["DealerMaker"]] = relationship(back_populates="maker")
+    brands: Mapped[list["Brand"]] = relationship(back_populates="maker", cascade="all, delete-orphan")
     products: Mapped[list["Product"]] = relationship(back_populates="maker")
+
+
+class Brand(Base):
+    """ブランド（メーカー配下）"""
+    __tablename__ = "brands"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    maker_id: Mapped[int] = mapped_column(ForeignKey("makers.id"), nullable=False, index=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    maker: Mapped["Maker"] = relationship(back_populates="brands")
 
 
 class DealerMaker(Base):

@@ -1707,6 +1707,196 @@ input[type="number"],
   margin-left: 0.5rem;
 }
 
+/* 商品一覧 — 商品名 */
+.data-table .cell-product-name {
+  font-weight: bold;
+  font-size: 15px;
+}
+
+/* 商品一覧 — ページネーション */
+.product-pagination {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.product-pagination-range {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.product-pagination-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.product-pagination-btn {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface, #fff);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.product-pagination-btn:hover:not(:disabled) {
+  background: var(--color-bg-muted, #f5f5f5);
+}
+
+.product-pagination-btn:disabled {
+  color: var(--color-text-muted, #999);
+  background: var(--color-bg-muted, #f0f0f0);
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.product-pagination-pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.product-pagination-page {
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.5rem;
+  font-size: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface, #fff);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.product-pagination-page:hover:not(.is-active) {
+  background: var(--color-bg-muted, #f5f5f5);
+}
+
+.product-pagination-page.is-active {
+  background: #4a3fc7;
+  border-color: #4a3fc7;
+  color: #fff;
+  font-weight: 600;
+  cursor: default;
+}
+
+.product-pagination-ellipsis {
+  padding: 0 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  user-select: none;
+}
+
+/* マスタ階層ツリー（ディーラー・メーカー・ブランド） */
+.hierarchy-tree {
+  margin-bottom: 1rem;
+}
+
+.hierarchy-node {
+  margin-bottom: 0.35rem;
+}
+
+.hierarchy-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  flex-wrap: wrap;
+  border-radius: 6px;
+  margin-bottom: 2px;
+}
+
+.hierarchy-toggle {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+}
+
+.hierarchy-toggle-spacer {
+  visibility: hidden;
+  pointer-events: none;
+  cursor: default;
+}
+
+.hierarchy-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.hierarchy-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.hierarchy-row-dealer {
+  background: #eae9fd;
+  font-weight: bold;
+  font-size: 1.05rem;
+  padding: 0.6rem 0.75rem;
+}
+
+.hierarchy-row-maker,
+.hierarchy-row-maker-root {
+  background: #f4f4f8;
+  font-size: 0.95rem;
+  padding: 0.5rem 0.75rem;
+  margin-left: 20px;
+}
+
+.hierarchy-row-brand {
+  background: #fff;
+  font-size: 0.875rem;
+  padding: 0.45rem 0.75rem;
+  margin-left: 40px;
+  border: 1px solid var(--color-border);
+}
+
+.hierarchy-children.collapsed {
+  display: none;
+}
+
+.hierarchy-maker-meta {
+  margin: 0.35rem 0 0.5rem 3.25rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-bg-muted, #fafafa);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.hierarchy-maker-meta p {
+  margin: 0.25rem 0;
+}
+
+.hierarchy-add-btn {
+  margin: 0.35rem 0 0.5rem 3.25rem;
+}
+
+.hierarchy-add-btn-brand {
+  margin: 0.25rem 0 0.35rem 3.75rem;
+}
+
+.hierarchy-divider {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 1rem 0;
+}
+
 @media (max-width: 768px) {
   .filter-bar-standard,
   .filter-bar-standard .filter-field label,

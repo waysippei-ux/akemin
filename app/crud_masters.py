@@ -10,6 +10,7 @@ from sqlalchemy import extract, func
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import (
+    Brand,
     Category,
     Dealer,
     Section,
@@ -40,6 +41,9 @@ from app.schemas import (
     DealerOut,
     DealerUpdate,
     InventoryItemOut,
+    BrandCreate,
+    BrandOut,
+    BrandUpdate,
     MakerCreate,
     MakerOut,
     MakerUpdate,
@@ -330,7 +334,79 @@ def count_products_for_maker(db: Session, maker_id: int) -> int:
 def delete_maker(db: Session, maker: Maker) -> None:
     if count_products_for_maker(db, maker.id) > 0:
         raise ValueError("このメーカーには商品が登録されています")
+    db.query(Brand).filter(Brand.maker_id == maker.id).delete()
     db.delete(maker)
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# ブランド
+# ---------------------------------------------------------------------------
+
+def brand_to_out(brand: Brand, maker_name: str | None = None) -> BrandOut:
+    return BrandOut(
+        id=brand.id,
+        name=brand.name,
+        maker_id=brand.maker_id,
+        maker_name=maker_name or (brand.maker.name if brand.maker else None),
+        sort_order=brand.sort_order,
+    )
+
+
+def get_brands(
+    db: Session, *, maker_id: int | None = None, active_maker_only: bool = True
+) -> list[Brand]:
+    q = db.query(Brand).options(joinedload(Brand.maker))
+    if maker_id is not None:
+        q = q.filter(Brand.maker_id == maker_id)
+    if active_maker_only:
+        q = q.join(Maker).filter(Maker.is_active.is_(True))
+    return q.order_by(Brand.sort_order, Brand.name).all()
+
+
+def get_brand(db: Session, brand_id: int) -> Brand | None:
+    return (
+        db.query(Brand)
+        .options(joinedload(Brand.maker))
+        .filter(Brand.id == brand_id)
+        .first()
+    )
+
+
+def create_brand(db: Session, data: BrandCreate) -> Brand:
+    maker = get_maker(db, data.maker_id)
+    if not maker:
+        raise ValueError("メーカーが見つかりません")
+    if data.sort_order <= 0:
+        max_order = (
+            db.query(func.max(Brand.sort_order))
+            .filter(Brand.maker_id == data.maker_id)
+            .scalar()
+        )
+        sort_order = (max_order or 0) + 1
+    else:
+        sort_order = data.sort_order
+    brand = Brand(name=data.name, maker_id=data.maker_id, sort_order=sort_order)
+    db.add(brand)
+    db.commit()
+    db.refresh(brand)
+    return brand
+
+
+def update_brand(db: Session, brand: Brand, data: BrandUpdate) -> Brand:
+    maker = get_maker(db, data.maker_id)
+    if not maker:
+        raise ValueError("メーカーが見つかりません")
+    brand.name = data.name
+    brand.maker_id = data.maker_id
+    brand.sort_order = data.sort_order
+    db.commit()
+    db.refresh(brand)
+    return brand
+
+
+def delete_brand(db: Session, brand: Brand) -> None:
+    db.delete(brand)
     db.commit()
 
 

@@ -119,6 +119,7 @@ def orders_analytics_page(request: Request):
 from app.routers import (
     analysis,
     auth,
+    brands,
     categories,
     dashboard,
     dealers,
@@ -138,6 +139,7 @@ app.include_router(sections.router, prefix="/api/sections", tags=["棚"])
 app.include_router(categories.router, prefix="/api/categories", tags=["カテゴリ"])
 app.include_router(dealers.router, prefix="/api/dealers", tags=["ディーラー"])
 app.include_router(makers.router, prefix="/api/makers", tags=["メーカー"])
+app.include_router(brands.router, prefix="/api/brands", tags=["ブランド"])
 app.include_router(products.router, prefix="/api/products", tags=["商品"])
 app.include_router(inventory.router, prefix="/api/inventory", tags=["在庫"])
 app.include_router(stock.pages_router)

@@ -6,6 +6,7 @@
   let sectionsCache = [];
   let dealersCache = [];
   let makersCache = [];
+  let brandsCache = [];
   let linksCache = [];
   let storesCache = [];
   let sectionEditMode = "edit";
@@ -24,6 +25,7 @@
     document.getElementById("btn-add-maker")?.addEventListener("click", openMakerAddModal);
     document.getElementById("link-maker-form")?.addEventListener("submit", saveLinkMakerToDealer);
     document.getElementById("link-dealer-form")?.addEventListener("submit", saveLinkDealerToMaker);
+    document.getElementById("brand-edit-form")?.addEventListener("submit", saveBrandEdit);
     document.getElementById("store-form")?.addEventListener("submit", saveStoreNew);
     document.getElementById("link-form")?.addEventListener("submit", saveLink);
 
@@ -53,6 +55,7 @@
       "store-edit-modal",
       "link-maker-modal",
       "link-dealer-modal",
+      "brand-edit-modal",
     ].forEach(
       (id) => {
         document.getElementById(id)?.addEventListener("click", (e) => {
@@ -63,10 +66,75 @@
   }
 
   function bindListDelegation() {
-    document.getElementById("dealer-groups")?.addEventListener("click", onDealerGroupsClick);
-    document.getElementById("maker-groups")?.addEventListener("click", onMakerGroupsClick);
+    document.getElementById("dealer-groups")?.addEventListener("click", onDealerHierarchyClick);
+    document.getElementById("maker-groups")?.addEventListener("click", onMakerHierarchyClick);
+    document.getElementById("brand-groups")?.addEventListener("click", onBrandHierarchyClick);
     document.getElementById("store-list")?.addEventListener("click", onStoreListClick);
     document.getElementById("shelf-cards")?.addEventListener("click", onShelfCardsClick);
+  }
+
+  function hierarchyActions(editAction, deleteAction) {
+    return `<span class="hierarchy-actions">
+      <button type="button" class="btn btn-ghost btn-sm" data-action="${editAction}">編集</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-action="${deleteAction}">削除</button>
+    </span>`;
+  }
+
+  function onHierarchyToggle(btn) {
+    const node = btn.closest(".hierarchy-node");
+    const children = node?.querySelector(":scope > .hierarchy-children");
+    if (!children) return;
+    const collapsed = children.classList.toggle("collapsed");
+    btn.textContent = collapsed ? "▶" : "▼";
+    btn.setAttribute("aria-expanded", String(!collapsed));
+  }
+
+  function brandsForMaker(makerId) {
+    return brandsCache
+      .filter((b) => b.maker_id === makerId)
+      .sort(
+        (a, b) =>
+          (a.sort_order || 0) - (b.sort_order || 0) ||
+          String(a.name).localeCompare(String(b.name), "ja")
+      );
+  }
+
+  function renderBrandRows(makerId, dealerId) {
+    const brands = brandsForMaker(makerId);
+    const brandHtml = brands.length
+      ? brands
+          .map(
+            (b) => `
+        <div class="hierarchy-row hierarchy-row-brand" data-brand-id="${b.id}" data-maker-id="${makerId}"${
+              dealerId ? ` data-dealer-id="${dealerId}"` : ""
+            }>
+          <span class="hierarchy-toggle hierarchy-toggle-spacer" aria-hidden="true"></span>
+          <span class="hierarchy-label">・${esc(b.name)}</span>
+          ${hierarchyActions("edit-brand", "delete-brand")}
+        </div>`
+          )
+          .join("")
+      : "";
+    const addBtn = `
+      <button type="button" class="btn btn-ghost btn-sm hierarchy-add-btn hierarchy-add-btn-brand" data-action="add-brand" data-maker-id="${makerId}"${
+        dealerId ? ` data-dealer-id="${dealerId}"` : ""
+      }>+ ブランドを追加</button>`;
+    return brandHtml + addBtn;
+  }
+
+  function renderMakerUnderDealer(dealer, maker, linkId) {
+    const inactive = maker.is_active === false ? ' <span class="badge-pill">無効</span>' : "";
+    return `
+      <div class="hierarchy-node" data-maker-id="${maker.id}" data-dealer-id="${dealer.id}" data-link-id="${linkId || ""}">
+        <div class="hierarchy-row hierarchy-row-maker">
+          <button type="button" class="hierarchy-toggle" data-action="toggle" aria-expanded="true">▼</button>
+          <span class="hierarchy-label">${esc(maker.name)}（メーカー）${inactive}</span>
+          ${hierarchyActions("edit-maker", "delete-maker")}
+        </div>
+        <div class="hierarchy-children">
+          ${renderBrandRows(maker.id, dealer.id)}
+        </div>
+      </div>`;
   }
 
   function showModal(id) {
@@ -107,11 +175,17 @@
   async function refreshMasters() {
     await loadSections();
     await loadCategories();
+    await loadBrands();
     await loadDealers();
     await loadMakers();
+    renderBrandGroups();
     await loadStores();
     await loadLinks();
     if (typeof window.loadMasters === "function") window.loadMasters();
+  }
+
+  async function loadBrands() {
+    brandsCache = await Api.get("/api/brands/all");
   }
 
   // ---------- 棚 ----------
@@ -427,58 +501,68 @@
       return;
     }
     container.innerHTML = dealers
-      .map((d) => {
+      .map((d, idx) => {
         const items = makersInDealerGroup(d);
-        const rows = items.length
+        const makerBlocks = items.length
           ? items
-              .map(({ maker, linkId, unlinked }) => {
-                const inactive = maker.is_active ? "" : ' <span class="badge-pill">無効</span>';
-                return `
-          <div class="master-group-row" data-maker-id="${maker.id}" data-link-id="${linkId || ""}">
-            <span class="master-group-row-label">${esc(maker.name)}${inactive}</span>
-            <span class="master-group-row-actions">
-              <button type="button" class="btn btn-ghost btn-sm" data-action="edit-maker">編集</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-action="delete-maker">削除</button>
-            </span>
-          </div>`;
-              })
+              .map(({ maker, linkId }) => renderMakerUnderDealer(d, maker, linkId))
               .join("")
-          : '<p class="empty-msg">メーカーがありません</p>';
+          : '<p class="empty-msg hierarchy-add-btn">メーカーがありません</p>';
+        const divider = idx < dealers.length - 1 ? '<hr class="hierarchy-divider">' : "";
         return `
-        <div class="master-group" data-dealer-id="${d.id}">
-          <div class="master-group-header">
-            <h3>── ${dealerGroupTitle(d)} ──</h3>
-            <span class="master-group-header-actions">
-              <button type="button" class="btn btn-ghost btn-sm" data-action="edit-dealer">編集</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-action="delete-dealer">削除</button>
-            </span>
+        <div class="hierarchy-node" data-dealer-id="${d.id}">
+          <div class="hierarchy-row hierarchy-row-dealer">
+            <button type="button" class="hierarchy-toggle" data-action="toggle" aria-expanded="true">▼</button>
+            <span class="hierarchy-label">${dealerGroupTitle(d)}</span>
+            ${hierarchyActions("edit-dealer", "delete-dealer")}
           </div>
-          ${rows}
-          <button type="button" class="btn btn-ghost btn-sm btn-add-link" data-action="add-maker">+ メーカーを追加</button>
-        </div>`;
+          <div class="hierarchy-children">
+            ${makerBlocks}
+            <button type="button" class="btn btn-ghost btn-sm hierarchy-add-btn" data-action="add-maker" data-dealer-id="${d.id}">+ メーカーを追加</button>
+          </div>
+        </div>${divider}`;
       })
       .join("");
   }
 
-  function onDealerGroupsClick(e) {
+  function onDealerHierarchyClick(e) {
+    const toggle = e.target.closest("button[data-action='toggle']");
+    if (toggle) {
+      onHierarchyToggle(toggle);
+      return;
+    }
     const btn = e.target.closest("button[data-action]");
     if (!btn) return;
-    const group = btn.closest(".master-group[data-dealer-id]");
-    if (!group) return;
-    const dealerId = parseInt(group.dataset.dealerId, 10);
-    const dealer = dealersCache.find((d) => d.id === dealerId);
-    if (!dealer) return;
 
-    if (btn.dataset.action === "edit-dealer") openDealerModal(dealer);
-    else if (btn.dataset.action === "delete-dealer") deleteDealer(dealer);
-    else if (btn.dataset.action === "add-maker") openLinkMakerModal(dealer);
+    if (btn.dataset.action === "add-maker") {
+      const dealerId = parseInt(btn.dataset.dealerId, 10);
+      const dealer = dealersCache.find((d) => d.id === dealerId);
+      if (dealer) openLinkMakerModal(dealer);
+      return;
+    }
+    if (btn.dataset.action === "add-brand") {
+      openBrandAddModal(parseInt(btn.dataset.makerId, 10));
+      return;
+    }
+
+    const dealerNode = btn.closest(".hierarchy-node[data-dealer-id]");
+    const dealerId = parseInt(dealerNode?.dataset.dealerId, 10);
+    const dealer = dealersCache.find((d) => d.id === dealerId);
+
+    if (btn.dataset.action === "edit-dealer" && dealer) openDealerModal(dealer);
+    else if (btn.dataset.action === "delete-dealer" && dealer) deleteDealer(dealer);
     else if (btn.dataset.action === "edit-maker" || btn.dataset.action === "delete-maker") {
-      const row = btn.closest("[data-maker-id]");
-      const makerId = parseInt(row?.dataset.makerId, 10);
+      const makerId = parseInt(btn.closest("[data-maker-id]")?.dataset.makerId, 10);
       const maker = makersCache.find((m) => m.id === makerId);
       if (!maker) return;
       if (btn.dataset.action === "edit-maker") openMakerModal(maker);
       else deleteMaker(maker);
+    } else if (btn.dataset.action === "edit-brand" || btn.dataset.action === "delete-brand") {
+      const brandId = parseInt(btn.closest("[data-brand-id]")?.dataset.brandId, 10);
+      const brand = brandsCache.find((b) => b.id === brandId);
+      if (!brand) return;
+      if (btn.dataset.action === "edit-brand") openBrandModal(brand);
+      else deleteBrand(brand);
     }
   }
 
@@ -526,6 +610,7 @@
       });
       hideModal("link-maker-modal");
       await loadDealers();
+      await loadMakers();
       await loadLinks();
     } catch (ex) {
       errEl.textContent = ex.message;
@@ -614,50 +699,171 @@
     }
     container.innerHTML = makers
       .map((m) => {
-        const dealerRows = dealersForMaker(m);
-        const rows = dealerRows.length
-          ? dealerRows
-              .map(({ dealer, linkId }) => `
-          <div class="master-group-row" data-link-id="${linkId}">
-            <span class="master-group-row-label">${esc(dealerDisplayLabel(dealer.name))}</span>
-            <span class="master-group-row-actions">
-              <button type="button" class="btn btn-ghost btn-sm" data-action="unlink-dealer">解除</button>
-            </span>
-          </div>`)
-              .join("")
-          : `<p class="empty-msg">紐づくディーラーがありません（未紐づけは「${esc(directDealerName())}」に表示）</p>`;
+        const dealerNames =
+          dealersForMaker(m)
+            .map(({ dealer }) => dealerDisplayLabel(dealer.name))
+            .join("・") || "—";
+        const brandNames = brandsForMaker(m.id).map((b) => b.name).join("・") || "—";
         return `
-        <div class="master-group" data-maker-id="${m.id}">
-          <div class="master-group-header">
-            <h3>── ${esc(m.name)} ──</h3>
-            <span class="master-group-header-actions">
-              <button type="button" class="btn btn-ghost btn-sm" data-action="edit-maker">編集</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-action="delete-maker">削除</button>
-            </span>
+        <div class="hierarchy-node" data-maker-id="${m.id}">
+          <div class="hierarchy-row hierarchy-row-maker hierarchy-row-maker-root">
+            <button type="button" class="hierarchy-toggle" data-action="toggle" aria-expanded="true">▼</button>
+            <span class="hierarchy-label">${esc(m.name)}</span>
+            ${hierarchyActions("edit-maker", "delete-maker")}
           </div>
-          ${rows}
-          <button type="button" class="btn btn-ghost btn-sm btn-add-link" data-action="add-dealer">+ ディーラーを紐づける</button>
+          <div class="hierarchy-children">
+            <div class="hierarchy-maker-meta">
+              <p><strong>所属ディーラー：</strong>${esc(dealerNames)}</p>
+              <p><strong>ブランド：</strong>${esc(brandNames)}</p>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm hierarchy-add-btn" data-action="add-dealer" data-maker-id="${m.id}">+ ディーラーを紐づける</button>
+          </div>
         </div>`;
       })
       .join("");
   }
 
-  function onMakerGroupsClick(e) {
+  function renderBrandGroups() {
+    const container = document.getElementById("brand-groups");
+    if (!container) return;
+    const makers = makersForDisplay();
+    if (!makers.length) {
+      container.innerHTML = '<p class="empty-msg">メーカーがありません</p>';
+      return;
+    }
+    container.innerHTML = makers
+      .map((m) => {
+        const brands = brandsForMaker(m.id);
+        const brandRows = brands.length
+          ? brands
+              .map(
+                (b) => `
+          <div class="hierarchy-row hierarchy-row-brand" data-brand-id="${b.id}" data-maker-id="${m.id}">
+            <span class="hierarchy-toggle hierarchy-toggle-spacer" aria-hidden="true"></span>
+            <span class="hierarchy-label">・${esc(b.name)}</span>
+            ${hierarchyActions("edit-brand", "delete-brand")}
+          </div>`
+              )
+              .join("")
+          : '<p class="empty-msg hierarchy-add-btn-brand">ブランドがありません</p>';
+        return `
+        <div class="hierarchy-node" data-maker-id="${m.id}">
+          <div class="hierarchy-row hierarchy-row-maker hierarchy-row-maker-root">
+            <button type="button" class="hierarchy-toggle" data-action="toggle" aria-expanded="true">▼</button>
+            <span class="hierarchy-label">${esc(m.name)}</span>
+          </div>
+          <div class="hierarchy-children">
+            ${brandRows}
+            <button type="button" class="btn btn-ghost btn-sm hierarchy-add-btn hierarchy-add-btn-brand" data-action="add-brand" data-maker-id="${m.id}">+ ブランドを追加</button>
+          </div>
+        </div>`;
+      })
+      .join("");
+  }
+
+  function onMakerHierarchyClick(e) {
+    const toggle = e.target.closest("button[data-action='toggle']");
+    if (toggle) {
+      onHierarchyToggle(toggle);
+      return;
+    }
     const btn = e.target.closest("button[data-action]");
     if (!btn) return;
-    const group = btn.closest(".master-group[data-maker-id]");
-    if (!group) return;
-    const makerId = parseInt(group.dataset.makerId, 10);
+    const makerId = parseInt(btn.dataset.makerId || btn.closest("[data-maker-id]")?.dataset.makerId, 10);
     const maker = makersCache.find((m) => m.id === makerId);
     if (!maker) return;
 
     if (btn.dataset.action === "edit-maker") openMakerModal(maker);
     else if (btn.dataset.action === "delete-maker") deleteMaker(maker);
     else if (btn.dataset.action === "add-dealer") openLinkDealerModal(maker);
-    else if (btn.dataset.action === "unlink-dealer") {
-      const row = btn.closest("[data-link-id]");
-      const linkId = parseInt(row?.dataset.linkId, 10);
-      if (linkId) unlinkDealerMaker(linkId);
+  }
+
+  function onBrandHierarchyClick(e) {
+    const toggle = e.target.closest("button[data-action='toggle']");
+    if (toggle) {
+      onHierarchyToggle(toggle);
+      return;
+    }
+    const btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+
+    if (btn.dataset.action === "add-brand") {
+      openBrandAddModal(parseInt(btn.dataset.makerId, 10));
+      return;
+    }
+    const brandId = parseInt(btn.closest("[data-brand-id]")?.dataset.brandId, 10);
+    const brand = brandsCache.find((b) => b.id === brandId);
+    if (!brand) return;
+    if (btn.dataset.action === "edit-brand") openBrandModal(brand);
+    else if (btn.dataset.action === "delete-brand") deleteBrand(brand);
+  }
+
+  function openBrandAddModal(makerId) {
+    const maker = makersCache.find((m) => m.id === makerId);
+    document.getElementById("brand-modal-title").textContent = maker
+      ? `「${maker.name}」にブランドを追加`
+      : "ブランドを追加";
+    document.getElementById("edit-brand-id").value = "";
+    document.getElementById("edit-brand-maker-id").value = makerId;
+    document.getElementById("edit-brand-name").value = "";
+    document.getElementById("brand-edit-error").hidden = true;
+    showModal("brand-edit-modal");
+  }
+
+  function openBrandModal(brand) {
+    const maker = makersCache.find((m) => m.id === brand.maker_id);
+    document.getElementById("brand-modal-title").textContent = maker
+      ? `「${maker.name}」のブランドを編集`
+      : "ブランドを編集";
+    document.getElementById("edit-brand-id").value = brand.id;
+    document.getElementById("edit-brand-maker-id").value = brand.maker_id;
+    document.getElementById("edit-brand-name").value = brand.name;
+    document.getElementById("brand-edit-error").hidden = true;
+    showModal("brand-edit-modal");
+  }
+
+  async function saveBrandEdit(e) {
+    e.preventDefault();
+    const errEl = document.getElementById("brand-edit-error");
+    errEl.hidden = true;
+    const idVal = document.getElementById("edit-brand-id").value;
+    const maker_id = parseInt(document.getElementById("edit-brand-maker-id").value, 10);
+    const name = document.getElementById("edit-brand-name").value.trim();
+    if (!name) {
+      errEl.textContent = "ブランド名を入力してください。";
+      errEl.hidden = false;
+      return;
+    }
+    try {
+      if (!idVal) {
+        await Api.post("/api/brands", { name, maker_id, sort_order: 0 });
+      } else {
+        const brand = brandsCache.find((b) => b.id === parseInt(idVal, 10));
+        await Api.put(`/api/brands/${idVal}`, {
+          name,
+          maker_id,
+          sort_order: brand ? brand.sort_order : 0,
+        });
+      }
+      hideModal("brand-edit-modal");
+      await loadBrands();
+      await loadDealers();
+      await loadMakers();
+    } catch (ex) {
+      errEl.textContent = ex.message;
+      errEl.hidden = false;
+    }
+  }
+
+  async function deleteBrand(brand) {
+    if (!confirm(`ブランド「${brand.name}」を削除しますか？`)) return;
+    try {
+      await Api.delete(`/api/brands/${brand.id}`);
+      await loadBrands();
+      await loadDealers();
+      await loadMakers();
+    } catch (ex) {
+      alert(ex.message);
     }
   }
 
@@ -717,6 +923,7 @@
       await Api.delete(`/api/dealers/links/${linkId}`);
       await loadDealers();
       await loadMakers();
+      await loadBrands();
       await loadLinks();
     } catch (ex) {
       alert(ex.message);
@@ -743,6 +950,7 @@
       hideModal("maker-edit-modal");
       await loadMakers();
       await loadDealers();
+      await loadBrands();
       if (typeof window.loadMasters === "function") window.loadMasters();
     } catch (ex) {
       errEl.textContent = ex.message;

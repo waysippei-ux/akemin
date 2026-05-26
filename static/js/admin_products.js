@@ -10,6 +10,13 @@
   let adminStores = [];
   let editingId = null;
   let modalJanCode = null;
+  let currentPage = 1;
+  const mobileMedia = window.matchMedia("(max-width: 768px)");
+  let lastPageSize = 0;
+
+  function getPageSize() {
+    return mobileMedia.matches ? 20 : 40;
+  }
 
   document.addEventListener("DOMContentLoaded", async () => {
     try {
@@ -19,6 +26,7 @@
         return;
       }
       document.getElementById("admin-content").hidden = false;
+      lastPageSize = getPageSize();
       window.dispatchEvent(new Event("admin-ready"));
       await loadMasters();
       bindProductEvents();
@@ -68,7 +76,9 @@
     FH.fillCategorySelect(categoryEl, categories, sectionEl?.value || "");
     if (sectionEl && !sectionEl.dataset.bound) {
       sectionEl.dataset.bound = "1";
-      FH.bindShelfCategory(sectionEl, categoryEl, categories, applyProductFilters);
+      FH.bindShelfCategory(sectionEl, categoryEl, categories, () =>
+        applyProductFilters({ resetPage: true })
+      );
     }
   }
 
@@ -141,10 +151,97 @@
     }
   }
 
-  function applyProductFilters() {
+  function applyProductFilters({ resetPage = true } = {}) {
+    if (resetPage) currentPage = 1;
     const filtered = getFilteredProducts();
-    renderProductsTable(filtered);
+    const pageSize = getPageSize();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize) || 1);
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const start = filtered.length ? (currentPage - 1) * pageSize : 0;
+    const pageItems = filtered.slice(start, start + pageSize);
+    renderProductsTable(pageItems);
+    renderProductPagination(filtered.length, currentPage, pageSize);
     updateProductFilterCount(filtered.length, products.length);
+  }
+
+  function goToPage(page) {
+    const filtered = getFilteredProducts();
+    const pageSize = getPageSize();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize) || 1);
+    currentPage = Math.min(Math.max(1, page), totalPages);
+    applyProductFilters({ resetPage: false });
+  }
+
+  function getVisiblePageNumbers(current, totalPages) {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const pages = new Set([1, totalPages, current, current - 1, current + 1]);
+    const list = [...pages].filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b);
+    const out = [];
+    for (let i = 0; i < list.length; i++) {
+      if (i > 0 && list[i] - list[i - 1] > 1) out.push("…");
+      out.push(list[i]);
+    }
+    return out;
+  }
+
+  function renderProductPagination(total, page, pageSize) {
+    const nav = document.getElementById("product-pagination");
+    const rangeEl = document.getElementById("product-pagination-range");
+    const pagesEl = document.getElementById("product-pagination-pages");
+    const prevBtn = document.getElementById("product-pagination-prev");
+    const nextBtn = document.getElementById("product-pagination-next");
+    if (!nav || !rangeEl || !pagesEl || !prevBtn || !nextBtn) return;
+
+    if (!total) {
+      nav.hidden = true;
+      rangeEl.textContent = "0件";
+      pagesEl.innerHTML = "";
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+      return;
+    }
+
+    nav.hidden = false;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const start = (page - 1) * pageSize + 1;
+    const end = Math.min(page * pageSize, total);
+    rangeEl.textContent = `${total}件中 ${start}〜${end}件表示`;
+
+    prevBtn.disabled = page <= 1;
+    nextBtn.disabled = page >= totalPages;
+
+    pagesEl.innerHTML = getVisiblePageNumbers(page, totalPages)
+      .map((n) => {
+        if (n === "…") {
+          return '<span class="product-pagination-ellipsis" aria-hidden="true">…</span>';
+        }
+        const active = n === page ? " is-active" : "";
+        return `<button type="button" class="product-pagination-page${active}" data-page="${n}"${
+          n === page ? ' aria-current="page"' : ""
+        }>${n}</button>`;
+      })
+      .join("");
+  }
+
+  function onPaginationClick(e) {
+    const pageBtn = e.target.closest(".product-pagination-page[data-page]");
+    if (pageBtn) {
+      goToPage(parseInt(pageBtn.dataset.page, 10));
+      return;
+    }
+    if (e.target.id === "product-pagination-prev") goToPage(currentPage - 1);
+    if (e.target.id === "product-pagination-next") goToPage(currentPage + 1);
+  }
+
+  function onViewportPageSizeChange() {
+    const nextSize = getPageSize();
+    if (nextSize === lastPageSize) return;
+    lastPageSize = nextSize;
+    applyProductFilters({ resetPage: false });
   }
 
   function resetProductFilters() {
@@ -239,13 +336,29 @@
           false
         );
       }
-      applyProductFilters();
+      applyProductFilters({ resetPage: true });
     });
-    document.getElementById("product-filter-category")?.addEventListener("change", applyProductFilters);
-    document.getElementById("product-filter-maker")?.addEventListener("change", applyProductFilters);
-    document.getElementById("product-filter-dealer")?.addEventListener("change", applyProductFilters);
-    document.getElementById("product-filter-name")?.addEventListener("input", applyProductFilters);
+    document.getElementById("product-filter-category")?.addEventListener("change", () =>
+      applyProductFilters({ resetPage: true })
+    );
+    document.getElementById("product-filter-maker")?.addEventListener("change", () =>
+      applyProductFilters({ resetPage: true })
+    );
+    document.getElementById("product-filter-dealer")?.addEventListener("change", () =>
+      applyProductFilters({ resetPage: true })
+    );
+    document.getElementById("product-filter-name")?.addEventListener("input", () =>
+      applyProductFilters({ resetPage: true })
+    );
     document.getElementById("btn-product-filter-reset")?.addEventListener("click", resetProductFilters);
+
+    document.getElementById("product-pagination")?.addEventListener("click", onPaginationClick);
+    if (typeof mobileMedia.addEventListener === "function") {
+      mobileMedia.addEventListener("change", onViewportPageSizeChange);
+    } else if (typeof mobileMedia.addListener === "function") {
+      mobileMedia.addListener(onViewportPageSizeChange);
+    }
+    window.addEventListener("resize", onViewportPageSizeChange);
   }
 
   function getModalFormData() {
@@ -353,7 +466,7 @@
       .map(
         (p) => `
       <tr>
-        <td data-label="商品名">${esc(p.name)}</td>
+        <td data-label="商品名" class="cell-product-name">${esc(p.name)}</td>
         <td data-label="コード"><code>${esc(p.barcode)}</code>${p.jan_code ? `<br><small>納品:${esc(p.jan_code)}</small>` : ""}</td>
         <td data-label="カテゴリ">${esc(p.category_name || "")}</td>
         <td data-label="店舗">${esc(p.deployment_label || formatDeploymentFallback(p))}</td>

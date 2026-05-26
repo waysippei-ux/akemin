@@ -853,3 +853,43 @@ def build_analysis_context(
             for l in logs[:30]
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# ブランドマスタ（実装は crud_masters — 循環 import 回避のため遅延委譲）
+# ---------------------------------------------------------------------------
+
+def get_brands(db: Session, *, maker_id: int | None = None, active_maker_only: bool = True):
+    from app import crud_masters
+
+    return crud_masters.get_brands(db, maker_id=maker_id, active_maker_only=active_maker_only)
+
+
+def get_brand(db: Session, brand_id: int):
+    from app import crud_masters
+
+    return crud_masters.get_brand(db, brand_id)
+
+
+def create_brand(db: Session, data):
+    from app import crud_masters
+
+    return crud_masters.create_brand(db, data)
+
+
+def update_brand(db: Session, brand, data):
+    from app import crud_masters
+
+    return crud_masters.update_brand(db, brand, data)
+
+
+def delete_brand(db: Session, brand) -> None:
+    from app import crud_masters
+
+    crud_masters.delete_brand(db, brand)
+
+
+def brand_to_out(brand, maker_name: str | None = None):
+    from app import crud_masters
+
+    return crud_masters.brand_to_out(brand, maker_name=maker_name)

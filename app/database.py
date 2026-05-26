@@ -158,6 +158,11 @@ def migrate_schema() -> None:
                     )
                 )
 
+    if "brands" not in insp.get_table_names():
+        from app.models import Brand
+
+        Brand.__table__.create(bind=engine, checkfirst=True)
+
     _ensure_default_sections(engine, insp)
     _ensure_direct_dealer(engine, insp)
 

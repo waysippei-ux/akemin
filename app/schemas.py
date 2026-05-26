@@ -448,6 +448,28 @@ class MakerUpdate(BaseModel):
     is_active: bool = True
 
 
+class BrandOut(BaseModel):
+    id: int
+    name: str
+    maker_id: int
+    maker_name: Optional[str] = None
+    sort_order: int = 0
+
+    model_config = {"from_attributes": True}
+
+
+class BrandCreate(BaseModel):
+    name: str
+    maker_id: int = Field(gt=0)
+    sort_order: int = 0
+
+
+class BrandUpdate(BaseModel):
+    name: str
+    maker_id: int = Field(gt=0)
+    sort_order: int = 0
+
+
 class DealerMakerOut(BaseModel):
     id: int
     dealer_id: int
