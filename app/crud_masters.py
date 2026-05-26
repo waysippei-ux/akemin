@@ -521,6 +521,12 @@ def product_to_out(
     deployment_label, active_store_names = format_product_deployment(
         active_ids, expand_all, stores
     )
+    section_id = None
+    section_name = None
+    if product.category:
+        section_id = product.category.section
+        if product.category.shelf_section:
+            section_name = product.category.shelf_section.name
     return ProductOut(
         id=product.id,
         name=product.name,
@@ -531,8 +537,12 @@ def product_to_out(
         critical_threshold=product.critical_threshold,
         category_id=product.category_id,
         category_name=product.category.name if product.category else None,
+        section=section_id,
+        section_name=section_name,
         maker_id=product.maker_id,
         maker_name=product.maker.name if product.maker else None,
+        brand_id=product.brand_id,
+        brand_name=product.brand.name if product.brand else None,
         dealer_id=product.dealer_id,
         dealer_name=product.dealer.name if product.dealer else None,
         delivery_codes=codes,

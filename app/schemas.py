@@ -69,6 +69,8 @@ class StoreProductSettingRowOut(BaseModel):
     category_name: str = ""
     maker_id: Optional[int] = None
     maker_name: Optional[str] = None
+    brand_id: Optional[int] = None
+    brand_name: Optional[str] = None
     dealer_id: Optional[int] = None
     dealer_name: Optional[str] = None
     unit: str = "本"
@@ -125,8 +127,12 @@ class ProductOut(BaseModel):
     critical_threshold: int
     category_id: int
     category_name: Optional[str] = None
+    section: Optional[int] = None
+    section_name: Optional[str] = None
     maker_id: Optional[int] = None
     maker_name: Optional[str] = None
+    brand_id: Optional[int] = None
+    brand_name: Optional[str] = None
     dealer_id: Optional[int] = None
     dealer_name: Optional[str] = None
     delivery_codes: list[ProductDeliveryCodeOut] = []
@@ -147,6 +153,7 @@ class ProductCreate(BaseModel):
     warning_threshold: int = 5
     critical_threshold: int = 2
     maker_id: Optional[int] = None
+    brand_id: Optional[int] = None
     dealer_id: Optional[int] = None
     deployment: ProductDeploymentIn = Field(default_factory=ProductDeploymentIn)
 
@@ -160,6 +167,7 @@ class ProductUpdate(BaseModel):
     warning_threshold: int = Field(ge=0)
     critical_threshold: int = Field(ge=0)
     maker_id: Optional[int] = None
+    brand_id: Optional[int] = None
     dealer_id: Optional[int] = None
     deployment: ProductDeploymentIn = Field(default_factory=ProductDeploymentIn)
 
@@ -189,6 +197,8 @@ class InventoryItemOut(BaseModel):
     category_name: str = ""
     maker_id: Optional[int] = None
     maker_name: Optional[str] = None
+    brand_id: Optional[int] = None
+    brand_name: Optional[str] = None
     dealer_id: Optional[int] = None
     dealer_name: Optional[str] = None
     is_on_shelf: bool = False

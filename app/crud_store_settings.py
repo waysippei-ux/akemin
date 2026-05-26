@@ -58,7 +58,7 @@ def list_store_product_settings(db: Session, store_id: int) -> list[dict]:
         return []
 
     settings_map = get_settings_map(db, store_id)
-    products = get_products(db)
+    products = get_products(db)  # noqa: joinedload brand via get_products
     rows: list[dict] = []
 
     for product in products:
@@ -75,6 +75,8 @@ def list_store_product_settings(db: Session, store_id: int) -> list[dict]:
                 "category_name": product.category.name if product.category else "",
                 "maker_id": product.maker_id,
                 "maker_name": product.maker.name if product.maker else None,
+                "brand_id": product.brand_id,
+                "brand_name": product.brand.name if product.brand else None,
                 "dealer_id": product.dealer_id,
                 "dealer_name": product.dealer.name if product.dealer else None,
                 "unit": product.unit,

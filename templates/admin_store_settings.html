@@ -40,6 +40,12 @@
         </select>
       </div>
       <div class="filter-field">
+        <label for="filter-brand">ブランド</label>
+        <select id="filter-brand" class="select select-sm">
+          <option value="">すべて</option>
+        </select>
+      </div>
+      <div class="filter-field">
         <label for="filter-dealer">ディーラー</label>
         <select id="filter-dealer" class="select select-sm">
           <option value="">すべて</option>
@@ -85,5 +91,6 @@
 
 {% block scripts %}
 <script src="/static/js/filter_helpers.js?v=1"></script>
-<script src="/static/js/admin_store_settings.js?v=2"></script>
+<script src="/static/js/filter_helpers.js?v=2"></script>
+<script src="/static/js/admin_store_settings.js?v=3"></script>
 {% endblock %}

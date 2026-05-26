@@ -97,6 +97,10 @@ def migrate_schema() -> None:
         alters.append("ALTER TABLE products ADD COLUMN maker_id INTEGER")
     if "dealer_id" not in cols:
         alters.append("ALTER TABLE products ADD COLUMN dealer_id INTEGER")
+    if "brand_id" not in cols:
+        alters.append(
+            "ALTER TABLE products ADD COLUMN brand_id INTEGER REFERENCES brands(id)"
+        )
 
     if alters:
         with engine.begin() as conn:

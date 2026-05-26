@@ -1,7 +1,9 @@
 """
 商品（カラー材）API — 管理者向け CRUD・CSVインポート
 """
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from typing import Optional
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app import crud, crud_masters
@@ -24,12 +26,22 @@ router = APIRouter()
 def list_products(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    category_id: Optional[int] = Query(None, gt=0),
+    section: Optional[int] = Query(None, gt=0),
+    maker_id: Optional[int] = Query(None, gt=0),
+    brand_id: Optional[int] = Query(None, gt=0),
 ):
-    """商品マスタ一覧（ログイン必須・展開店舗名付き）"""
+    """商品マスタ一覧（ログイン必須・展開店舗名付き・絞り込みクエリ対応）"""
     stores = crud.get_stores(db, active_only=True)
     return [
         crud_masters.product_to_out(db, p, stores=stores)
-        for p in crud.get_products(db)
+        for p in crud.get_products(
+            db,
+            category_id=category_id,
+            maker_id=maker_id,
+            brand_id=brand_id,
+            section=section,
+        )
     ]
 
 
@@ -150,7 +162,10 @@ def create_product_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="このバーコードは既に登録されています。",
         )
-    p = crud.create_product(db, body)
+    try:
+        p = crud.create_product(db, body)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     p = crud.get_product_by_id(db, p.id)
     return crud_masters.product_to_out(db, p)
 
@@ -180,7 +195,10 @@ def update_product_endpoint(
             detail="危険閾値は警告閾値以下にしてください。",
         )
 
-    crud.update_product(db, product, body)
+    try:
+        crud.update_product(db, product, body)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     product = crud.get_product_by_id(db, product_id)
     return crud_masters.product_to_out(db, product)
 

@@ -129,14 +129,44 @@ def delete_store(db: Session, store: Store) -> None:
 # 商品
 # ---------------------------------------------------------------------------
 
-def get_products(db: Session, category_id: int | None = None) -> list[Product]:
+def _validate_product_brand(
+    db: Session, maker_id: int | None, brand_id: int | None
+) -> None:
+    if brand_id is None:
+        return
+    from app import crud_masters
+
+    brand = crud_masters.get_brand(db, brand_id)
+    if not brand:
+        raise ValueError("ブランドが見つかりません。")
+    if not maker_id:
+        raise ValueError("ブランドを指定する場合はメーカーを選択してください。")
+    if brand.maker_id != maker_id:
+        raise ValueError("ブランドは選択したメーカーに属していません。")
+
+
+def get_products(
+    db: Session,
+    category_id: int | None = None,
+    *,
+    maker_id: int | None = None,
+    brand_id: int | None = None,
+    section: int | None = None,
+) -> list[Product]:
     q = db.query(Product).options(
-        joinedload(Product.category),
+        joinedload(Product.category).joinedload(Category.shelf_section),
         joinedload(Product.maker),
         joinedload(Product.dealer),
+        joinedload(Product.brand),
     )
     if category_id is not None:
         q = q.filter(Product.category_id == category_id)
+    if maker_id is not None:
+        q = q.filter(Product.maker_id == maker_id)
+    if brand_id is not None:
+        q = q.filter(Product.brand_id == brand_id)
+    if section is not None:
+        q = q.join(Category).filter(Category.section == section)
     return q.order_by(Product.name).all()
 
 
@@ -208,9 +238,10 @@ def get_product_by_id(db: Session, product_id: int) -> Product | None:
     return (
         db.query(Product)
         .options(
-            joinedload(Product.category),
+            joinedload(Product.category).joinedload(Category.shelf_section),
             joinedload(Product.maker),
             joinedload(Product.dealer),
+            joinedload(Product.brand),
             joinedload(Product.delivery_codes).joinedload(ProductDeliveryCode.dealer),
         )
         .filter(Product.id == product_id)
@@ -219,6 +250,7 @@ def get_product_by_id(db: Session, product_id: int) -> Product | None:
 
 
 def create_product(db: Session, data: ProductCreate) -> Product:
+    _validate_product_brand(db, data.maker_id, data.brand_id)
     dump = data.model_dump(exclude={"deployment"})
     jan = dump.get("jan_code")
     dump["jan_code"] = (jan or "").strip() or None
@@ -234,6 +266,7 @@ def create_product(db: Session, data: ProductCreate) -> Product:
 
 
 def update_product(db: Session, product: Product, data: ProductUpdate) -> Product:
+    _validate_product_brand(db, data.maker_id, data.brand_id)
     product.name = data.name
     product.barcode = data.barcode
     product.jan_code = (data.jan_code or "").strip() or None
@@ -242,6 +275,7 @@ def update_product(db: Session, product: Product, data: ProductUpdate) -> Produc
     product.critical_threshold = data.critical_threshold
     product.category_id = data.category_id
     product.maker_id = data.maker_id
+    product.brand_id = data.brand_id
     product.dealer_id = data.dealer_id
     apply_product_store_deployment(
         db, product.id, data.deployment.expand_all_stores, data.deployment.store_ids
@@ -674,6 +708,8 @@ def _inventory_item_from_row(
         category_name=product.category.name if product.category else "",
         maker_id=product.maker_id,
         maker_name=product.maker.name if product.maker else None,
+        brand_id=product.brand_id,
+        brand_name=product.brand.name if product.brand else None,
         dealer_id=product.dealer_id,
         dealer_name=product.dealer.name if product.dealer else None,
         is_on_shelf=inv.is_active,
@@ -702,6 +738,7 @@ def get_inventory_list(
                 joinedload(Inventory.product).joinedload(Product.category),
                 joinedload(Inventory.product).joinedload(Product.maker),
                 joinedload(Inventory.product).joinedload(Product.dealer),
+                joinedload(Inventory.product).joinedload(Product.brand),
             )
             .filter(
                 Inventory.store_id == store_id,

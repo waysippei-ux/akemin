@@ -60,6 +60,15 @@ def delete_dealer(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.get("/links/all", response_model=list[DealerMakerOut])
+def all_dealer_makers(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """全ディーラー×メーカー紐付け（管理画面用）"""
+    return crud_masters.list_dealer_makers(db)
+
+
 @router.get("/{dealer_id}/makers", response_model=list[DealerMakerOut])
 def dealer_makers(dealer_id: int, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     return crud_masters.list_dealer_makers(db, dealer_id=dealer_id)

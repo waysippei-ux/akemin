@@ -60,13 +60,54 @@ window.FilterHelpers = (function () {
     return dealerName;
   }
 
+  function fillBrandSelect(el, brands, makerId, includeAll = true, includeEmpty = false) {
+    if (!el) return;
+    const prev = el.value;
+    let list = brands || [];
+    if (makerId) {
+      list = list.filter((b) => String(b.maker_id) === String(makerId));
+    } else {
+      list = [];
+    }
+    const opts = [];
+    if (includeAll) opts.push('<option value="">すべて</option>');
+    else if (includeEmpty) opts.push('<option value="">—</option>');
+    list
+      .sort(
+        (a, b) =>
+          (a.sort_order || 0) - (b.sort_order || 0) ||
+          String(a.name).localeCompare(String(b.name), "ja")
+      )
+      .forEach((b) => {
+        opts.push(`<option value="${b.id}">${esc(b.name)}</option>`);
+      });
+    el.innerHTML = opts.join("");
+    if ([...el.options].some((o) => o.value === prev)) el.value = prev;
+    else el.value = "";
+  }
+
+  function bindMakerBrand(makerEl, brandEl, brands, onFilterChange) {
+    makerEl?.addEventListener("change", () => {
+      fillBrandSelect(brandEl, brands, makerEl.value, true, false);
+      onFilterChange?.();
+    });
+  }
+
+  function matchesBrand(productBrandId, brandId) {
+    if (!brandId) return true;
+    return String(productBrandId || "") === String(brandId);
+  }
+
   return {
     DIRECT_DEALER_NAME,
     DIRECT_DEALER_LABEL,
     fillSectionSelect,
     fillCategorySelect,
+    fillBrandSelect,
     bindShelfCategory,
+    bindMakerBrand,
     matchesSection,
+    matchesBrand,
     dealerDisplayName,
     esc,
   };

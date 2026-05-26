@@ -6,6 +6,7 @@
   let sections = [];
   let categories = [];
   let makers = [];
+  let brands = [];
   let dealers = [];
   let adminStores = [];
   let editingId = null;
@@ -49,20 +50,20 @@
   });
 
   async function loadMasters() {
-    [sections, categories, makers, dealers, adminStores] = await Promise.all([
+    [sections, categories, makers, brands, dealers, adminStores] = await Promise.all([
       Api.get("/api/sections"),
       Api.get("/api/categories"),
       Api.get("/api/makers"),
+      Api.get("/api/brands"),
       Api.get("/api/dealers"),
       Api.get("/api/stores"),
     ]);
-    document.getElementById("modal-category_id").innerHTML = categories
-      .map((c) => `<option value="${c.id}">${c.name}</option>`)
-      .join("");
+    setupModalShelfCategory();
     fillOptional("modal-maker_id", makers);
     fillOptional("modal-dealer_id", dealers);
     populateProductFilterSelects();
     setupProductShelfFilter();
+    setupProductMakerBrandFilter();
     renderStorePickList([]);
     document.getElementById("modal-expand-all-stores")?.addEventListener("change", onExpandAllChange);
   }
@@ -82,6 +83,82 @@
     }
   }
 
+  function setupProductMakerBrandFilter() {
+    const FH = window.FilterHelpers;
+    if (!FH) return;
+    const makerEl = document.getElementById("product-filter-maker");
+    const brandEl = document.getElementById("product-filter-brand");
+    FH.fillBrandSelect(brandEl, brands, makerEl?.value || "");
+    if (makerEl && !makerEl.dataset.brandBound) {
+      makerEl.dataset.brandBound = "1";
+      FH.bindMakerBrand(makerEl, brandEl, brands, () =>
+        applyProductFilters({ resetPage: true })
+      );
+    }
+  }
+
+  function setupModalShelfCategory() {
+    const FH = window.FilterHelpers;
+    const sectionEl = document.getElementById("modal-section");
+    const categoryEl = document.getElementById("modal-category_id");
+    if (!FH || !sectionEl || !categoryEl) return;
+
+    sectionEl.innerHTML =
+      '<option value="">選択してください</option>' +
+      sections
+        .filter((s) => s.is_active !== false)
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || a.id - b.id)
+        .map((s) => `<option value="${s.id}">${FH.esc(s.name)}</option>`)
+        .join("");
+
+    const onSectionChange = () => {
+      const sectionId = sectionEl.value;
+      if (!sectionId) {
+        categoryEl.innerHTML = '<option value="">棚を選択してください</option>';
+        categoryEl.disabled = true;
+        categoryEl.required = false;
+        return;
+      }
+      categoryEl.disabled = false;
+      categoryEl.required = true;
+      FH.fillCategorySelect(categoryEl, categories, sectionId, false);
+      if (!categoryEl.options.length) {
+        categoryEl.innerHTML = '<option value="">カテゴリがありません</option>';
+      }
+    };
+
+    if (!sectionEl.dataset.modalBound) {
+      sectionEl.dataset.modalBound = "1";
+      sectionEl.addEventListener("change", onSectionChange);
+    }
+    onSectionChange();
+  }
+
+  function setupModalMakerBrand() {
+    const FH = window.FilterHelpers;
+    const makerEl = document.getElementById("modal-maker_id");
+    const brandEl = document.getElementById("modal-brand_id");
+    if (!makerEl || !brandEl) return;
+
+    const refreshBrand = () => {
+      const makerId = makerEl.value;
+      if (!makerId) {
+        brandEl.innerHTML = '<option value="">—</option>';
+        brandEl.disabled = true;
+        return;
+      }
+      brandEl.disabled = false;
+      if (FH) FH.fillBrandSelect(brandEl, brands, makerId, false, true);
+      else brandEl.innerHTML = '<option value="">—</option>';
+    };
+
+    if (!makerEl.dataset.modalBrandBound) {
+      makerEl.dataset.modalBrandBound = "1";
+      makerEl.addEventListener("change", refreshBrand);
+    }
+    refreshBrand();
+  }
+
   function populateProductFilterSelects() {
     const sectionId = document.getElementById("product-filter-section")?.value || "";
     const FH = window.FilterHelpers;
@@ -91,6 +168,11 @@
         categories,
         sectionId,
         true
+      );
+      FH.fillBrandSelect(
+        document.getElementById("product-filter-brand"),
+        brands,
+        document.getElementById("product-filter-maker")?.value || ""
       );
     } else {
       fillFilterSelect(
@@ -123,6 +205,7 @@
     const sectionId = document.getElementById("product-filter-section")?.value || "";
     const catId = document.getElementById("product-filter-category")?.value || "";
     const makerId = document.getElementById("product-filter-maker")?.value || "";
+    const brandId = document.getElementById("product-filter-brand")?.value || "";
     const dealerId = document.getElementById("product-filter-dealer")?.value || "";
     const nameQ = (document.getElementById("product-filter-name")?.value || "")
       .trim()
@@ -135,6 +218,8 @@
       }
       if (catId && String(p.category_id) !== catId) return false;
       if (makerId && String(p.maker_id || "") !== makerId) return false;
+      if (brandId && FH && !FH.matchesBrand(p.brand_id, brandId)) return false;
+      if (brandId && !FH && String(p.brand_id || "") !== brandId) return false;
       if (dealerId && String(p.dealer_id || "") !== dealerId) return false;
       if (nameQ && !(p.name || "").toLowerCase().includes(nameQ)) return false;
       return true;
@@ -249,6 +334,7 @@
       "product-filter-section",
       "product-filter-category",
       "product-filter-maker",
+      "product-filter-brand",
       "product-filter-dealer",
     ];
     ids.forEach((id) => {
@@ -344,6 +430,9 @@
     document.getElementById("product-filter-maker")?.addEventListener("change", () =>
       applyProductFilters({ resetPage: true })
     );
+    document.getElementById("product-filter-brand")?.addEventListener("change", () =>
+      applyProductFilters({ resetPage: true })
+    );
     document.getElementById("product-filter-dealer")?.addEventListener("change", () =>
       applyProductFilters({ resetPage: true })
     );
@@ -362,17 +451,27 @@
   }
 
   function getModalFormData() {
+    const sectionId = document.getElementById("modal-section")?.value;
+    if (!sectionId) {
+      throw new Error("棚を選択してください。");
+    }
+    const categoryId = document.getElementById("modal-category_id").value;
+    if (!categoryId) {
+      throw new Error("カテゴリを選択してください。");
+    }
     const maker = document.getElementById("modal-maker_id").value;
+    const brand = document.getElementById("modal-brand_id").value;
     const dealer = document.getElementById("modal-dealer_id").value;
     return {
       name: document.getElementById("modal-name").value.trim(),
       barcode: document.getElementById("modal-barcode").value.trim(),
       jan_code: modalJanCode,
-      category_id: parseInt(document.getElementById("modal-category_id").value, 10),
+      category_id: parseInt(categoryId, 10),
       unit: document.getElementById("modal-unit").value.trim() || "本",
       warning_threshold: parseInt(document.getElementById("modal-warning_threshold").value, 10),
       critical_threshold: parseInt(document.getElementById("modal-critical_threshold").value, 10),
       maker_id: maker ? parseInt(maker, 10) : null,
+      brand_id: brand ? parseInt(brand, 10) : null,
       dealer_id: dealer ? parseInt(dealer, 10) : null,
       deployment: getDeployment(),
     };
@@ -398,9 +497,11 @@
     document.getElementById("modal-unit").value = "本";
     document.getElementById("modal-warning_threshold").value = "4";
     document.getElementById("modal-critical_threshold").value = "2";
-    if (categories.length) document.getElementById("modal-category_id").value = categories[0].id;
+    document.getElementById("modal-section").value = "";
     document.getElementById("modal-maker_id").value = "";
     document.getElementById("modal-dealer_id").value = "";
+    setupModalShelfCategory();
+    setupModalMakerBrand();
     modalJanCode = null;
     const expandAll = document.getElementById("modal-expand-all-stores");
     if (expandAll) {
@@ -415,6 +516,7 @@
     modalJanCode = null;
     document.getElementById("product-modal-title").textContent = "商品を追加";
     resetModalDefaults();
+    setupModalMakerBrand();
     openModal();
   }
 
@@ -428,8 +530,16 @@
     document.getElementById("modal-product-id").value = id;
     document.getElementById("modal-name").value = p.name;
     document.getElementById("modal-barcode").value = p.barcode;
+    const cat = categories.find((c) => c.id === p.category_id);
+    const sectionEl = document.getElementById("modal-section");
+    if (sectionEl && cat) {
+      sectionEl.value = String(cat.section);
+      sectionEl.dispatchEvent(new Event("change"));
+    }
     document.getElementById("modal-category_id").value = p.category_id;
     document.getElementById("modal-maker_id").value = p.maker_id || "";
+    setupModalMakerBrand();
+    document.getElementById("modal-brand_id").value = p.brand_id || "";
     document.getElementById("modal-dealer_id").value = p.dealer_id || "";
     document.getElementById("modal-unit").value = p.unit;
     document.getElementById("modal-warning_threshold").value = p.warning_threshold;

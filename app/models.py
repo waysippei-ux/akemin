@@ -152,6 +152,7 @@ class Brand(Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     maker: Mapped["Maker"] = relationship(back_populates="brands")
+    products: Mapped[list["Product"]] = relationship(back_populates="brand")
 
 
 class DealerMaker(Base):
@@ -188,10 +189,12 @@ class Product(Base):
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"), nullable=False, index=True)
     maker_id: Mapped[Optional[int]] = mapped_column(ForeignKey("makers.id"), nullable=True, index=True)
     dealer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("dealers.id"), nullable=True, index=True)
+    brand_id: Mapped[Optional[int]] = mapped_column(ForeignKey("brands.id"), nullable=True, index=True)
 
     category: Mapped["Category"] = relationship(back_populates="products")
     maker: Mapped[Optional["Maker"]] = relationship(back_populates="products")
     dealer: Mapped[Optional["Dealer"]] = relationship(back_populates="products")
+    brand: Mapped[Optional["Brand"]] = relationship(back_populates="products")
     inventories: Mapped[list["Inventory"]] = relationship(back_populates="product")
     inventory_logs: Mapped[list["InventoryLog"]] = relationship(back_populates="product")
     purchase_order_items: Mapped[list["PurchaseOrderItem"]] = relationship(back_populates="product")

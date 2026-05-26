@@ -14,6 +14,7 @@
   let categories = [];
   let makers = [];
   let dealers = [];
+  let brands = [];
   let products = [];
   let currentUser = null;
   let modalProductId = null;
@@ -86,6 +87,7 @@
     categories = boot.categories || [];
     makers = boot.makers || [];
     dealers = boot.dealers || [];
+    brands = boot.brands || [];
     products = boot.products || [];
     initSearchFilters();
     if (boot.default_store_id && storeSelect) {
@@ -143,14 +145,21 @@
       FH.fillSectionSelect(sectionEl, sections);
     }
     FH.fillCategorySelect(categoryEl, categories, sectionEl?.value || "");
+    const makerEl = document.getElementById("filter-maker");
+    const brandEl = document.getElementById("filter-brand");
+    FH.fillBrandSelect(brandEl, brands, makerEl?.value || "");
     if (sectionEl && !sectionEl.dataset.bound) {
       sectionEl.dataset.bound = "1";
       FH.bindShelfCategory(sectionEl, categoryEl, categories, renderProducts);
     }
+    if (makerEl && !makerEl.dataset.brandBound) {
+      makerEl.dataset.brandBound = "1";
+      FH.bindMakerBrand(makerEl, brandEl, brands, renderProducts);
+    }
   }
 
   function bindFilters() {
-    ["filter-section", "filter-category", "filter-maker", "filter-dealer", "filter-name"].forEach((id) => {
+    ["filter-section", "filter-category", "filter-maker", "filter-brand", "filter-dealer", "filter-name"].forEach((id) => {
       const el = document.getElementById(id);
       el?.addEventListener("input", renderProducts);
       el?.addEventListener("change", renderProducts);
@@ -159,7 +168,7 @@
   }
 
   function resetSearchFilters() {
-    const ids = ["filter-section", "filter-category", "filter-maker", "filter-dealer"];
+    const ids = ["filter-section", "filter-category", "filter-maker", "filter-brand", "filter-dealer"];
     ids.forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.value = "";
@@ -193,6 +202,7 @@
     const section = document.getElementById("filter-section")?.value || "";
     const cat = document.getElementById("filter-category")?.value || "";
     const maker = document.getElementById("filter-maker")?.value || "";
+    const brand = document.getElementById("filter-brand")?.value || "";
     const dealer = document.getElementById("filter-dealer")?.value || "";
     const nameQ = (document.getElementById("filter-name")?.value || "").trim().toLowerCase();
     const FH = window.FilterHelpers;
@@ -203,6 +213,8 @@
       }
       if (cat && String(p.category_id) !== cat) return false;
       if (maker && String(p.maker_id || "") !== maker) return false;
+      if (brand && FH && !FH.matchesBrand(p.brand_id, brand)) return false;
+      if (brand && !FH && String(p.brand_id || "") !== brand) return false;
       if (dealer && String(p.dealer_id || "") !== dealer) return false;
       if (nameQ && !(p.product_name || "").toLowerCase().includes(nameQ)) return false;
       return true;

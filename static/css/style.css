@@ -1897,6 +1897,106 @@ input[type="number"],
   margin: 1rem 0;
 }
 
+/* ディーラー・メーカー — カード + チップ */
+.dealer-cards-grid,
+.maker-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dealer-card {
+  background: #eae9fd;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(74, 63, 199, 0.15);
+}
+
+.dealer-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1rem;
+  background: #eae9fd;
+}
+
+.dealer-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: bold;
+  flex: 1;
+  min-width: 0;
+}
+
+.dealer-card-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.dealer-card-chips,
+.maker-card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0 1rem 0.75rem;
+  background: #fff;
+}
+
+.dealer-card-footer,
+.maker-card-footer {
+  padding: 0.65rem 1rem 0.85rem;
+  background: #fff;
+  border-top: 1px solid var(--color-border);
+}
+
+.maker-card {
+  background: var(--color-surface, #fff);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.maker-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1rem;
+  background: var(--color-bg-muted, #f8f8fa);
+}
+
+.maker-card-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: bold;
+  flex: 1;
+}
+
+.maker-card-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.master-chip {
+  display: inline-block;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+  background: #f4f4f8;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  line-height: 1.2;
+}
+
 @media (max-width: 768px) {
   .filter-bar-standard,
   .filter-bar-standard .filter-field label,

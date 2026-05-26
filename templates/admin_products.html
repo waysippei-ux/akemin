@@ -68,6 +68,12 @@
             </select>
           </div>
           <div class="filter-field">
+            <label for="product-filter-brand">ブランド</label>
+            <select id="product-filter-brand" class="select select-sm">
+              <option value="">すべて</option>
+            </select>
+          </div>
+          <div class="filter-field">
             <label for="product-filter-dealer">ディーラー</label>
             <select id="product-filter-dealer" class="select select-sm">
               <option value="">すべて</option>
@@ -122,7 +128,7 @@
   <div class="admin-tab-panel" id="admin-tab-dealers" hidden>
     <section class="card">
       <p class="help-text">ディーラーごとに取扱メーカーを管理します。どのディーラーにも紐づいていないメーカーは「メーカー直（直取引）」に表示されます。</p>
-      <div id="dealer-groups" class="hierarchy-tree"></div>
+      <div id="dealer-groups" class="dealer-cards-grid"></div>
       <button type="button" class="btn btn-secondary btn-sm" id="btn-add-dealer">+ ディーラーを追加</button>
     </section>
   </div>
@@ -131,7 +137,7 @@
   <div class="admin-tab-panel" id="admin-tab-makers" hidden>
     <section class="card">
       <p class="help-text">メーカーを起点に、所属ディーラーとブランドを一覧表示します。</p>
-      <div id="maker-groups" class="hierarchy-tree"></div>
+      <div id="maker-groups" class="maker-cards-grid"></div>
       <button type="button" class="btn btn-secondary btn-sm" id="btn-add-maker">+ メーカーを追加</button>
     </section>
   </div>
@@ -368,6 +374,32 @@
       <input type="hidden" id="modal-product-id">
       <div class="form-row">
         <div class="form-group">
+          <label for="modal-section">棚 *</label>
+          <select id="modal-section" class="select" required>
+            <option value="">選択してください</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="modal-category_id">カテゴリ *</label>
+          <select id="modal-category_id" class="select" required disabled>
+            <option value="">棚を選択してください</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="modal-maker_id">メーカー</label>
+          <select id="modal-maker_id" class="select"><option value="">—</option></select>
+        </div>
+        <div class="form-group">
+          <label for="modal-brand_id">ブランド</label>
+          <select id="modal-brand_id" class="select" disabled><option value="">—</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="modal-dealer_id">ディーラー</label>
+          <select id="modal-dealer_id" class="select"><option value="">—</option></select>
+        </div>
+        <div class="form-group">
           <label for="modal-name">商品名 *</label>
           <input type="text" id="modal-name" required>
         </div>
@@ -375,20 +407,8 @@
           <label for="modal-barcode">バーコード *</label>
           <input type="text" id="modal-barcode" required inputmode="numeric">
         </div>
-        <div class="form-group">
-          <label for="modal-category_id">カテゴリ *</label>
-          <select id="modal-category_id" class="select" required></select>
-        </div>
       </div>
       <div class="form-row">
-        <div class="form-group">
-          <label for="modal-maker_id">メーカー</label>
-          <select id="modal-maker_id" class="select"><option value="">—</option></select>
-        </div>
-        <div class="form-group">
-          <label for="modal-dealer_id">仕入ディーラー</label>
-          <select id="modal-dealer_id" class="select"><option value="">—</option></select>
-        </div>
         <div class="form-group">
           <label for="modal-unit">単位</label>
           <input type="text" id="modal-unit" value="本">
@@ -422,7 +442,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/filter_helpers.js?v=1"></script>
-<script src="/static/js/admin_products.js?v=5"></script>
-<script src="/static/js/admin_masters.js?v=5"></script>
+<script src="/static/js/filter_helpers.js?v=2"></script>
+<script src="/static/js/admin_products.js?v=6"></script>
+<script src="/static/js/admin_masters.js?v=6"></script>
 {% endblock %}

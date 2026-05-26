@@ -66,8 +66,8 @@
   }
 
   function bindListDelegation() {
-    document.getElementById("dealer-groups")?.addEventListener("click", onDealerHierarchyClick);
-    document.getElementById("maker-groups")?.addEventListener("click", onMakerHierarchyClick);
+    document.getElementById("dealer-groups")?.addEventListener("click", onDealerCardsClick);
+    document.getElementById("maker-groups")?.addEventListener("click", onMakerCardsClick);
     document.getElementById("brand-groups")?.addEventListener("click", onBrandHierarchyClick);
     document.getElementById("store-list")?.addEventListener("click", onStoreListClick);
     document.getElementById("shelf-cards")?.addEventListener("click", onShelfCardsClick);
@@ -432,11 +432,19 @@
 
   // ---------- ディーラー ----------
   async function loadAllLinks() {
-    linksCache = [];
-    for (const d of dealersCache) {
-      const links = await Api.get(`/api/dealers/${d.id}/makers`);
-      linksCache.push(...links);
+    try {
+      linksCache = await Api.get("/api/dealers/links/all");
+    } catch {
+      linksCache = [];
+      for (const d of dealersCache) {
+        const links = await Api.get(`/api/dealers/${d.id}/makers`);
+        linksCache.push(...links);
+      }
     }
+  }
+
+  function makersLinkedToDealer(dealerId) {
+    return linksCache.filter((l) => l.dealer_id === dealerId);
   }
 
   function sortDealersForDisplay(list) {
@@ -448,31 +456,7 @@
     });
   }
 
-  function linkedMakerIds() {
-    return new Set(linksCache.map((l) => l.maker_id));
-  }
-
-  function makersInDealerGroup(dealer) {
-    const direct = directDealerName();
-    const fromLinks = linksCache
-      .filter((l) => l.dealer_id === dealer.id)
-      .map((l) => {
-        const maker = makersCache.find((m) => m.id === l.maker_id);
-        return maker ? { maker, linkId: l.id } : null;
-      })
-      .filter(Boolean);
-
-    if (dealer.name !== direct) return fromLinks;
-
-    const linked = linkedMakerIds();
-    const unlinked = makersCache
-      .filter((m) => m.is_active !== false && !linked.has(m.id))
-      .map((m) => ({ maker: m, linkId: null, unlinked: true }));
-
-    return [...fromLinks, ...unlinked];
-  }
-
-  function dealerGroupTitle(dealer) {
+  function dealerCardTitle(dealer) {
     if (dealer.name === directDealerName()) {
       return `${esc(dealer.name)}（直取引）`;
     }
@@ -501,69 +485,40 @@
       return;
     }
     container.innerHTML = dealers
-      .map((d, idx) => {
-        const items = makersInDealerGroup(d);
-        const makerBlocks = items.length
-          ? items
-              .map(({ maker, linkId }) => renderMakerUnderDealer(d, maker, linkId))
-              .join("")
-          : '<p class="empty-msg hierarchy-add-btn">メーカーがありません</p>';
-        const divider = idx < dealers.length - 1 ? '<hr class="hierarchy-divider">' : "";
+      .map((d) => {
+        const links = makersLinkedToDealer(d.id);
+        const chips = links
+          .map((l) => `<span class="master-chip">${esc(l.maker_name)}</span>`)
+          .join("");
+        const chipsBlock = chips ? `<div class="dealer-card-chips">${chips}</div>` : "";
         return `
-        <div class="hierarchy-node" data-dealer-id="${d.id}">
-          <div class="hierarchy-row hierarchy-row-dealer">
-            <button type="button" class="hierarchy-toggle" data-action="toggle" aria-expanded="true">▼</button>
-            <span class="hierarchy-label">${dealerGroupTitle(d)}</span>
-            ${hierarchyActions("edit-dealer", "delete-dealer")}
-          </div>
-          <div class="hierarchy-children">
-            ${makerBlocks}
-            <button type="button" class="btn btn-ghost btn-sm hierarchy-add-btn" data-action="add-maker" data-dealer-id="${d.id}">+ メーカーを追加</button>
-          </div>
-        </div>${divider}`;
+        <article class="dealer-card" data-dealer-id="${d.id}">
+          <header class="dealer-card-header">
+            <h3 class="dealer-card-title">${dealerCardTitle(d)}</h3>
+            <span class="dealer-card-actions">
+              <button type="button" class="btn btn-ghost btn-sm" data-action="edit-dealer">編集</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-action="delete-dealer">削除</button>
+            </span>
+          </header>
+          ${chipsBlock}
+          <footer class="dealer-card-footer">
+            <button type="button" class="btn btn-ghost btn-sm" data-action="add-maker" data-dealer-id="${d.id}">+ メーカーを追加</button>
+          </footer>
+        </article>`;
       })
       .join("");
   }
 
-  function onDealerHierarchyClick(e) {
-    const toggle = e.target.closest("button[data-action='toggle']");
-    if (toggle) {
-      onHierarchyToggle(toggle);
-      return;
-    }
+  function onDealerCardsClick(e) {
     const btn = e.target.closest("button[data-action]");
     if (!btn) return;
-
-    if (btn.dataset.action === "add-maker") {
-      const dealerId = parseInt(btn.dataset.dealerId, 10);
-      const dealer = dealersCache.find((d) => d.id === dealerId);
-      if (dealer) openLinkMakerModal(dealer);
-      return;
-    }
-    if (btn.dataset.action === "add-brand") {
-      openBrandAddModal(parseInt(btn.dataset.makerId, 10));
-      return;
-    }
-
-    const dealerNode = btn.closest(".hierarchy-node[data-dealer-id]");
-    const dealerId = parseInt(dealerNode?.dataset.dealerId, 10);
+    const card = btn.closest(".dealer-card[data-dealer-id]");
+    const dealerId = parseInt(card?.dataset.dealerId, 10);
     const dealer = dealersCache.find((d) => d.id === dealerId);
 
-    if (btn.dataset.action === "edit-dealer" && dealer) openDealerModal(dealer);
+    if (btn.dataset.action === "add-maker" && dealer) openLinkMakerModal(dealer);
+    else if (btn.dataset.action === "edit-dealer" && dealer) openDealerModal(dealer);
     else if (btn.dataset.action === "delete-dealer" && dealer) deleteDealer(dealer);
-    else if (btn.dataset.action === "edit-maker" || btn.dataset.action === "delete-maker") {
-      const makerId = parseInt(btn.closest("[data-maker-id]")?.dataset.makerId, 10);
-      const maker = makersCache.find((m) => m.id === makerId);
-      if (!maker) return;
-      if (btn.dataset.action === "edit-maker") openMakerModal(maker);
-      else deleteMaker(maker);
-    } else if (btn.dataset.action === "edit-brand" || btn.dataset.action === "delete-brand") {
-      const brandId = parseInt(btn.closest("[data-brand-id]")?.dataset.brandId, 10);
-      const brand = brandsCache.find((b) => b.id === brandId);
-      if (!brand) return;
-      if (btn.dataset.action === "edit-brand") openBrandModal(brand);
-      else deleteBrand(brand);
-    }
   }
 
   function openDealerAddModal() {
@@ -699,28 +654,39 @@
     }
     container.innerHTML = makers
       .map((m) => {
-        const dealerNames =
-          dealersForMaker(m)
-            .map(({ dealer }) => dealerDisplayLabel(dealer.name))
-            .join("・") || "—";
-        const brandNames = brandsForMaker(m.id).map((b) => b.name).join("・") || "—";
+        const chips = brandsForMaker(m.id)
+          .map((b) => `<span class="master-chip">${esc(b.name)}</span>`)
+          .join("");
+        const chipsBlock = chips ? `<div class="maker-card-chips">${chips}</div>` : "";
         return `
-        <div class="hierarchy-node" data-maker-id="${m.id}">
-          <div class="hierarchy-row hierarchy-row-maker hierarchy-row-maker-root">
-            <button type="button" class="hierarchy-toggle" data-action="toggle" aria-expanded="true">▼</button>
-            <span class="hierarchy-label">${esc(m.name)}</span>
-            ${hierarchyActions("edit-maker", "delete-maker")}
-          </div>
-          <div class="hierarchy-children">
-            <div class="hierarchy-maker-meta">
-              <p><strong>所属ディーラー：</strong>${esc(dealerNames)}</p>
-              <p><strong>ブランド：</strong>${esc(brandNames)}</p>
-            </div>
-            <button type="button" class="btn btn-ghost btn-sm hierarchy-add-btn" data-action="add-dealer" data-maker-id="${m.id}">+ ディーラーを紐づける</button>
-          </div>
-        </div>`;
+        <article class="maker-card" data-maker-id="${m.id}">
+          <header class="maker-card-header">
+            <h3 class="maker-card-title">${esc(m.name)}</h3>
+            <span class="maker-card-actions">
+              <button type="button" class="btn btn-ghost btn-sm" data-action="edit-maker">編集</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-action="delete-maker">削除</button>
+            </span>
+          </header>
+          ${chipsBlock}
+          <footer class="maker-card-footer">
+            <button type="button" class="btn btn-ghost btn-sm" data-action="add-brand" data-maker-id="${m.id}">+ ブランドを追加</button>
+          </footer>
+        </article>`;
       })
       .join("");
+  }
+
+  function onMakerCardsClick(e) {
+    const btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+    const card = btn.closest(".maker-card[data-maker-id]");
+    const makerId = parseInt(card?.dataset.makerId || btn.dataset.makerId, 10);
+    const maker = makersCache.find((m) => m.id === makerId);
+    if (!maker) return;
+
+    if (btn.dataset.action === "edit-maker") openMakerModal(maker);
+    else if (btn.dataset.action === "delete-maker") deleteMaker(maker);
+    else if (btn.dataset.action === "add-brand") openBrandAddModal(maker.id);
   }
 
   function renderBrandGroups() {
@@ -759,23 +725,6 @@
         </div>`;
       })
       .join("");
-  }
-
-  function onMakerHierarchyClick(e) {
-    const toggle = e.target.closest("button[data-action='toggle']");
-    if (toggle) {
-      onHierarchyToggle(toggle);
-      return;
-    }
-    const btn = e.target.closest("button[data-action]");
-    if (!btn) return;
-    const makerId = parseInt(btn.dataset.makerId || btn.closest("[data-maker-id]")?.dataset.makerId, 10);
-    const maker = makersCache.find((m) => m.id === makerId);
-    if (!maker) return;
-
-    if (btn.dataset.action === "edit-maker") openMakerModal(maker);
-    else if (btn.dataset.action === "delete-maker") deleteMaker(maker);
-    else if (btn.dataset.action === "add-dealer") openLinkDealerModal(maker);
   }
 
   function onBrandHierarchyClick(e) {

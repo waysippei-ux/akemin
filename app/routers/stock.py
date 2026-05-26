@@ -16,6 +16,7 @@ from app.config import BASE_DIR
 from app.database import get_db
 from app.models import InventoryAction, User
 from app.schemas import (
+    BrandOut,
     CategoryOut,
     DealerOut,
     InventoryItemOut,
@@ -46,7 +47,9 @@ ALLOWED_UPLOAD_TYPES = {
 }
 
 
-def _masters(db: Session) -> tuple[list[dict], list[dict], list[dict], list[dict], list[dict]]:
+def _masters(
+    db: Session,
+) -> tuple[list[dict], list[dict], list[dict], list[dict], list[dict], list[dict]]:
     stores = [
         StoreOut.model_validate(s).model_dump(mode="json")
         for s in crud.get_stores(db, active_only=True)
@@ -67,7 +70,11 @@ def _masters(db: Session) -> tuple[list[dict], list[dict], list[dict], list[dict
         DealerOut.model_validate(d).model_dump(mode="json")
         for d in crud_masters.get_dealers(db, active_only=True)
     ]
-    return stores, sections, categories, makers, dealers
+    brands = [
+        BrandOut.model_validate(b).model_dump(mode="json")
+        for b in crud_masters.get_brands(db, active_maker_only=True)
+    ]
+    return stores, sections, categories, makers, dealers, brands
 
 
 def _resolve_default_store_id(
@@ -93,7 +100,7 @@ def _page_context(
     page: Literal["replenish", "consume"],
     store_id: Optional[int] = None,
 ) -> dict[str, Any]:
-    stores, sections, categories, makers, dealers = _masters(db)
+    stores, sections, categories, makers, dealers, brands = _masters(db)
     default_store_id = _resolve_default_store_id(stores, store_id)
     active_only = page == "consume"
     products: list[dict[str, Any]] = []
@@ -107,6 +114,7 @@ def _page_context(
         "categories": categories,
         "makers": makers,
         "dealers": dealers,
+        "brands": brands,
         "products": products,
         "default_store_id": default_store_id,
     }
@@ -116,6 +124,7 @@ def _page_context(
         "categories": categories,
         "makers": makers,
         "dealers": dealers,
+        "brands": brands,
         "products": products,
         "default_store_id": default_store_id,
         "page_json": json.dumps(page_json, ensure_ascii=False),
@@ -154,14 +163,24 @@ def _validate_store(db: Session, store_id: int) -> None:
 def list_stock_products(
     store_id: int = Query(..., gt=0),
     page: Literal["replenish", "consume"] = Query(...),
+    category_id: Optional[int] = Query(None, gt=0),
+    maker_id: Optional[int] = Query(None, gt=0),
+    brand_id: Optional[int] = Query(None, gt=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """店舗切り替え時の商品一覧"""
+    """店舗切り替え時の商品一覧（サーバー側フィルタ対応）"""
     check_store_access(current_user, store_id)
     _validate_store(db, store_id)
     active_only = page == "consume"
-    return crud.get_inventory_list(db, store_id, active_only=active_only)
+    items = crud.get_inventory_list(db, store_id, active_only=active_only)
+    if category_id is not None:
+        items = [i for i in items if i.category_id == category_id]
+    if maker_id is not None:
+        items = [i for i in items if i.maker_id == maker_id]
+    if brand_id is not None:
+        items = [i for i in items if i.brand_id == brand_id]
+    return items
 
 
 @router.get("/quantity", response_model=StockQuantityOut)
