@@ -132,6 +132,8 @@ class ProductOut(BaseModel):
     delivery_codes: list[ProductDeliveryCodeOut] = []
     expand_all_stores: bool = True
     active_store_ids: list[int] = Field(default_factory=list)
+    active_store_names: list[str] = Field(default_factory=list)
+    deployment_label: str = ""
 
     model_config = {"from_attributes": True}
 

@@ -224,6 +224,16 @@ input[type="number"],
   border: 1px solid var(--color-border);
 }
 
+.btn-outline {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: var(--color-bg-muted, #f5f5f5);
+}
+
 .btn-ghost {
   background: transparent;
   color: var(--color-text-muted);

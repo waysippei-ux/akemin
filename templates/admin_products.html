@@ -40,7 +40,7 @@
       <div class="panel-toolbar panel-toolbar-products">
         <h2 class="section-title">商品一覧 <span id="product-count" class="badge-count"></span></h2>
         <div class="panel-toolbar-actions">
-          <button type="button" class="btn-icon-round" id="btn-refresh-page" title="更新" aria-label="ページを更新">🔄</button>
+          <button type="button" class="btn btn-outline btn-sm" id="btn-refresh-page">更新する</button>
           <button type="button" class="btn btn-primary btn-sm" id="btn-add-product">新規商品を追加</button>
         </div>
       </div>
@@ -68,7 +68,7 @@
       <div class="table-wrap" id="table-wrap" hidden>
         <table class="data-table">
           <thead>
-            <tr><th>商品名</th><th>コード</th><th>カテゴリ</th><th>黄/赤</th><th></th></tr>
+            <tr><th>商品名</th><th>コード</th><th>カテゴリ</th><th>店舗</th><th>黄/赤</th><th></th></tr>
           </thead>
           <tbody id="products-tbody"></tbody>
         </table>
@@ -208,6 +208,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/admin_products.js?v=2"></script>
+<script src="/static/js/admin_products.js?v=3"></script>
 <script src="/static/js/admin_masters.js"></script>
 {% endblock %}

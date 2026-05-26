@@ -301,7 +301,7 @@
         <td data-label="商品名">${esc(p.name)}</td>
         <td data-label="コード"><code>${esc(p.barcode)}</code>${p.jan_code ? `<br><small>納品:${esc(p.jan_code)}</small>` : ""}</td>
         <td data-label="カテゴリ">${esc(p.category_name || "")}</td>
-        <td data-label="展開店舗">${p.expand_all_stores ? "全店舗" : esc((p.active_store_ids || []).join(","))}</td>
+        <td data-label="店舗">${esc(p.deployment_label || formatDeploymentFallback(p))}</td>
         <td data-label="閾値">${p.warning_threshold}/${p.critical_threshold}</td>
         <td class="cell-actions">
           <button type="button" class="btn btn-ghost btn-sm" data-edit="${p.id}">編集</button>
@@ -375,6 +375,14 @@
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     a.download = "products_template.csv";
     a.click();
+  }
+
+  function formatDeploymentFallback(p) {
+    if (p.expand_all_stores) return "全店舗";
+    const names = p.active_store_names || [];
+    if (!names.length) return "未配置";
+    if (names.length === 1) return names[0];
+    return `${names[0]} 他${names.length - 1}店舗`;
   }
 
   function esc(s) {

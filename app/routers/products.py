@@ -25,8 +25,12 @@ def list_products(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """商品マスタ一覧（ログイン必須）"""
-    return [crud_masters.product_to_out(db, p) for p in crud.get_products(db)]
+    """商品マスタ一覧（ログイン必須・展開店舗名付き）"""
+    stores = crud.get_stores(db, active_only=True)
+    return [
+        crud_masters.product_to_out(db, p, stores=stores)
+        for p in crud.get_products(db)
+    ]
 
 
 @router.post("/import/csv", response_model=ProductImportResult)

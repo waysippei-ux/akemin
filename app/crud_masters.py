@@ -243,10 +243,30 @@ def delivery_code_to_out(row) -> "ProductDeliveryCodeOut":
     )
 
 
+def format_product_deployment(
+    active_ids: list[int],
+    expand_all: bool,
+    stores: list,
+) -> tuple[str, list[str]]:
+    """展開店舗の表示ラベルと店舗名一覧"""
+    if expand_all:
+        return "全店舗", [s.name for s in stores]
+    if not active_ids:
+        return "未配置", []
+    name_by_id = {s.id: s.name for s in stores}
+    names = sorted(name_by_id[i] for i in active_ids if i in name_by_id)
+    if not names:
+        return "未配置", []
+    if len(names) == 1:
+        return names[0], names
+    return f"{names[0]} 他{len(names) - 1}店舗", names
+
+
 def product_to_out(
     db: Session,
     product: Product,
     include_delivery_codes: bool = False,
+    stores: list | None = None,
 ) -> ProductOut:
     from app import crud as crud_core
 
@@ -258,8 +278,12 @@ def product_to_out(
             if c.is_active
         ]
     active_ids = crud_core.get_active_store_ids_for_product(db, product.id)
-    stores = crud_core.get_stores(db, active_only=True)
+    if stores is None:
+        stores = crud_core.get_stores(db, active_only=True)
     expand_all = bool(stores) and len(active_ids) == len(stores)
+    deployment_label, active_store_names = format_product_deployment(
+        active_ids, expand_all, stores
+    )
     return ProductOut(
         id=product.id,
         name=product.name,
@@ -277,6 +301,8 @@ def product_to_out(
         delivery_codes=codes,
         expand_all_stores=expand_all,
         active_store_ids=active_ids,
+        active_store_names=active_store_names,
+        deployment_label=deployment_label,
     )
 
 
