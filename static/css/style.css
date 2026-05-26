@@ -1155,6 +1155,19 @@ input[type="number"],
   gap: 0.5rem;
 }
 
+.master-list-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.master-list-actions {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
 .admin-tabs {
   margin-bottom: 1rem;
 }

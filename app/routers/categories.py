@@ -51,4 +51,7 @@ def delete_category(
     cat = crud_masters.get_category(db, category_id)
     if not cat:
         raise HTTPException(404, "カテゴリが見つかりません。")
-    crud_masters.deactivate_category(db, cat)
+    try:
+        crud_masters.delete_category(db, cat)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

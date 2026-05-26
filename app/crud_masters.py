@@ -96,6 +96,20 @@ def deactivate_category(db: Session, cat: Category) -> None:
     db.commit()
 
 
+def count_products_for_category(db: Session, category_id: int) -> int:
+    return (
+        db.query(Product).filter(Product.category_id == category_id).count()
+    )
+
+
+def delete_category(db: Session, cat: Category) -> None:
+    """商品未紐づけのカテゴリのみ物理削除"""
+    if count_products_for_category(db, cat.id) > 0:
+        raise ValueError("このカテゴリには商品が登録されています")
+    db.delete(cat)
+    db.commit()
+
+
 # ---------------------------------------------------------------------------
 # ディーラー
 # ---------------------------------------------------------------------------
@@ -137,6 +151,27 @@ def deactivate_dealer(db: Session, dealer: Dealer) -> None:
     db.commit()
 
 
+def count_products_for_dealer(db: Session, dealer_id: int) -> int:
+    from app.models import ProductDeliveryCode
+
+    product_n = (
+        db.query(Product).filter(Product.dealer_id == dealer_id).count()
+    )
+    code_n = (
+        db.query(ProductDeliveryCode)
+        .filter(ProductDeliveryCode.dealer_id == dealer_id)
+        .count()
+    )
+    return product_n + code_n
+
+
+def delete_dealer(db: Session, dealer: Dealer) -> None:
+    if count_products_for_dealer(db, dealer.id) > 0:
+        raise ValueError("このディーラーには商品が登録されています")
+    db.delete(dealer)
+    db.commit()
+
+
 # ---------------------------------------------------------------------------
 # メーカー
 # ---------------------------------------------------------------------------
@@ -170,6 +205,17 @@ def update_maker(db: Session, maker: Maker, data: MakerUpdate) -> Maker:
 
 def deactivate_maker(db: Session, maker: Maker) -> None:
     maker.is_active = False
+    db.commit()
+
+
+def count_products_for_maker(db: Session, maker_id: int) -> int:
+    return db.query(Product).filter(Product.maker_id == maker_id).count()
+
+
+def delete_maker(db: Session, maker: Maker) -> None:
+    if count_products_for_maker(db, maker.id) > 0:
+        raise ValueError("このメーカーには商品が登録されています")
+    db.delete(maker)
     db.commit()
 
 

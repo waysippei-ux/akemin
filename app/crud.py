@@ -111,6 +111,20 @@ def update_store(db: Session, store: Store, *, name: str, is_active: bool) -> St
     return store
 
 
+def delete_store(db: Session, store: Store) -> None:
+    """在庫・ユーザー・発注が未紐づけの店舗のみ物理削除"""
+    from app.models import Inventory, PurchaseOrder, User
+
+    if db.query(Inventory).filter(Inventory.store_id == store.id).first():
+        raise ValueError("この店舗には在庫データが紐づいています")
+    if db.query(User).filter(User.store_id == store.id).first():
+        raise ValueError("この店舗に所属するユーザーがいます")
+    if db.query(PurchaseOrder).filter(PurchaseOrder.store_id == store.id).first():
+        raise ValueError("この店舗には発注データが紐づいています")
+    db.delete(store)
+    db.commit()
+
+
 # ---------------------------------------------------------------------------
 # 商品
 # ---------------------------------------------------------------------------

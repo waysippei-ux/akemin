@@ -46,11 +46,18 @@ def update_dealer(
 
 
 @router.delete("/{dealer_id}", status_code=204)
-def deactivate_dealer(dealer_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_dealer(
+    dealer_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
     d = crud_masters.get_dealer(db, dealer_id)
     if not d:
         raise HTTPException(404, "ディーラーが見つかりません。")
-    crud_masters.deactivate_dealer(db, d)
+    try:
+        crud_masters.delete_dealer(db, d)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/{dealer_id}/makers", response_model=list[DealerMakerOut])

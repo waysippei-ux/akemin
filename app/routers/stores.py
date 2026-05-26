@@ -121,3 +121,18 @@ def update_store(
     if not name:
         raise HTTPException(400, "店舗名を入力してください。")
     return crud.update_store(db, store, name=name, is_active=body.is_active)
+
+
+@router.delete("/{store_id}", status_code=204)
+def delete_store(
+    store_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    store = crud.get_store(db, store_id)
+    if not store:
+        raise HTTPException(404, "店舗が見つかりません。")
+    try:
+        crud.delete_store(db, store)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -40,8 +40,15 @@ def update_maker(
 
 
 @router.delete("/{maker_id}", status_code=204)
-def deactivate_maker(maker_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_maker(
+    maker_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
     m = crud_masters.get_maker(db, maker_id)
     if not m:
         raise HTTPException(404, "メーカーが見つかりません。")
-    crud_masters.deactivate_maker(db, m)
+    try:
+        crud_masters.delete_maker(db, m)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
