@@ -3,8 +3,11 @@
  */
 (function () {
   let stores = [];
+  let sections = [];
+  let categories = [];
   let rows = [];
   let currentStoreId = null;
+  let filtersReady = false;
 
   document.addEventListener("DOMContentLoaded", async () => {
     try {
@@ -25,11 +28,18 @@
       document.getElementById("btn-refresh-page")?.addEventListener("click", () => {
         window.location.reload();
       });
+      [sections, categories] = await Promise.all([
+        Api.get("/api/sections"),
+        Api.get("/api/categories"),
+      ]);
+      setupShelfFilter();
+      document.getElementById("filter-section")?.addEventListener("change", onSectionFilterChange);
       document.getElementById("filter-category")?.addEventListener("change", applyFilters);
       document.getElementById("filter-maker")?.addEventListener("change", applyFilters);
       document.getElementById("filter-dealer")?.addEventListener("change", applyFilters);
       document.getElementById("filter-name")?.addEventListener("input", applyFilters);
       document.getElementById("btn-filter-reset")?.addEventListener("click", resetFilters);
+      filtersReady = true;
       await loadSettings();
     } catch (e) {
       document.getElementById("settings-denied").textContent = e.message;
@@ -37,16 +47,46 @@
     }
   });
 
+  function setupShelfFilter() {
+    const FH = window.FilterHelpers;
+    if (!FH) return;
+    FH.fillSectionSelect(document.getElementById("filter-section"), sections);
+  }
+
+  function onSectionFilterChange() {
+    const FH = window.FilterHelpers;
+    const sectionId = document.getElementById("filter-section")?.value || "";
+    if (FH) {
+      const rowCats = uniqueSorted(rows, "category_id", "category_name");
+      const filteredMaster = categories.filter(
+        (c) => !sectionId || String(c.section) === String(sectionId)
+      );
+      const allowedIds = new Set(filteredMaster.map((c) => c.id));
+      const list = rowCats.filter((c) => allowedIds.has(c.id));
+      fillFilterSelect("filter-category", list);
+    }
+    applyFilters();
+  }
+
   function resetFilters() {
+    document.getElementById("filter-section").value = "";
     document.getElementById("filter-category").value = "";
     document.getElementById("filter-maker").value = "";
     document.getElementById("filter-dealer").value = "";
     document.getElementById("filter-name").value = "";
+    populateFilterOptions();
     applyFilters();
   }
 
   function populateFilterOptions() {
-    const categories = uniqueSorted(rows, "category_id", "category_name");
+    const sectionId = document.getElementById("filter-section")?.value || "";
+    let rowCats = uniqueSorted(rows, "category_id", "category_name");
+    if (sectionId) {
+      const allowed = new Set(
+        categories.filter((c) => String(c.section) === String(sectionId)).map((c) => c.id)
+      );
+      rowCats = rowCats.filter((c) => allowed.has(c.id));
+    }
     const makers = uniqueSorted(
       rows.filter((r) => r.maker_id),
       "maker_id",
@@ -58,7 +98,7 @@
       "dealer_name"
     );
 
-    fillFilterSelect("filter-category", categories);
+    fillFilterSelect("filter-category", rowCats);
     fillFilterSelect("filter-maker", makers);
     fillFilterSelect("filter-dealer", dealers);
   }
@@ -86,12 +126,17 @@
   }
 
   function getFilteredRows() {
+    const sectionId = document.getElementById("filter-section")?.value || "";
     const catId = document.getElementById("filter-category").value;
     const makerId = document.getElementById("filter-maker").value;
     const dealerId = document.getElementById("filter-dealer").value;
     const nameQ = document.getElementById("filter-name").value.trim().toLowerCase();
+    const FH = window.FilterHelpers;
 
     return rows.filter((r) => {
+      if (sectionId && FH && !FH.matchesSection(r.category_id, sectionId, categories)) {
+        return false;
+      }
       if (catId && String(r.category_id) !== catId) return false;
       if (makerId && String(r.maker_id) !== makerId) return false;
       if (dealerId && String(r.dealer_id) !== dealerId) return false;
@@ -128,7 +173,8 @@
     try {
       rows = await Api.get(`/api/stores/${storeId}/product-settings`);
       populateFilterOptions();
-      resetFilters();
+      if (filtersReady) applyFilters();
+      else resetFilters();
       loading.hidden = true;
       wrap.hidden = false;
     } catch (err) {

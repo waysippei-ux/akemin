@@ -10,6 +10,7 @@
   const DATETIME_LABEL = IS_REPLENISH ? "補充日時" : "使用日時";
 
   let stores = [];
+  let sections = [];
   let categories = [];
   let makers = [];
   let dealers = [];
@@ -81,10 +82,12 @@
   function loadBootstrap() {
     if (!boot || typeof boot !== "object") return;
     stores = boot.stores || [];
+    sections = boot.sections || [];
     categories = boot.categories || [];
     makers = boot.makers || [];
     dealers = boot.dealers || [];
     products = boot.products || [];
+    initSearchFilters();
     if (boot.default_store_id && storeSelect) {
       storeSelect.value = String(boot.default_store_id);
     }
@@ -131,12 +134,43 @@
     });
   }
 
+  function initSearchFilters() {
+    const FH = window.FilterHelpers;
+    if (!FH) return;
+    const sectionEl = document.getElementById("filter-section");
+    const categoryEl = document.getElementById("filter-category");
+    if (sections.length && sectionEl) {
+      FH.fillSectionSelect(sectionEl, sections);
+    }
+    FH.fillCategorySelect(categoryEl, categories, sectionEl?.value || "");
+    if (sectionEl && !sectionEl.dataset.bound) {
+      sectionEl.dataset.bound = "1";
+      FH.bindShelfCategory(sectionEl, categoryEl, categories, renderProducts);
+    }
+  }
+
   function bindFilters() {
-    ["filter-category", "filter-maker", "filter-dealer", "filter-name"].forEach((id) => {
+    ["filter-section", "filter-category", "filter-maker", "filter-dealer", "filter-name"].forEach((id) => {
       const el = document.getElementById(id);
       el?.addEventListener("input", renderProducts);
       el?.addEventListener("change", renderProducts);
     });
+    document.getElementById("btn-filter-reset")?.addEventListener("click", resetSearchFilters);
+  }
+
+  function resetSearchFilters() {
+    const ids = ["filter-section", "filter-category", "filter-maker", "filter-dealer"];
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    const nameEl = document.getElementById("filter-name");
+    if (nameEl) nameEl.value = "";
+    const FH = window.FilterHelpers;
+    if (FH) {
+      FH.fillCategorySelect(document.getElementById("filter-category"), categories, "", false);
+    }
+    renderProducts();
   }
 
   async function reloadProducts() {
@@ -156,12 +190,17 @@
   }
 
   function filteredProducts() {
+    const section = document.getElementById("filter-section")?.value || "";
     const cat = document.getElementById("filter-category")?.value || "";
     const maker = document.getElementById("filter-maker")?.value || "";
     const dealer = document.getElementById("filter-dealer")?.value || "";
     const nameQ = (document.getElementById("filter-name")?.value || "").trim().toLowerCase();
+    const FH = window.FilterHelpers;
 
     return products.filter((p) => {
+      if (section && FH && !FH.matchesSection(p.category_id, section, categories)) {
+        return false;
+      }
       if (cat && String(p.category_id) !== cat) return false;
       if (maker && String(p.maker_id || "") !== maker) return false;
       if (dealer && String(p.dealer_id || "") !== dealer) return false;

@@ -45,24 +45,39 @@
           <button type="button" class="btn btn-primary btn-sm" id="btn-add-product">新規商品を追加</button>
         </div>
       </div>
-      <div class="product-filter-bar card">
-        <div class="filter-row">
-          <label class="filter-label" for="product-filter-category">カテゴリ</label>
-          <select id="product-filter-category" class="select select-sm">
-            <option value="">すべて</option>
-          </select>
-          <label class="filter-label" for="product-filter-maker">メーカー</label>
-          <select id="product-filter-maker" class="select select-sm">
-            <option value="">すべて</option>
-          </select>
-          <label class="filter-label" for="product-filter-dealer">ディーラー</label>
-          <select id="product-filter-dealer" class="select select-sm">
-            <option value="">すべて</option>
-          </select>
-          <label class="filter-label" for="product-filter-name">商品名</label>
-          <input type="search" id="product-filter-name" class="input-text input-sm" placeholder="部分一致で検索" autocomplete="off">
-          <button type="button" class="btn btn-ghost btn-sm" id="btn-product-filter-reset">絞り込みリセット</button>
+      <div class="product-filter-bar filter-bar-standard card">
+        <h2 class="section-title">絞り込み</h2>
+        <div class="filter-grid">
+          <div class="filter-field">
+            <label for="product-filter-section">棚</label>
+            <select id="product-filter-section" class="select select-sm">
+              <option value="">すべて</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label for="product-filter-category">カテゴリ</label>
+            <select id="product-filter-category" class="select select-sm">
+              <option value="">すべて</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label for="product-filter-maker">メーカー</label>
+            <select id="product-filter-maker" class="select select-sm">
+              <option value="">すべて</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label for="product-filter-dealer">ディーラー</label>
+            <select id="product-filter-dealer" class="select select-sm">
+              <option value="">すべて</option>
+            </select>
+          </div>
+          <div class="filter-field filter-field-grow">
+            <label for="product-filter-name">商品名</label>
+            <input type="search" id="product-filter-name" class="input-text input-sm" placeholder="部分一致で検索" autocomplete="off">
+          </div>
         </div>
+        <button type="button" class="btn btn-secondary btn-sm btn-filter-reset" id="btn-product-filter-reset">絞り込みリセット</button>
         <p class="filter-count" id="product-filter-count"></p>
       </div>
       <div id="products-loading" class="loading">読み込み中…</div>
@@ -97,23 +112,18 @@
   <!-- ディーラー -->
   <div class="admin-tab-panel" id="admin-tab-dealers" hidden>
     <section class="card">
-      <form id="dealer-form">
-        <input type="text" id="dealer-name" placeholder="ディーラー名" required>
-        <input type="text" id="dealer-contact" placeholder="連絡先">
-        <button type="submit" class="btn btn-primary btn-sm">保存</button>
-      </form>
-      <ul id="dealer-list" class="master-list"></ul>
+      <p class="help-text">ディーラーごとに取扱メーカーを管理します。どのディーラーにも紐づいていないメーカーは「メーカー直（直取引）」に表示されます。</p>
+      <div id="dealer-groups"></div>
+      <button type="button" class="btn btn-secondary btn-sm" id="btn-add-dealer">+ ディーラーを追加</button>
     </section>
   </div>
 
   <!-- メーカー -->
   <div class="admin-tab-panel" id="admin-tab-makers" hidden>
     <section class="card">
-      <form id="maker-form">
-        <input type="text" id="maker-name" placeholder="メーカー名" required>
-        <button type="submit" class="btn btn-primary btn-sm">保存</button>
-      </form>
-      <ul id="maker-list" class="master-list"></ul>
+      <p class="help-text">メーカーごとに紐づくディーラーを管理します。「メーカー直」の場合は「直取引」と表示されます。</p>
+      <div id="maker-groups"></div>
+      <button type="button" class="btn btn-secondary btn-sm" id="btn-add-maker">+ メーカーを追加</button>
     </section>
   </div>
 
@@ -238,6 +248,48 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="link-maker-modal" hidden>
+  <div class="modal card" role="dialog">
+    <div class="modal-header">
+      <h3 id="link-maker-modal-title">メーカーを追加</h3>
+      <button type="button" class="btn-icon master-modal-close" data-close="link-maker-modal" aria-label="閉じる">×</button>
+    </div>
+    <form id="link-maker-form">
+      <input type="hidden" id="link-maker-dealer-id">
+      <div class="form-group">
+        <label for="link-maker-select">メーカー *</label>
+        <select id="link-maker-select" class="select" required></select>
+      </div>
+      <p id="link-maker-error" class="error-msg" hidden></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost master-modal-close" data-close="link-maker-modal">キャンセル</button>
+        <button type="submit" class="btn btn-primary">紐づける</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="link-dealer-modal" hidden>
+  <div class="modal card" role="dialog">
+    <div class="modal-header">
+      <h3 id="link-dealer-modal-title">ディーラーを紐づける</h3>
+      <button type="button" class="btn-icon master-modal-close" data-close="link-dealer-modal" aria-label="閉じる">×</button>
+    </div>
+    <form id="link-dealer-form">
+      <input type="hidden" id="link-dealer-maker-id">
+      <div class="form-group">
+        <label for="link-dealer-select">ディーラー *</label>
+        <select id="link-dealer-select" class="select" required></select>
+      </div>
+      <p id="link-dealer-error" class="error-msg" hidden></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost master-modal-close" data-close="link-dealer-modal">キャンセル</button>
+        <button type="submit" class="btn btn-primary">紐づける</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="modal-overlay" id="store-edit-modal" hidden>
   <div class="modal card" role="dialog">
     <div class="modal-header">
@@ -331,6 +383,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/admin_products.js?v=3"></script>
-<script src="/static/js/admin_masters.js?v=3"></script>
+<script src="/static/js/filter_helpers.js?v=1"></script>
+<script src="/static/js/admin_products.js?v=4"></script>
+<script src="/static/js/admin_masters.js?v=4"></script>
 {% endblock %}

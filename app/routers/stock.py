@@ -21,6 +21,7 @@ from app.schemas import (
     InventoryItemOut,
     InventoryScanResponse,
     MakerOut,
+    SectionOut,
     StockBulkParseResult,
     StockBulkRegisterRequest,
     StockConsumeRequest,
@@ -45,10 +46,14 @@ ALLOWED_UPLOAD_TYPES = {
 }
 
 
-def _masters(db: Session) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
+def _masters(db: Session) -> tuple[list[dict], list[dict], list[dict], list[dict], list[dict]]:
     stores = [
         StoreOut.model_validate(s).model_dump(mode="json")
         for s in crud.get_stores(db, active_only=True)
+    ]
+    sections = [
+        SectionOut.model_validate(s).model_dump(mode="json")
+        for s in crud_masters.get_sections(db, active_only=True)
     ]
     categories = [
         CategoryOut.model_validate(c).model_dump(mode="json")
@@ -62,7 +67,7 @@ def _masters(db: Session) -> tuple[list[dict], list[dict], list[dict], list[dict
         DealerOut.model_validate(d).model_dump(mode="json")
         for d in crud_masters.get_dealers(db, active_only=True)
     ]
-    return stores, categories, makers, dealers
+    return stores, sections, categories, makers, dealers
 
 
 def _resolve_default_store_id(
@@ -88,7 +93,7 @@ def _page_context(
     page: Literal["replenish", "consume"],
     store_id: Optional[int] = None,
 ) -> dict[str, Any]:
-    stores, categories, makers, dealers = _masters(db)
+    stores, sections, categories, makers, dealers = _masters(db)
     default_store_id = _resolve_default_store_id(stores, store_id)
     active_only = page == "consume"
     products: list[dict[str, Any]] = []
@@ -98,6 +103,7 @@ def _page_context(
     page_json = {
         "page": page,
         "stores": stores,
+        "sections": sections,
         "categories": categories,
         "makers": makers,
         "dealers": dealers,
@@ -106,6 +112,7 @@ def _page_context(
     }
     return {
         "stores": stores,
+        "sections": sections,
         "categories": categories,
         "makers": makers,
         "dealers": dealers,

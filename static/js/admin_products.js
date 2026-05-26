@@ -3,6 +3,7 @@
  */
 (function () {
   let products = [];
+  let sections = [];
   let categories = [];
   let makers = [];
   let dealers = [];
@@ -40,7 +41,8 @@
   });
 
   async function loadMasters() {
-    [categories, makers, dealers, adminStores] = await Promise.all([
+    [sections, categories, makers, dealers, adminStores] = await Promise.all([
+      Api.get("/api/sections"),
       Api.get("/api/categories"),
       Api.get("/api/makers"),
       Api.get("/api/dealers"),
@@ -52,15 +54,40 @@
     fillOptional("modal-maker_id", makers);
     fillOptional("modal-dealer_id", dealers);
     populateProductFilterSelects();
+    setupProductShelfFilter();
     renderStorePickList([]);
     document.getElementById("modal-expand-all-stores")?.addEventListener("change", onExpandAllChange);
   }
 
+  function setupProductShelfFilter() {
+    const FH = window.FilterHelpers;
+    if (!FH) return;
+    const sectionEl = document.getElementById("product-filter-section");
+    const categoryEl = document.getElementById("product-filter-category");
+    FH.fillSectionSelect(sectionEl, sections);
+    FH.fillCategorySelect(categoryEl, categories, sectionEl?.value || "");
+    if (sectionEl && !sectionEl.dataset.bound) {
+      sectionEl.dataset.bound = "1";
+      FH.bindShelfCategory(sectionEl, categoryEl, categories, applyProductFilters);
+    }
+  }
+
   function populateProductFilterSelects() {
-    fillFilterSelect(
-      "product-filter-category",
-      categories.map((c) => ({ id: c.id, name: c.name }))
-    );
+    const sectionId = document.getElementById("product-filter-section")?.value || "";
+    const FH = window.FilterHelpers;
+    if (FH) {
+      FH.fillCategorySelect(
+        document.getElementById("product-filter-category"),
+        categories,
+        sectionId,
+        true
+      );
+    } else {
+      fillFilterSelect(
+        "product-filter-category",
+        categories.map((c) => ({ id: c.id, name: c.name }))
+      );
+    }
     fillFilterSelect(
       "product-filter-maker",
       makers.map((m) => ({ id: m.id, name: m.name }))
@@ -83,14 +110,19 @@
   }
 
   function getFilteredProducts() {
+    const sectionId = document.getElementById("product-filter-section")?.value || "";
     const catId = document.getElementById("product-filter-category")?.value || "";
     const makerId = document.getElementById("product-filter-maker")?.value || "";
     const dealerId = document.getElementById("product-filter-dealer")?.value || "";
     const nameQ = (document.getElementById("product-filter-name")?.value || "")
       .trim()
       .toLowerCase();
+    const FH = window.FilterHelpers;
 
     return products.filter((p) => {
+      if (sectionId && FH && !FH.matchesSection(p.category_id, sectionId, categories)) {
+        return false;
+      }
       if (catId && String(p.category_id) !== catId) return false;
       if (makerId && String(p.maker_id || "") !== makerId) return false;
       if (dealerId && String(p.dealer_id || "") !== dealerId) return false;
@@ -117,6 +149,7 @@
 
   function resetProductFilters() {
     const ids = [
+      "product-filter-section",
       "product-filter-category",
       "product-filter-maker",
       "product-filter-dealer",
@@ -127,6 +160,15 @@
     });
     const nameEl = document.getElementById("product-filter-name");
     if (nameEl) nameEl.value = "";
+    const FH = window.FilterHelpers;
+    if (FH) {
+      FH.fillCategorySelect(
+        document.getElementById("product-filter-category"),
+        categories,
+        "",
+        false
+      );
+    }
     applyProductFilters();
   }
 
@@ -186,6 +228,19 @@
     });
     document.getElementById("btn-import-csv")?.addEventListener("click", onImportCsv);
     document.getElementById("btn-csv-template")?.addEventListener("click", downloadTemplate);
+    document.getElementById("product-filter-section")?.addEventListener("change", () => {
+      const FH = window.FilterHelpers;
+      if (FH) {
+        const sectionId = document.getElementById("product-filter-section")?.value || "";
+        FH.fillCategorySelect(
+          document.getElementById("product-filter-category"),
+          categories,
+          sectionId,
+          false
+        );
+      }
+      applyProductFilters();
+    });
     document.getElementById("product-filter-category")?.addEventListener("change", applyProductFilters);
     document.getElementById("product-filter-maker")?.addEventListener("change", applyProductFilters);
     document.getElementById("product-filter-dealer")?.addEventListener("change", applyProductFilters);

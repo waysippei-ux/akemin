@@ -1457,6 +1457,52 @@ input[type="number"],
   background: var(--color-bg-muted, #f0f0f0);
 }
 
+/* 共通絞り込みバー（商品・店舗設定・棚補充/使用） */
+.filter-bar-standard {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.9375rem;
+}
+
+.filter-bar-standard .section-title {
+  font-size: 1rem;
+  margin: 0 0 0.65rem;
+}
+
+.filter-bar-standard .filter-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem 0.85rem;
+}
+
+.filter-bar-standard .filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 140px;
+}
+
+.filter-bar-standard .filter-field-grow {
+  flex: 1 1 200px;
+  min-width: 180px;
+}
+
+.filter-bar-standard .filter-field label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.filter-bar-standard .filter-field .select,
+.filter-bar-standard .filter-field .input-text {
+  min-width: 0;
+}
+
+.filter-bar-standard .btn-filter-reset {
+  margin-top: 0.75rem;
+}
+
 .product-filter-bar {
   margin-bottom: 1rem;
   padding: 0.75rem 1rem;
@@ -1603,4 +1649,121 @@ input[type="number"],
 .settings-filter-bar #filter-name {
   min-width: 160px;
   flex: 1 1 180px;
+}
+
+/* ディーラー・メーカー — グループ表示（カテゴリと同系） */
+.master-group {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.master-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-bg-muted, #f5f5f5);
+  border-radius: 8px;
+  margin-bottom: 0.35rem;
+}
+
+.master-group-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.master-group-header-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.master-group-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.master-group-row-label {
+  flex: 1;
+  font-weight: 600;
+}
+
+.master-group-row-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.master-group .btn-add-link {
+  margin-top: 0.35rem;
+  margin-left: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .filter-bar-standard,
+  .filter-bar-standard .filter-field label,
+  .filter-bar-standard .filter-field .select,
+  .filter-bar-standard .filter-field .input-text,
+  .filter-bar-standard .btn-filter-reset,
+  .product-filter-bar,
+  .settings-filter-bar {
+    font-size: 14px;
+  }
+
+  .filter-bar-standard .filter-grid {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .filter-bar-standard .filter-field,
+  .filter-bar-standard .filter-field-grow {
+    width: 100%;
+    min-width: 0;
+    flex: none;
+  }
+
+  .filter-bar-standard .filter-field .select,
+  .filter-bar-standard .filter-field .input-text {
+    width: 100%;
+    font-size: 14px;
+  }
+
+  .filter-bar-standard .btn-filter-reset {
+    width: 100%;
+    font-size: 14px;
+    margin-top: 0.5rem;
+  }
+
+  .product-filter-bar .filter-row,
+  .settings-filter-bar .filter-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .orders-filter-bar .filter-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .orders-filter-bar .filter-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 14px;
+  }
+
+  .orders-filter-bar .select,
+  .orders-filter-bar .input-text {
+    width: 100%;
+    font-size: 14px;
+  }
 }

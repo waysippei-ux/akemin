@@ -18,25 +18,39 @@
     <a href="/admin/products" class="btn btn-ghost btn-sm">マスタ管理 &amp; 設定 ⚙️へ</a>
   </section>
 
-  <section class="card settings-filter-bar" id="settings-filter-bar">
+  <section class="card settings-filter-bar filter-bar-standard" id="settings-filter-bar">
     <h2 class="section-title">絞り込み</h2>
-    <div class="filter-row">
-      <label class="filter-label">カテゴリ</label>
-      <select id="filter-category" class="select select-sm">
-        <option value="">すべて</option>
-      </select>
-      <label class="filter-label">メーカー</label>
-      <select id="filter-maker" class="select select-sm">
-        <option value="">すべて</option>
-      </select>
-      <label class="filter-label">ディーラー</label>
-      <select id="filter-dealer" class="select select-sm">
-        <option value="">すべて</option>
-      </select>
-      <label class="filter-label">商品名</label>
-      <input type="search" id="filter-name" class="input-text input-sm" placeholder="部分一致で検索">
-      <button type="button" class="btn btn-ghost btn-sm" id="btn-filter-reset">絞り込みリセット</button>
+    <div class="filter-grid">
+      <div class="filter-field">
+        <label for="filter-section">棚</label>
+        <select id="filter-section" class="select select-sm">
+          <option value="">すべて</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <label for="filter-category">カテゴリ</label>
+        <select id="filter-category" class="select select-sm">
+          <option value="">すべて</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <label for="filter-maker">メーカー</label>
+        <select id="filter-maker" class="select select-sm">
+          <option value="">すべて</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <label for="filter-dealer">ディーラー</label>
+        <select id="filter-dealer" class="select select-sm">
+          <option value="">すべて</option>
+        </select>
+      </div>
+      <div class="filter-field filter-field-grow">
+        <label for="filter-name">商品名</label>
+        <input type="search" id="filter-name" class="input-text input-sm" placeholder="部分一致で検索">
+      </div>
     </div>
+    <button type="button" class="btn btn-secondary btn-sm btn-filter-reset" id="btn-filter-reset">絞り込みリセット</button>
     <div class="filter-toolbar-row">
       <p class="filter-count" id="filter-count"></p>
       <button type="button" class="btn-icon-round" id="btn-refresh-page" title="更新" aria-label="ページを更新">🔄</button>
@@ -70,5 +84,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/admin_store_settings.js"></script>
+<script src="/static/js/filter_helpers.js?v=1"></script>
+<script src="/static/js/admin_store_settings.js?v=2"></script>
 {% endblock %}

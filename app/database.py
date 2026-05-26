@@ -159,6 +159,32 @@ def migrate_schema() -> None:
                 )
 
     _ensure_default_sections(engine, insp)
+    _ensure_direct_dealer(engine, insp)
+
+
+def _ensure_direct_dealer(engine, insp) -> None:
+    """直取引用ディーラー「メーカー直」を自動作成"""
+    from sqlalchemy import text
+
+    from app.constants import DIRECT_DEALER_NAME
+
+    if "dealers" not in insp.get_table_names():
+        return
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT id FROM dealers WHERE name = :n LIMIT 1"),
+            {"n": DIRECT_DEALER_NAME},
+        ).fetchone()
+        if row:
+            return
+        conn.execute(
+            text(
+                "INSERT INTO dealers (name, contact_info, is_active) "
+                "VALUES (:n, NULL, true)"
+            ),
+            {"n": DIRECT_DEALER_NAME},
+        )
 
 
 def _ensure_default_sections(engine, insp) -> None:

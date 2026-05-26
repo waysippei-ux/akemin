@@ -6,12 +6,24 @@
   let sectionsCache = [];
   let dealersCache = [];
   let makersCache = [];
+  let linksCache = [];
   let storesCache = [];
   let sectionEditMode = "edit";
 
+  function directDealerName() {
+    return window.FilterHelpers?.DIRECT_DEALER_NAME || "メーカー直";
+  }
+
+  function dealerDisplayLabel(name) {
+    const FH = window.FilterHelpers;
+    return FH ? FH.dealerDisplayName(name) : name;
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("dealer-form")?.addEventListener("submit", saveDealerNew);
-    document.getElementById("maker-form")?.addEventListener("submit", saveMakerNew);
+    document.getElementById("btn-add-dealer")?.addEventListener("click", openDealerAddModal);
+    document.getElementById("btn-add-maker")?.addEventListener("click", openMakerAddModal);
+    document.getElementById("link-maker-form")?.addEventListener("submit", saveLinkMakerToDealer);
+    document.getElementById("link-dealer-form")?.addEventListener("submit", saveLinkDealerToMaker);
     document.getElementById("store-form")?.addEventListener("submit", saveStoreNew);
     document.getElementById("link-form")?.addEventListener("submit", saveLink);
 
@@ -33,7 +45,15 @@
         if (id) hideModal(id);
       });
     });
-    ["section-edit-modal", "category-edit-modal", "dealer-edit-modal", "maker-edit-modal", "store-edit-modal"].forEach(
+    [
+      "section-edit-modal",
+      "category-edit-modal",
+      "dealer-edit-modal",
+      "maker-edit-modal",
+      "store-edit-modal",
+      "link-maker-modal",
+      "link-dealer-modal",
+    ].forEach(
       (id) => {
         document.getElementById(id)?.addEventListener("click", (e) => {
           if (e.target.id === id) hideModal(id);
@@ -43,8 +63,8 @@
   }
 
   function bindListDelegation() {
-    document.getElementById("dealer-list")?.addEventListener("click", onDealerListClick);
-    document.getElementById("maker-list")?.addEventListener("click", onMakerListClick);
+    document.getElementById("dealer-groups")?.addEventListener("click", onDealerGroupsClick);
+    document.getElementById("maker-groups")?.addEventListener("click", onMakerGroupsClick);
     document.getElementById("store-list")?.addEventListener("click", onStoreListClick);
     document.getElementById("shelf-cards")?.addEventListener("click", onShelfCardsClick);
   }
@@ -337,16 +357,58 @@
   }
 
   // ---------- ディーラー ----------
+  async function loadAllLinks() {
+    linksCache = [];
+    for (const d of dealersCache) {
+      const links = await Api.get(`/api/dealers/${d.id}/makers`);
+      linksCache.push(...links);
+    }
+  }
+
+  function sortDealersForDisplay(list) {
+    const direct = directDealerName();
+    return [...list].sort((a, b) => {
+      if (a.name === direct) return 1;
+      if (b.name === direct) return -1;
+      return a.name.localeCompare(b.name, "ja");
+    });
+  }
+
+  function linkedMakerIds() {
+    return new Set(linksCache.map((l) => l.maker_id));
+  }
+
+  function makersInDealerGroup(dealer) {
+    const direct = directDealerName();
+    const fromLinks = linksCache
+      .filter((l) => l.dealer_id === dealer.id)
+      .map((l) => {
+        const maker = makersCache.find((m) => m.id === l.maker_id);
+        return maker ? { maker, linkId: l.id } : null;
+      })
+      .filter(Boolean);
+
+    if (dealer.name !== direct) return fromLinks;
+
+    const linked = linkedMakerIds();
+    const unlinked = makersCache
+      .filter((m) => m.is_active !== false && !linked.has(m.id))
+      .map((m) => ({ maker: m, linkId: null, unlinked: true }));
+
+    return [...fromLinks, ...unlinked];
+  }
+
+  function dealerGroupTitle(dealer) {
+    if (dealer.name === directDealerName()) {
+      return `${esc(dealer.name)}（直取引）`;
+    }
+    return esc(dealer.name);
+  }
+
   async function loadDealers() {
     dealersCache = await Api.get("/api/dealers/all");
-    document.getElementById("dealer-list").innerHTML = dealersCache
-      .map(
-        (d) => `<li data-id="${d.id}">
-          <span class="master-list-label">${esc(d.name)} ${esc(d.contact_info || "")} ${d.is_active ? "" : "[無効]"}</span>
-          ${listActions()}
-        </li>`
-      )
-      .join("");
+    await loadAllLinks();
+    renderDealerGroups();
     const sel = document.getElementById("link-dealer");
     if (sel) {
       sel.innerHTML = dealersCache
@@ -356,39 +418,143 @@
     }
   }
 
-  function onDealerListClick(e) {
+  function renderDealerGroups() {
+    const container = document.getElementById("dealer-groups");
+    if (!container) return;
+    const dealers = sortDealersForDisplay(dealersCache.filter((d) => d.is_active !== false));
+    if (!dealers.length) {
+      container.innerHTML = '<p class="empty-msg">ディーラーがありません</p>';
+      return;
+    }
+    container.innerHTML = dealers
+      .map((d) => {
+        const items = makersInDealerGroup(d);
+        const rows = items.length
+          ? items
+              .map(({ maker, linkId, unlinked }) => {
+                const inactive = maker.is_active ? "" : ' <span class="badge-pill">無効</span>';
+                return `
+          <div class="master-group-row" data-maker-id="${maker.id}" data-link-id="${linkId || ""}">
+            <span class="master-group-row-label">${esc(maker.name)}${inactive}</span>
+            <span class="master-group-row-actions">
+              <button type="button" class="btn btn-ghost btn-sm" data-action="edit-maker">編集</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-action="delete-maker">削除</button>
+            </span>
+          </div>`;
+              })
+              .join("")
+          : '<p class="empty-msg">メーカーがありません</p>';
+        return `
+        <div class="master-group" data-dealer-id="${d.id}">
+          <div class="master-group-header">
+            <h3>── ${dealerGroupTitle(d)} ──</h3>
+            <span class="master-group-header-actions">
+              <button type="button" class="btn btn-ghost btn-sm" data-action="edit-dealer">編集</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-action="delete-dealer">削除</button>
+            </span>
+          </div>
+          ${rows}
+          <button type="button" class="btn btn-ghost btn-sm btn-add-link" data-action="add-maker">+ メーカーを追加</button>
+        </div>`;
+      })
+      .join("");
+  }
+
+  function onDealerGroupsClick(e) {
     const btn = e.target.closest("button[data-action]");
     if (!btn) return;
-    const li = btn.closest("li[data-id]");
-    if (!li) return;
-    const id = parseInt(li.dataset.id, 10);
-    const item = dealersCache.find((d) => d.id === id);
-    if (!item) return;
-    if (btn.dataset.action === "edit") openDealerModal(item);
-    else if (btn.dataset.action === "delete") deleteDealer(item);
+    const group = btn.closest(".master-group[data-dealer-id]");
+    if (!group) return;
+    const dealerId = parseInt(group.dataset.dealerId, 10);
+    const dealer = dealersCache.find((d) => d.id === dealerId);
+    if (!dealer) return;
+
+    if (btn.dataset.action === "edit-dealer") openDealerModal(dealer);
+    else if (btn.dataset.action === "delete-dealer") deleteDealer(dealer);
+    else if (btn.dataset.action === "add-maker") openLinkMakerModal(dealer);
+    else if (btn.dataset.action === "edit-maker" || btn.dataset.action === "delete-maker") {
+      const row = btn.closest("[data-maker-id]");
+      const makerId = parseInt(row?.dataset.makerId, 10);
+      const maker = makersCache.find((m) => m.id === makerId);
+      if (!maker) return;
+      if (btn.dataset.action === "edit-maker") openMakerModal(maker);
+      else deleteMaker(maker);
+    }
+  }
+
+  function openDealerAddModal() {
+    document.querySelector("#dealer-edit-modal h3").textContent = "ディーラーを追加";
+    document.getElementById("edit-dealer-id").value = "";
+    document.getElementById("edit-dealer-name").value = "";
+    document.getElementById("edit-dealer-contact").value = "";
+    showModal("dealer-edit-modal");
   }
 
   function openDealerModal(d) {
+    document.querySelector("#dealer-edit-modal h3").textContent = "ディーラーを編集";
     document.getElementById("edit-dealer-id").value = d.id;
     document.getElementById("edit-dealer-name").value = d.name;
     document.getElementById("edit-dealer-contact").value = d.contact_info || "";
     showModal("dealer-edit-modal");
   }
 
+  function openLinkMakerModal(dealer) {
+    const linked = new Set(
+      linksCache.filter((l) => l.dealer_id === dealer.id).map((l) => l.maker_id)
+    );
+    const available = makersCache.filter((m) => m.is_active !== false && !linked.has(m.id));
+    const sel = document.getElementById("link-maker-select");
+    if (!available.length) {
+      alert("追加できるメーカーがありません。");
+      return;
+    }
+    sel.innerHTML = available.map((m) => `<option value="${m.id}">${esc(m.name)}</option>`).join("");
+    document.getElementById("link-maker-dealer-id").value = dealer.id;
+    document.getElementById("link-maker-modal-title").textContent = `「${dealer.name}」にメーカーを追加`;
+    document.getElementById("link-maker-error").hidden = true;
+    showModal("link-maker-modal");
+  }
+
+  async function saveLinkMakerToDealer(e) {
+    e.preventDefault();
+    const errEl = document.getElementById("link-maker-error");
+    errEl.hidden = true;
+    try {
+      await Api.post("/api/dealers/links", {
+        dealer_id: parseInt(document.getElementById("link-maker-dealer-id").value, 10),
+        maker_id: parseInt(document.getElementById("link-maker-select").value, 10),
+      });
+      hideModal("link-maker-modal");
+      await loadDealers();
+      await loadLinks();
+    } catch (ex) {
+      errEl.textContent = ex.message;
+      errEl.hidden = false;
+    }
+  }
+
   async function saveDealerEdit(e) {
     e.preventDefault();
     const errEl = document.getElementById("dealer-edit-error");
     errEl.hidden = true;
-    const id = parseInt(document.getElementById("edit-dealer-id").value, 10);
-    const current = dealersCache.find((d) => d.id === id);
+    const idVal = document.getElementById("edit-dealer-id").value;
+    const name = document.getElementById("edit-dealer-name").value.trim();
+    const contact_info = document.getElementById("edit-dealer-contact").value.trim() || null;
     try {
-      await Api.put(`/api/dealers/${id}`, {
-        name: document.getElementById("edit-dealer-name").value.trim(),
-        contact_info: document.getElementById("edit-dealer-contact").value.trim() || null,
-        is_active: current ? current.is_active : true,
-      });
+      if (!idVal) {
+        await Api.post("/api/dealers", { name, contact_info, is_active: true });
+      } else {
+        const id = parseInt(idVal, 10);
+        const current = dealersCache.find((d) => d.id === id);
+        await Api.put(`/api/dealers/${id}`, {
+          name,
+          contact_info,
+          is_active: current ? current.is_active : true,
+        });
+      }
       hideModal("dealer-edit-modal");
       await loadDealers();
+      if (typeof window.loadMasters === "function") window.loadMasters();
     } catch (ex) {
       errEl.textContent = ex.message;
       errEl.hidden = false;
@@ -396,6 +562,10 @@
   }
 
   async function deleteDealer(d) {
+    if (d.name === directDealerName()) {
+      alert("「メーカー直」は削除できません。");
+      return;
+    }
     if (!confirm("削除しますか？")) return;
     try {
       await Api.delete(`/api/dealers/${d.id}`);
@@ -405,28 +575,26 @@
     }
   }
 
-  async function saveDealerNew(e) {
-    e.preventDefault();
-    await Api.post("/api/dealers", {
-      name: document.getElementById("dealer-name").value.trim(),
-      contact_info: document.getElementById("dealer-contact").value.trim() || null,
-      is_active: true,
-    });
-    e.target.reset();
-    await loadDealers();
+  // ---------- メーカー ----------
+  function makersForDisplay() {
+    return [...makersCache]
+      .filter((m) => m.is_active !== false)
+      .sort((a, b) => a.name.localeCompare(b.name, "ja"));
   }
 
-  // ---------- メーカー ----------
+  function dealersForMaker(maker) {
+    return linksCache
+      .filter((l) => l.maker_id === maker.id)
+      .map((l) => {
+        const dealer = dealersCache.find((d) => d.id === l.dealer_id);
+        return dealer ? { linkId: l.id, dealer } : null;
+      })
+      .filter(Boolean);
+  }
+
   async function loadMakers() {
     makersCache = await Api.get("/api/makers/all");
-    document.getElementById("maker-list").innerHTML = makersCache
-      .map(
-        (m) => `<li data-id="${m.id}">
-          <span class="master-list-label">${esc(m.name)} ${m.is_active ? "" : "[無効]"}</span>
-          ${listActions()}
-        </li>`
-      )
-      .join("");
+    renderMakerGroups();
     const sel = document.getElementById("link-maker");
     if (sel) {
       sel.innerHTML = makersCache
@@ -436,37 +604,146 @@
     }
   }
 
-  function onMakerListClick(e) {
+  function renderMakerGroups() {
+    const container = document.getElementById("maker-groups");
+    if (!container) return;
+    const makers = makersForDisplay();
+    if (!makers.length) {
+      container.innerHTML = '<p class="empty-msg">メーカーがありません</p>';
+      return;
+    }
+    container.innerHTML = makers
+      .map((m) => {
+        const dealerRows = dealersForMaker(m);
+        const rows = dealerRows.length
+          ? dealerRows
+              .map(({ dealer, linkId }) => `
+          <div class="master-group-row" data-link-id="${linkId}">
+            <span class="master-group-row-label">${esc(dealerDisplayLabel(dealer.name))}</span>
+            <span class="master-group-row-actions">
+              <button type="button" class="btn btn-ghost btn-sm" data-action="unlink-dealer">解除</button>
+            </span>
+          </div>`)
+              .join("")
+          : `<p class="empty-msg">紐づくディーラーがありません（未紐づけは「${esc(directDealerName())}」に表示）</p>`;
+        return `
+        <div class="master-group" data-maker-id="${m.id}">
+          <div class="master-group-header">
+            <h3>── ${esc(m.name)} ──</h3>
+            <span class="master-group-header-actions">
+              <button type="button" class="btn btn-ghost btn-sm" data-action="edit-maker">編集</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-action="delete-maker">削除</button>
+            </span>
+          </div>
+          ${rows}
+          <button type="button" class="btn btn-ghost btn-sm btn-add-link" data-action="add-dealer">+ ディーラーを紐づける</button>
+        </div>`;
+      })
+      .join("");
+  }
+
+  function onMakerGroupsClick(e) {
     const btn = e.target.closest("button[data-action]");
     if (!btn) return;
-    const li = btn.closest("li[data-id]");
-    if (!li) return;
-    const id = parseInt(li.dataset.id, 10);
-    const item = makersCache.find((m) => m.id === id);
-    if (!item) return;
-    if (btn.dataset.action === "edit") openMakerModal(item);
-    else if (btn.dataset.action === "delete") deleteMaker(item);
+    const group = btn.closest(".master-group[data-maker-id]");
+    if (!group) return;
+    const makerId = parseInt(group.dataset.makerId, 10);
+    const maker = makersCache.find((m) => m.id === makerId);
+    if (!maker) return;
+
+    if (btn.dataset.action === "edit-maker") openMakerModal(maker);
+    else if (btn.dataset.action === "delete-maker") deleteMaker(maker);
+    else if (btn.dataset.action === "add-dealer") openLinkDealerModal(maker);
+    else if (btn.dataset.action === "unlink-dealer") {
+      const row = btn.closest("[data-link-id]");
+      const linkId = parseInt(row?.dataset.linkId, 10);
+      if (linkId) unlinkDealerMaker(linkId);
+    }
+  }
+
+  function openMakerAddModal() {
+    document.querySelector("#maker-edit-modal h3").textContent = "メーカーを追加";
+    document.getElementById("edit-maker-id").value = "";
+    document.getElementById("edit-maker-name").value = "";
+    showModal("maker-edit-modal");
   }
 
   function openMakerModal(m) {
+    document.querySelector("#maker-edit-modal h3").textContent = "メーカーを編集";
     document.getElementById("edit-maker-id").value = m.id;
     document.getElementById("edit-maker-name").value = m.name;
     showModal("maker-edit-modal");
+  }
+
+  function openLinkDealerModal(maker) {
+    const linked = new Set(linksCache.filter((l) => l.maker_id === maker.id).map((l) => l.dealer_id));
+    const available = dealersCache.filter((d) => d.is_active !== false && !linked.has(d.id));
+    const sel = document.getElementById("link-dealer-select");
+    if (!available.length) {
+      alert("紐づけできるディーラーがありません。");
+      return;
+    }
+    sel.innerHTML = available
+      .map((d) => `<option value="${d.id}">${esc(d.name)}</option>`)
+      .join("");
+    document.getElementById("link-dealer-maker-id").value = maker.id;
+    document.getElementById("link-dealer-modal-title").textContent = `「${maker.name}」にディーラーを紐づける`;
+    document.getElementById("link-dealer-error").hidden = true;
+    showModal("link-dealer-modal");
+  }
+
+  async function saveLinkDealerToMaker(e) {
+    e.preventDefault();
+    const errEl = document.getElementById("link-dealer-error");
+    errEl.hidden = true;
+    try {
+      await Api.post("/api/dealers/links", {
+        dealer_id: parseInt(document.getElementById("link-dealer-select").value, 10),
+        maker_id: parseInt(document.getElementById("link-dealer-maker-id").value, 10),
+      });
+      hideModal("link-dealer-modal");
+      await loadDealers();
+      await loadMakers();
+      await loadLinks();
+    } catch (ex) {
+      errEl.textContent = ex.message;
+      errEl.hidden = false;
+    }
+  }
+
+  async function unlinkDealerMaker(linkId) {
+    if (!confirm("紐付けを解除しますか？")) return;
+    try {
+      await Api.delete(`/api/dealers/links/${linkId}`);
+      await loadDealers();
+      await loadMakers();
+      await loadLinks();
+    } catch (ex) {
+      alert(ex.message);
+    }
   }
 
   async function saveMakerEdit(e) {
     e.preventDefault();
     const errEl = document.getElementById("maker-edit-error");
     errEl.hidden = true;
-    const id = parseInt(document.getElementById("edit-maker-id").value, 10);
-    const current = makersCache.find((m) => m.id === id);
+    const idVal = document.getElementById("edit-maker-id").value;
+    const name = document.getElementById("edit-maker-name").value.trim();
     try {
-      await Api.put(`/api/makers/${id}`, {
-        name: document.getElementById("edit-maker-name").value.trim(),
-        is_active: current ? current.is_active : true,
-      });
+      if (!idVal) {
+        await Api.post("/api/makers", { name });
+      } else {
+        const id = parseInt(idVal, 10);
+        const current = makersCache.find((m) => m.id === id);
+        await Api.put(`/api/makers/${id}`, {
+          name,
+          is_active: current ? current.is_active : true,
+        });
+      }
       hideModal("maker-edit-modal");
       await loadMakers();
+      await loadDealers();
+      if (typeof window.loadMasters === "function") window.loadMasters();
     } catch (ex) {
       errEl.textContent = ex.message;
       errEl.hidden = false;
@@ -481,13 +758,6 @@
     } catch (ex) {
       alert(ex.message);
     }
-  }
-
-  async function saveMakerNew(e) {
-    e.preventDefault();
-    await Api.post("/api/makers", { name: document.getElementById("maker-name").value.trim() });
-    e.target.reset();
-    await loadMakers();
   }
 
   // ---------- 店舗 ----------
