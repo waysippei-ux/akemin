@@ -28,9 +28,11 @@
       }
       document.getElementById("admin-content").hidden = false;
       lastPageSize = getPageSize();
-      window.dispatchEvent(new Event("admin-ready"));
       await loadMasters();
       bindProductEvents();
+      bindBrandTab();
+      await refreshBrandTab();
+      window.dispatchEvent(new Event("admin-ready"));
       await loadProducts();
       document.querySelectorAll("[data-admin-tab]").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -667,5 +669,165 @@
     const d = document.createElement("div");
     d.textContent = s ?? "";
     return d.innerHTML;
+  }
+
+  // ---------- ブランドタブ ----------
+  let brandsAllCache = [];
+
+  function bindBrandTab() {
+    document.getElementById("btn-add-brand")?.addEventListener("click", () => openBrandModal(null));
+    document.getElementById("brand-simple-list")?.addEventListener("click", onBrandListClick);
+    document.getElementById("brand-edit-form")?.addEventListener("submit", saveBrandModal);
+
+    document.getElementById("brand-edit-modal")?.addEventListener("click", (e) => {
+      if (e.target.id === "brand-edit-modal") hideBrandModal();
+    });
+    document.querySelectorAll('[data-close="brand-edit-modal"]').forEach((btn) => {
+      btn.addEventListener("click", hideBrandModal);
+    });
+  }
+
+  async function refreshBrandTab() {
+    brandsAllCache = await Api.get("/api/brands/all");
+    renderBrandSimpleList();
+    if (brands.length !== brandsAllCache.length) {
+      brands = await Api.get("/api/brands");
+      setupProductMakerBrandFilter();
+    }
+  }
+
+  window.refreshBrandTab = refreshBrandTab;
+
+  function renderBrandSimpleList() {
+    const el = document.getElementById("brand-simple-list");
+    if (!el) return;
+    if (!brandsAllCache.length) {
+      el.innerHTML = '<p class="empty-msg" style="padding:1rem">ブランドがありません</p>';
+      return;
+    }
+    const sorted = [...brandsAllCache].sort((a, b) =>
+      String(a.name).localeCompare(String(b.name), "ja")
+    );
+    el.innerHTML = sorted
+      .map(
+        (b) => `
+      <div class="brand-simple-row" data-brand-id="${b.id}">
+        <span class="brand-simple-name">${esc(b.name)}</span>
+        <span class="brand-simple-actions">
+          <button type="button" class="btn btn-ghost btn-sm" data-action="edit-brand">編集</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-action="delete-brand">削除</button>
+        </span>
+      </div>`
+      )
+      .join("");
+  }
+
+  function fillBrandMakerSelect(selectedId) {
+    const sel = document.getElementById("edit-brand-maker");
+    if (!sel) return;
+    const activeMakers = makers.filter((m) => m.is_active !== false);
+    sel.innerHTML =
+      '<option value="">選択してください</option>' +
+      activeMakers
+        .map((m) => `<option value="${m.id}">${esc(m.name)}</option>`)
+        .join("");
+    if (selectedId && [...sel.options].some((o) => o.value === String(selectedId))) {
+      sel.value = String(selectedId);
+    }
+  }
+
+  function showBrandModal() {
+    const el = document.getElementById("brand-edit-modal");
+    if (!el) return;
+    el.hidden = false;
+    el.style.display = "flex";
+    document.body.style.overflow = "hidden";
+  }
+
+  function hideBrandModal() {
+    const el = document.getElementById("brand-edit-modal");
+    if (!el) return;
+    el.hidden = true;
+    el.style.display = "none";
+    document.body.style.overflow = "";
+    const err = document.getElementById("brand-edit-error");
+    if (err) err.hidden = true;
+  }
+
+  function openBrandModal(brand) {
+    const title = document.getElementById("brand-modal-title");
+    if (brand) {
+      title.textContent = "ブランドを編集";
+      document.getElementById("edit-brand-id").value = brand.id;
+      document.getElementById("edit-brand-name").value = brand.name;
+      fillBrandMakerSelect(brand.maker_id);
+    } else {
+      title.textContent = "ブランドを追加";
+      document.getElementById("edit-brand-id").value = "";
+      document.getElementById("edit-brand-name").value = "";
+      fillBrandMakerSelect(makers[0]?.id || null);
+    }
+    document.getElementById("brand-edit-error").hidden = true;
+    showBrandModal();
+  }
+
+  function onBrandListClick(e) {
+    const btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+    const row = btn.closest(".brand-simple-row[data-brand-id]");
+    if (!row) return;
+    const brandId = parseInt(row.dataset.brandId, 10);
+    const brand = brandsAllCache.find((b) => b.id === brandId);
+    if (!brand) return;
+    if (btn.dataset.action === "edit-brand") openBrandModal(brand);
+    else if (btn.dataset.action === "delete-brand") deleteBrand(brand);
+  }
+
+  async function saveBrandModal(e) {
+    e.preventDefault();
+    const errEl = document.getElementById("brand-edit-error");
+    errEl.hidden = true;
+    const idVal = document.getElementById("edit-brand-id").value;
+    const name = document.getElementById("edit-brand-name").value.trim();
+    const maker_id = parseInt(document.getElementById("edit-brand-maker").value, 10);
+    if (!name) {
+      errEl.textContent = "ブランド名を入力してください。";
+      errEl.hidden = false;
+      return;
+    }
+    if (!maker_id) {
+      errEl.textContent = "所属メーカーを選択してください。";
+      errEl.hidden = false;
+      return;
+    }
+    try {
+      if (!idVal) {
+        await Api.post("/api/brands", { name, maker_id, sort_order: 0 });
+      } else {
+        const current = brandsAllCache.find((b) => b.id === parseInt(idVal, 10));
+        await Api.put(`/api/brands/${idVal}`, {
+          name,
+          maker_id,
+          sort_order: current ? current.sort_order : 0,
+        });
+      }
+      hideBrandModal();
+      await refreshBrandTab();
+      window.dispatchEvent(new Event("brands-updated"));
+    } catch (ex) {
+      errEl.textContent = ex.message;
+      errEl.hidden = false;
+    }
+  }
+
+  async function deleteBrand(brand) {
+    if (!confirm(`ブランド「${brand.name}」を削除しますか？`)) return;
+    try {
+      await Api.delete(`/api/brands/${brand.id}`);
+      await refreshBrandTab();
+      window.dispatchEvent(new Event("brands-updated"));
+    } catch (ex) {
+      alert(ex.message);
+    }
   }
 })();

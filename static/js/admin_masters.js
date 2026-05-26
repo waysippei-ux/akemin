@@ -25,7 +25,6 @@
     document.getElementById("btn-add-maker")?.addEventListener("click", openMakerAddModal);
     document.getElementById("link-maker-form")?.addEventListener("submit", saveLinkMakerToDealer);
     document.getElementById("link-dealer-form")?.addEventListener("submit", saveLinkDealerToMaker);
-    document.getElementById("brand-edit-form")?.addEventListener("submit", saveBrandEdit);
     document.getElementById("store-form")?.addEventListener("submit", saveStoreNew);
     document.getElementById("link-form")?.addEventListener("submit", saveLink);
 
@@ -38,6 +37,7 @@
     document.getElementById("category-groups")?.addEventListener("click", onCategoryGroupsClick);
 
     window.addEventListener("admin-ready", refreshMasters);
+    window.addEventListener("brands-updated", onBrandsUpdated);
   });
 
   function bindMasterModalClose() {
@@ -68,7 +68,6 @@
   function bindListDelegation() {
     document.getElementById("dealer-groups")?.addEventListener("click", onDealerCardsClick);
     document.getElementById("maker-groups")?.addEventListener("click", onMakerCardsClick);
-    document.getElementById("brand-groups")?.addEventListener("click", onBrandHierarchyClick);
     document.getElementById("store-list")?.addEventListener("click", onStoreListClick);
     document.getElementById("shelf-cards")?.addEventListener("click", onShelfCardsClick);
   }
@@ -178,7 +177,6 @@
     await loadBrands();
     await loadDealers();
     await loadMakers();
-    renderBrandGroups();
     await loadStores();
     await loadLinks();
     if (typeof window.loadMasters === "function") window.loadMasters();
@@ -186,6 +184,11 @@
 
   async function loadBrands() {
     brandsCache = await Api.get("/api/brands/all");
+  }
+
+  async function onBrandsUpdated() {
+    await loadBrands();
+    renderMakerGroups();
   }
 
   // ---------- 棚 ----------
@@ -668,9 +671,6 @@
             </span>
           </header>
           ${chipsBlock}
-          <footer class="maker-card-footer">
-            <button type="button" class="btn btn-ghost btn-sm" data-action="add-brand" data-maker-id="${m.id}">+ ブランドを追加</button>
-          </footer>
         </article>`;
       })
       .join("");
@@ -686,134 +686,6 @@
 
     if (btn.dataset.action === "edit-maker") openMakerModal(maker);
     else if (btn.dataset.action === "delete-maker") deleteMaker(maker);
-    else if (btn.dataset.action === "add-brand") openBrandAddModal(maker.id);
-  }
-
-  function renderBrandGroups() {
-    const container = document.getElementById("brand-groups");
-    if (!container) return;
-    const makers = makersForDisplay();
-    if (!makers.length) {
-      container.innerHTML = '<p class="empty-msg">メーカーがありません</p>';
-      return;
-    }
-    container.innerHTML = makers
-      .map((m) => {
-        const brands = brandsForMaker(m.id);
-        const brandRows = brands.length
-          ? brands
-              .map(
-                (b) => `
-          <div class="hierarchy-row hierarchy-row-brand" data-brand-id="${b.id}" data-maker-id="${m.id}">
-            <span class="hierarchy-toggle hierarchy-toggle-spacer" aria-hidden="true"></span>
-            <span class="hierarchy-label">・${esc(b.name)}</span>
-            ${hierarchyActions("edit-brand", "delete-brand")}
-          </div>`
-              )
-              .join("")
-          : '<p class="empty-msg hierarchy-add-btn-brand">ブランドがありません</p>';
-        return `
-        <div class="hierarchy-node" data-maker-id="${m.id}">
-          <div class="hierarchy-row hierarchy-row-maker hierarchy-row-maker-root">
-            <button type="button" class="hierarchy-toggle" data-action="toggle" aria-expanded="true">▼</button>
-            <span class="hierarchy-label">${esc(m.name)}</span>
-          </div>
-          <div class="hierarchy-children">
-            ${brandRows}
-            <button type="button" class="btn btn-ghost btn-sm hierarchy-add-btn hierarchy-add-btn-brand" data-action="add-brand" data-maker-id="${m.id}">+ ブランドを追加</button>
-          </div>
-        </div>`;
-      })
-      .join("");
-  }
-
-  function onBrandHierarchyClick(e) {
-    const toggle = e.target.closest("button[data-action='toggle']");
-    if (toggle) {
-      onHierarchyToggle(toggle);
-      return;
-    }
-    const btn = e.target.closest("button[data-action]");
-    if (!btn) return;
-
-    if (btn.dataset.action === "add-brand") {
-      openBrandAddModal(parseInt(btn.dataset.makerId, 10));
-      return;
-    }
-    const brandId = parseInt(btn.closest("[data-brand-id]")?.dataset.brandId, 10);
-    const brand = brandsCache.find((b) => b.id === brandId);
-    if (!brand) return;
-    if (btn.dataset.action === "edit-brand") openBrandModal(brand);
-    else if (btn.dataset.action === "delete-brand") deleteBrand(brand);
-  }
-
-  function openBrandAddModal(makerId) {
-    const maker = makersCache.find((m) => m.id === makerId);
-    document.getElementById("brand-modal-title").textContent = maker
-      ? `「${maker.name}」にブランドを追加`
-      : "ブランドを追加";
-    document.getElementById("edit-brand-id").value = "";
-    document.getElementById("edit-brand-maker-id").value = makerId;
-    document.getElementById("edit-brand-name").value = "";
-    document.getElementById("brand-edit-error").hidden = true;
-    showModal("brand-edit-modal");
-  }
-
-  function openBrandModal(brand) {
-    const maker = makersCache.find((m) => m.id === brand.maker_id);
-    document.getElementById("brand-modal-title").textContent = maker
-      ? `「${maker.name}」のブランドを編集`
-      : "ブランドを編集";
-    document.getElementById("edit-brand-id").value = brand.id;
-    document.getElementById("edit-brand-maker-id").value = brand.maker_id;
-    document.getElementById("edit-brand-name").value = brand.name;
-    document.getElementById("brand-edit-error").hidden = true;
-    showModal("brand-edit-modal");
-  }
-
-  async function saveBrandEdit(e) {
-    e.preventDefault();
-    const errEl = document.getElementById("brand-edit-error");
-    errEl.hidden = true;
-    const idVal = document.getElementById("edit-brand-id").value;
-    const maker_id = parseInt(document.getElementById("edit-brand-maker-id").value, 10);
-    const name = document.getElementById("edit-brand-name").value.trim();
-    if (!name) {
-      errEl.textContent = "ブランド名を入力してください。";
-      errEl.hidden = false;
-      return;
-    }
-    try {
-      if (!idVal) {
-        await Api.post("/api/brands", { name, maker_id, sort_order: 0 });
-      } else {
-        const brand = brandsCache.find((b) => b.id === parseInt(idVal, 10));
-        await Api.put(`/api/brands/${idVal}`, {
-          name,
-          maker_id,
-          sort_order: brand ? brand.sort_order : 0,
-        });
-      }
-      hideModal("brand-edit-modal");
-      await loadBrands();
-      await loadDealers();
-      await loadMakers();
-    } catch (ex) {
-      errEl.textContent = ex.message;
-      errEl.hidden = false;
-    }
-  }
-
-  async function deleteBrand(brand) {
-    if (!confirm(`ブランド「${brand.name}」を削除しますか？`)) return;
-    try {
-      await Api.delete(`/api/brands/${brand.id}`);
-      await loadBrands();
-      await loadDealers();
-      await loadMakers();
-    } catch (ex) {
-      alert(ex.message);
-    }
   }
 
   function openMakerAddModal() {
@@ -900,7 +772,9 @@
       await loadMakers();
       await loadDealers();
       await loadBrands();
-      if (typeof window.loadMasters === "function") window.loadMasters();
+      window.dispatchEvent(new Event("brands-updated"));
+      if (typeof window.loadMasters === "function") await window.loadMasters();
+      if (typeof window.refreshBrandTab === "function") await window.refreshBrandTab();
     } catch (ex) {
       errEl.textContent = ex.message;
       errEl.hidden = false;

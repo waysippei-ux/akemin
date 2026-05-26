@@ -144,9 +144,11 @@
 
   <!-- ブランド -->
   <div class="admin-tab-panel" id="admin-tab-brands" hidden>
-    <section class="card">
-      <p class="help-text">メーカーごとにブランドを管理します。</p>
-      <div id="brand-groups" class="hierarchy-tree"></div>
+    <section class="card brand-tab-section">
+      <div id="brand-simple-list" class="brand-simple-list"></div>
+      <div class="brand-simple-add">
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-add-brand">+ ブランドを追加</button>
+      </div>
     </section>
   </div>
 
@@ -279,10 +281,15 @@
     </div>
     <form id="brand-edit-form">
       <input type="hidden" id="edit-brand-id">
-      <input type="hidden" id="edit-brand-maker-id">
       <div class="form-group">
         <label for="edit-brand-name">ブランド名 *</label>
         <input type="text" id="edit-brand-name" class="input-text" required>
+      </div>
+      <div class="form-group">
+        <label for="edit-brand-maker">所属メーカー *</label>
+        <select id="edit-brand-maker" class="select" required>
+          <option value="">選択してください</option>
+        </select>
       </div>
       <p id="brand-edit-error" class="error-msg" hidden></p>
       <div class="modal-actions">
@@ -443,6 +450,6 @@
 
 {% block scripts %}
 <script src="/static/js/filter_helpers.js?v=2"></script>
-<script src="/static/js/admin_products.js?v=6"></script>
-<script src="/static/js/admin_masters.js?v=6"></script>
+<script src="/static/js/admin_products.js?v=7"></script>
+<script src="/static/js/admin_masters.js?v=7"></script>
 {% endblock %}
