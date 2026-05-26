@@ -3,34 +3,33 @@
 {% block title %}マスタ管理 &amp; 設定 ⚙️ — AKEMIN{% endblock %}
 
 {% block content %}
-<section class="page-header">
+<section class="page-header admin-page-header">
   <h1>マスタ管理 &amp; 設定 ⚙️</h1>
   <p class="page-desc">管理者のみ — 商品・棚・カテゴリ・ディーラー・メーカー・ブランド・店舗</p>
-  <p><a href="/admin/store-settings" class="btn btn-secondary btn-sm">店舗別発注目安設定</a></p>
+  <a href="/admin/store-settings" class="btn-store-settings-cta">
+    <span class="btn-store-settings-cta-title">店舗別発注目安設定</span>
+    <span class="btn-store-settings-cta-sub">店舗ごとの発注目安を設定</span>
+  </a>
 </section>
 
 <p id="admin-denied" class="error-msg card" hidden>この画面は管理者のみ利用できます。</p>
 
 <div id="admin-content" hidden>
-  <div class="tabs card admin-tabs">
-    <button type="button" class="tab-btn active" data-admin-tab="products">商品</button>
-    <button type="button" class="tab-btn" data-admin-tab="shelves">棚</button>
-    <button type="button" class="tab-btn" data-admin-tab="categories">カテゴリ</button>
-    <button type="button" class="tab-btn" data-admin-tab="dealers">ディーラー</button>
-    <button type="button" class="tab-btn" data-admin-tab="makers">メーカー</button>
-    <button type="button" class="tab-btn" data-admin-tab="brands">ブランド</button>
-    <button type="button" class="tab-btn" data-admin-tab="stores">店舗</button>
-    <button type="button" class="tab-btn" data-admin-tab="links">紐付け</button>
-  </div>
+  <nav class="admin-tabs" aria-label="マスタ管理メニュー">
+    <button type="button" class="admin-tab-btn active" data-admin-tab="products">商品</button>
+    <button type="button" class="admin-tab-btn" data-admin-tab="shelves">棚</button>
+    <button type="button" class="admin-tab-btn" data-admin-tab="categories">カテゴリ</button>
+    <button type="button" class="admin-tab-btn" data-admin-tab="dealers">ディーラー</button>
+    <button type="button" class="admin-tab-btn" data-admin-tab="makers">メーカー</button>
+    <button type="button" class="admin-tab-btn" data-admin-tab="brands">ブランド</button>
+    <button type="button" class="admin-tab-btn" data-admin-tab="stores">店舗</button>
+    <button type="button" class="admin-tab-btn" data-admin-tab="links">紐付け</button>
+  </nav>
 
   <!-- 商品タブ -->
   <div class="admin-tab-panel" id="admin-tab-products">
     <section class="card admin-section">
       <h2 class="section-title">CSV 一括インポート</h2>
-      <p class="help-text">
-        列: <code>name, barcode, unit, warning_threshold, critical_threshold, category_id, jan_code, stores,
-        delivery_code_1〜5, dealer_id_1〜5</code>（stores: 空欄/all=全店舗、1,3,5=店舗ID指定）
-      </p>
       <div class="csv-row">
         <input type="file" id="csv-file" accept=".csv,text/csv">
         <button type="button" class="btn btn-secondary" id="btn-import-csv">インポート</button>
