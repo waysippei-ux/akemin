@@ -87,12 +87,12 @@
       }
       document.getElementById("admin-content").hidden = false;
       lastPageSize = getPageSize();
-      await loadMasters();
+      await loadMasters({ refreshProducts: false });
       bindProductEvents();
       bindBrandTab();
       await refreshBrandTab();
       window.dispatchEvent(new Event("admin-ready"));
-      await loadProducts();
+      await loadProducts({ resetPage: true });
       document.querySelectorAll("[data-admin-tab]").forEach((btn) => {
         btn.addEventListener("click", () => {
           const tab = btn.dataset.adminTab;
@@ -110,7 +110,21 @@
     }
   });
 
-  async function loadMasters() {
+  let toastTimer = null;
+  function showSuccessToast(message = "保存しました ✓") {
+    const el = document.getElementById("admin-success-toast");
+    if (!el) return;
+    el.textContent = message;
+    el.hidden = false;
+    el.classList.add("is-visible");
+    if (toastTimer) window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => {
+      el.classList.remove("is-visible");
+      el.hidden = true;
+    }, 2000);
+  }
+
+  async function loadMasters({ refreshProducts = true } = {}) {
     [sections, categories, makers, brands, dealers, adminStores] = await Promise.all([
       Api.get("/api/sections"),
       Api.get("/api/categories"),
@@ -127,7 +141,14 @@
     setupProductMakerBrandFilter();
     renderStorePickList([]);
     document.getElementById("modal-expand-all-stores")?.addEventListener("change", onExpandAllChange);
+
+    // マスタ変更（カテゴリ/ディーラー/メーカー/ブランド/店舗など）の後に呼ばれるので、
+    // 一覧もページリロード無しで追従させる
+    if (refreshProducts) {
+      await loadProducts({ resetPage: false });
+    }
   }
+  window.loadMasters = loadMasters;
 
   function setupProductShelfFilter() {
     const FH = window.FilterHelpers;
@@ -618,7 +639,7 @@
     openModal();
   }
 
-  async function loadProducts() {
+  async function loadProducts({ resetPage = false } = {}) {
     const loading = document.getElementById("products-loading");
     const wrap = document.getElementById("table-wrap");
     loading.hidden = false;
@@ -626,7 +647,7 @@
     products = await Api.get("/api/products");
     loading.hidden = true;
     document.getElementById("product-count").textContent = `(${products.length})`;
-    applyProductFilters();
+    applyProductFilters({ resetPage });
     wrap.hidden = false;
   }
 
@@ -685,7 +706,8 @@
       if (editingId) await Api.put(`/api/products/${editingId}`, data);
       else await Api.post("/api/products", data);
       closeModal();
-      await loadProducts();
+      await loadProducts({ resetPage: false });
+      showSuccessToast("保存しました ✓");
     } catch (ex) {
       err.textContent = ex.message;
       err.hidden = false;
@@ -697,7 +719,8 @@
     if (!p || !confirm(`「${p.name}」を削除しますか？`)) return;
     await Api.delete(`/api/products/${id}`);
     if (editingId === id) closeModal();
-    await loadProducts();
+    await loadProducts({ resetPage: false });
+    showSuccessToast("削除しました ✓");
   }
 
   async function onImportCsv() {

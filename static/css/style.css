@@ -141,6 +141,30 @@ a {
   font-size: 0.9rem;
 }
 
+/* 管理画面トースト（保存/削除の成功通知） */
+.admin-success-toast {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 9999;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 10px;
+  background: #ffffff;
+  color: #065f46;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.admin-success-toast.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .section-title {
   margin: 0 0 0.75rem;
   font-size: 1rem;
