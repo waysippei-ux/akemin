@@ -272,8 +272,45 @@ def get_products(
     return q.order_by(Product.name).all()
 
 
+AUTO_BARCODE_PREFIX = "_auto_"
+
+
+def coerce_product_barcode(barcode: str | None) -> str | None:
+    """空文字は未入力扱い。自動採番バーコードはそのまま返す。"""
+    code = (barcode or "").strip()
+    return code or None
+
+
+def is_auto_barcode(barcode: str | None) -> bool:
+    return bool(barcode and barcode.startswith(AUTO_BARCODE_PREFIX))
+
+
+def generate_auto_barcode(db: Session) -> str:
+    import uuid
+
+    while True:
+        code = f"{AUTO_BARCODE_PREFIX}{uuid.uuid4().hex[:16]}"
+        if not get_product_by_barcode(db, code):
+            return code
+
+
+def resolve_product_barcode(
+    db: Session, barcode: str | None, *, existing: str | None = None
+) -> str:
+    """保存用バーコード。未入力時は新規採番、更新時は既存を維持。"""
+    code = coerce_product_barcode(barcode)
+    if code:
+        return code
+    if existing:
+        return existing
+    return generate_auto_barcode(db)
+
+
 def get_product_by_barcode(db: Session, barcode: str) -> Product | None:
-    return db.query(Product).filter(Product.barcode == barcode).first()
+    code = coerce_product_barcode(barcode)
+    if not code:
+        return None
+    return db.query(Product).filter(Product.barcode == code).first()
 
 
 def get_product_by_jan_code(db: Session, jan_code: str) -> Product | None:
@@ -356,6 +393,7 @@ def create_product(db: Session, data: ProductCreate) -> Product:
     dump = data.model_dump(exclude={"deployment"})
     jan = dump.get("jan_code")
     dump["jan_code"] = (jan or "").strip() or None
+    dump["barcode"] = resolve_product_barcode(db, dump.get("barcode"))
     product = Product(**dump)
     db.add(product)
     db.flush()
@@ -370,7 +408,9 @@ def create_product(db: Session, data: ProductCreate) -> Product:
 def update_product(db: Session, product: Product, data: ProductUpdate) -> Product:
     _validate_product_brand(db, data.maker_id, data.brand_id)
     product.name = data.name
-    product.barcode = data.barcode
+    product.barcode = resolve_product_barcode(
+        db, data.barcode, existing=product.barcode
+    )
     product.jan_code = (data.jan_code or "").strip() or None
     product.unit = data.unit
     product.warning_threshold = data.warning_threshold
@@ -477,7 +517,7 @@ def _parse_csv_row_dict(row: dict, row_num: int) -> dict | None:
 
     name = col("name", "商品名", "名前")
     barcode = col("barcode", "バーコード")
-    if not name or not barcode:
+    if not name:
         return None
     return {
         "row_num": row_num,
@@ -523,7 +563,7 @@ def import_products_csv(db: Session, csv_text: str) -> dict:
                 continue
             parsed = _parse_csv_row_dict(row, row_num)
             if parsed is None:
-                result.errors.append(f"{row_num}行目: 商品名とバーコードは必須です")
+                result.errors.append(f"{row_num}行目: 商品名は必須です")
                 result.skipped += 1
                 continue
             rows_to_process.append((row_num, parsed))
@@ -555,11 +595,12 @@ def import_products_csv(db: Session, csv_text: str) -> dict:
             stores_raw = data.get("stores", "")
         else:
             cells = data
-            if len(cells) < 2:
-                result.errors.append(f"{row_num}行目: 列が不足しています（name, barcode 必須）")
+            if len(cells) < 1:
+                result.errors.append(f"{row_num}行目: 商品名がありません")
                 result.skipped += 1
                 continue
-            name, barcode = cells[0], cells[1]
+            name = cells[0]
+            barcode = cells[1] if len(cells) > 1 else ""
             unit = cells[2] if len(cells) > 2 and cells[2] else "本"
             try:
                 warning = int(cells[3]) if len(cells) > 3 and cells[3] else 5
@@ -580,7 +621,7 @@ def import_products_csv(db: Session, csv_text: str) -> dict:
                 code_v = cells[c_idx] if len(cells) > c_idx else ""
                 delivery_pairs.append((dealer_v, code_v))
 
-        existing = get_product_by_barcode(db, barcode)
+        existing = get_product_by_barcode(db, barcode) if barcode else None
         try:
             if existing:
                 cat_id = int(cat_id_raw) if cat_id_raw else existing.category_id

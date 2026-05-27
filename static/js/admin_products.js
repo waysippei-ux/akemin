@@ -15,71 +15,20 @@
   const mobileMedia = window.matchMedia("(max-width: 768px)");
   let lastPageSize = 0;
 
-  /** Eyoyo BLE（Web Bluetooth） */
-  const EYOYO_BLE_SERVICE = 0xfeea;
-  const EYOYO_BLE_CHAR = 0x2aa1;
-  let bleDevice = null;
-  let bleCharacteristic = null;
-  let bleScanBuffer = "";
-  let scannerConnectionState = "idle"; // idle | connecting | connected
-  let scannerLastError = null;
+  const AUTO_BARCODE_PREFIX = "_auto_";
 
-  function isWebBluetoothSupported() {
-    return typeof navigator !== "undefined" && !!navigator.bluetooth && window.isSecureContext;
+  function displayBarcodeValue(barcode) {
+    if (!barcode || String(barcode).startsWith(AUTO_BARCODE_PREFIX)) return "";
+    return barcode;
   }
 
-  function getScannerEls() {
-    return {
-      status: document.getElementById("modal-scanner-status"),
-      dup: document.getElementById("modal-barcode-dup-warning"),
-      registerBtn: document.getElementById("btn-modal-scanner-register"),
-      barcode: document.getElementById("modal-barcode"),
-    };
-  }
-
-  function updateScannerStatusUI() {
-    const { status, registerBtn } = getScannerEls();
-
-    if (registerBtn) {
-      registerBtn.className = "btn-scanner-register";
-      if (scannerConnectionState === "connecting") {
-        registerBtn.textContent = "接続中...";
-        registerBtn.disabled = true;
-      } else {
-        registerBtn.textContent = "スキャナーで登録する";
-        registerBtn.disabled = !isWebBluetoothSupported();
-      }
-    }
-
-    if (!status) return;
-    status.className = "barcode-scanner-status";
-
-    if (!isWebBluetoothSupported()) {
-      status.textContent =
-        "このブラウザはBluetooth接続に対応していません。ChromeまたはSafariをご使用ください。";
-      return;
-    }
-
-    if (scannerLastError && !bleDevice?.gatt?.connected) {
-      status.textContent = "接続できませんでした";
-      return;
-    }
-
-    if (scannerConnectionState === "connecting") {
-      status.textContent = "接続中...";
-      return;
-    }
-
-    if (bleDevice?.gatt?.connected) {
-      status.textContent = "🟢 接続済み";
-      return;
-    }
-
-    status.textContent = "🔵 未接続";
+  function formatBarcodeForList(barcode) {
+    if (!barcode || String(barcode).startsWith(AUTO_BARCODE_PREFIX)) return "—";
+    return esc(barcode);
   }
 
   function clearBarcodeDupWarning() {
-    const { dup } = getScannerEls();
+    const dup = document.getElementById("modal-barcode-dup-warning");
     if (dup) {
       dup.hidden = true;
       dup.textContent = "";
@@ -93,10 +42,13 @@
 
     const excludeId = editingId != null ? Number(editingId) : null;
     const local = products.find(
-      (p) => p.barcode === code && (excludeId == null || p.id !== excludeId)
+      (p) =>
+        p.barcode === code &&
+        !String(p.barcode).startsWith(AUTO_BARCODE_PREFIX) &&
+        (excludeId == null || p.id !== excludeId)
     );
     if (local) {
-      const { dup } = getScannerEls();
+      const dup = document.getElementById("modal-barcode-dup-warning");
       if (dup) {
         dup.textContent = "このバーコードは既に登録されています";
         dup.hidden = false;
@@ -106,149 +58,20 @@
     return false;
   }
 
-  function applyScannedBarcode(code) {
-    const { barcode } = getScannerEls();
-    const value = (code || "").trim();
-    if (!value || !barcode) return;
-
-    barcode.value = value;
-    if (checkBarcodeDuplicate(value)) return;
-    document.getElementById("modal-name")?.focus();
-  }
-
-  function onBleCharacteristicValue(event) {
-    const chunk = new TextDecoder("utf-8").decode(event.target.value);
-    bleScanBuffer += chunk;
-    if (!/[\r\n]/.test(bleScanBuffer)) return;
-    const code = bleScanBuffer.replace(/[\r\n]+/g, "").trim();
-    bleScanBuffer = "";
-    if (code) applyScannedBarcode(code);
-  }
-
-  function onBleGattDisconnected() {
-    bleCharacteristic = null;
-    scannerConnectionState = "idle";
-    bleScanBuffer = "";
-    updateScannerStatusUI();
-  }
-
-  async function disconnectBleScanner() {
-    try {
-      if (bleCharacteristic) {
-        try {
-          await bleCharacteristic.stopNotifications();
-        } catch {
-          /* ignore */
-        }
-        bleCharacteristic.removeEventListener(
-          "characteristicvaluechanged",
-          onBleCharacteristicValue
-        );
-      }
-      bleCharacteristic = null;
-      if (bleDevice?.gatt?.connected) {
-        bleDevice.gatt.disconnect();
-      }
-    } catch {
-      /* ignore */
-    }
-    bleDevice = null;
-    scannerConnectionState = "idle";
-    updateScannerStatusUI();
-  }
-
-  async function connectBleScanner() {
-    const { registerBtn, barcode } = getScannerEls();
-    if (!isWebBluetoothSupported()) {
-      updateScannerStatusUI();
-      return;
-    }
-
-    if (bleDevice?.gatt?.connected) {
-      barcode?.focus();
-      return;
-    }
-
-    scannerConnectionState = "connecting";
-    scannerLastError = null;
-    updateScannerStatusUI();
-
-    try {
-      const device = await navigator.bluetooth.requestDevice({
-        filters: [{ namePrefix: "Eyoyo" }, { namePrefix: "EYOYO" }],
-        optionalServices: [EYOYO_BLE_SERVICE, 0xfee7],
-      });
-
-      device.addEventListener("gattserverdisconnected", onBleGattDisconnected);
-      const server = await device.gatt.connect();
-      const service = await server.getPrimaryService(EYOYO_BLE_SERVICE);
-      const characteristic = await service.getCharacteristic(EYOYO_BLE_CHAR);
-      await characteristic.startNotifications();
-      characteristic.addEventListener(
-        "characteristicvaluechanged",
-        onBleCharacteristicValue
-      );
-
-      bleDevice = device;
-      bleCharacteristic = characteristic;
-      scannerConnectionState = "connected";
-      scannerLastError = null;
-      sessionStorage.setItem("product_scanner_ble_name", device.name || "Eyoyo");
-      updateScannerStatusUI();
-      barcode?.focus();
-    } catch (ex) {
-      bleDevice = null;
-      bleCharacteristic = null;
-      scannerConnectionState = "idle";
-      const cancelled =
-        ex?.name === "AbortError" ||
-        (typeof ex?.message === "string" &&
-          /cancel|キャンセル/i.test(ex.message));
-      if (!cancelled) {
-        scannerLastError = "接続できませんでした";
-      }
-      updateScannerStatusUI();
-    } finally {
-      if (registerBtn && scannerConnectionState !== "connecting") {
-        registerBtn.disabled = !isWebBluetoothSupported();
-      }
-    }
-  }
-
-  function onBarcodeEnter() {
-    const { barcode } = getScannerEls();
-    const value = barcode?.value.trim();
-    if (!value) return;
-    if (checkBarcodeDuplicate(value)) return;
-    document.getElementById("modal-name")?.focus();
-  }
-
-  function bindProductBarcodeScanner() {
-    document.getElementById("btn-modal-scanner-register")?.addEventListener("click", () => {
-      connectBleScanner();
-    });
-
+  function bindBarcodeField() {
     const barcodeEl = document.getElementById("modal-barcode");
     barcodeEl?.addEventListener("keydown", (e) => {
       if (e.key !== "Enter") return;
       e.preventDefault();
-      onBarcodeEnter();
+      const value = barcodeEl.value.trim();
+      if (value && checkBarcodeDuplicate(value)) return;
+      document.getElementById("modal-name")?.focus();
     });
     barcodeEl?.addEventListener("blur", () => {
       const value = barcodeEl.value.trim();
       if (value) checkBarcodeDuplicate(value);
     });
-  }
-
-  function resetProductScannerUI() {
-    clearBarcodeDupWarning();
-    bleScanBuffer = "";
-    if (bleDevice?.gatt?.connected) {
-      scannerConnectionState = "connected";
-    } else {
-      scannerConnectionState = "idle";
-    }
-    updateScannerStatusUI();
+    barcodeEl?.addEventListener("input", clearBarcodeDupWarning);
   }
 
   function getPageSize() {
@@ -686,7 +509,7 @@
       mobileMedia.addListener(onViewportPageSizeChange);
     }
     window.addEventListener("resize", onViewportPageSizeChange);
-    bindProductBarcodeScanner();
+    bindBarcodeField();
   }
 
   function getModalFormData() {
@@ -703,7 +526,7 @@
     const dealer = document.getElementById("modal-dealer_id").value;
     return {
       name: document.getElementById("modal-name").value.trim(),
-      barcode: document.getElementById("modal-barcode").value.trim(),
+      barcode: document.getElementById("modal-barcode").value.trim() || null,
       jan_code: modalJanCode,
       category_id: parseInt(categoryId, 10),
       unit: document.getElementById("modal-unit").value.trim() || "本",
@@ -719,7 +542,7 @@
   function openModal() {
     document.getElementById("product-modal").hidden = false;
     document.body.style.overflow = "hidden";
-    resetProductScannerUI();
+    clearBarcodeDupWarning();
   }
 
   function closeModal() {
@@ -729,8 +552,6 @@
     modalJanCode = null;
     document.getElementById("modal-form-error").hidden = true;
     clearBarcodeDupWarning();
-    /* BLE 接続は維持（切断しない） */
-    updateScannerStatusUI();
   }
 
   function resetModalDefaults() {
@@ -773,7 +594,7 @@
     document.getElementById("product-modal-title").textContent = "商品を編集";
     document.getElementById("modal-product-id").value = id;
     document.getElementById("modal-name").value = p.name;
-    document.getElementById("modal-barcode").value = p.barcode;
+    document.getElementById("modal-barcode").value = displayBarcodeValue(p.barcode);
     const cat = categories.find((c) => c.id === p.category_id);
     const sectionEl = document.getElementById("modal-section");
     if (sectionEl && cat) {
@@ -821,7 +642,7 @@
         (p) => `
       <tr>
         <td data-label="商品名" class="cell-product-name">${esc(p.name)}</td>
-        <td data-label="コード"><code>${esc(p.barcode)}</code>${p.jan_code ? `<br><small>納品:${esc(p.jan_code)}</small>` : ""}</td>
+        <td data-label="コード"><code>${formatBarcodeForList(p.barcode)}</code>${p.jan_code ? `<br><small>納品:${esc(p.jan_code)}</small>` : ""}</td>
         <td data-label="カテゴリ">${esc(p.category_name || "")}</td>
         <td data-label="店舗">${esc(p.deployment_label || formatDeploymentFallback(p))}</td>
         <td data-label="閾値">${p.warning_threshold}/${p.critical_threshold}</td>
@@ -855,6 +676,9 @@
     if (data.critical_threshold > data.warning_threshold) {
       err.textContent = "赤アラートは黄アラート以下にしてください。";
       err.hidden = false;
+      return;
+    }
+    if (data.barcode && checkBarcodeDuplicate(data.barcode)) {
       return;
     }
     try {

@@ -157,7 +157,8 @@ def create_product_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="危険閾値は警告閾値以下にしてください。",
         )
-    if crud.get_product_by_barcode(db, body.barcode):
+    barcode = crud.coerce_product_barcode(body.barcode)
+    if barcode and crud.get_product_by_barcode(db, barcode):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="このバーコードは既に登録されています。",
@@ -182,12 +183,14 @@ def update_product_endpoint(
     if not product:
         raise HTTPException(status_code=404, detail="商品が見つかりません。")
 
-    other = crud.get_product_by_barcode(db, body.barcode)
-    if other and other.id != product_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="このバーコードは別の商品で使用されています。",
-        )
+    barcode = crud.coerce_product_barcode(body.barcode)
+    if barcode:
+        other = crud.get_product_by_barcode(db, barcode)
+        if other and other.id != product_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="このバーコードは別の商品で使用されています。",
+            )
 
     if body.critical_threshold > body.warning_threshold:
         raise HTTPException(

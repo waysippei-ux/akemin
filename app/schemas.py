@@ -146,7 +146,7 @@ class ProductOut(BaseModel):
 
 class ProductCreate(BaseModel):
     name: str
-    barcode: str
+    barcode: Optional[str] = None
     category_id: int
     jan_code: Optional[str] = None
     unit: str = "本"
@@ -160,7 +160,7 @@ class ProductCreate(BaseModel):
 
 class ProductUpdate(BaseModel):
     name: str
-    barcode: str
+    barcode: Optional[str] = None
     category_id: int
     jan_code: Optional[str] = None
     unit: str = "本"

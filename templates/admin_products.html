@@ -52,6 +52,12 @@
             </select>
           </div>
           <div class="filter-field">
+            <label for="product-filter-dealer">ディーラー</label>
+            <select id="product-filter-dealer" class="select select-sm">
+              <option value="">すべて</option>
+            </select>
+          </div>
+          <div class="filter-field">
             <label for="product-filter-category">カテゴリ</label>
             <select id="product-filter-category" class="select select-sm">
               <option value="">すべて</option>
@@ -66,12 +72,6 @@
           <div class="filter-field">
             <label for="product-filter-brand">ブランド</label>
             <select id="product-filter-brand" class="select select-sm">
-              <option value="">すべて</option>
-            </select>
-          </div>
-          <div class="filter-field">
-            <label for="product-filter-dealer">ディーラー</label>
-            <select id="product-filter-dealer" class="select select-sm">
               <option value="">すべて</option>
             </select>
           </div>
@@ -415,6 +415,12 @@
           </select>
         </div>
         <div class="form-group">
+          <label for="modal-dealer_id">ディーラー</label>
+          <select id="modal-dealer_id" class="select"><option value="">—</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
           <label for="modal-category_id">カテゴリ *</label>
           <select id="modal-category_id" class="select" required disabled>
             <option value="">棚を選択してください</option>
@@ -431,21 +437,13 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label for="modal-dealer_id">ディーラー</label>
-          <select id="modal-dealer_id" class="select"><option value="">—</option></select>
-        </div>
-        <div class="form-group">
           <label for="modal-name">商品名 *</label>
           <input type="text" id="modal-name" class="input-text" required>
         </div>
       </div>
       <div class="form-group product-barcode-field">
-        <label for="modal-barcode">バーコード *</label>
-        <input type="text" id="modal-barcode" class="input-text" required placeholder="手入力またはスキャナーで入力" inputmode="numeric" autocomplete="off">
-        <div class="barcode-scanner-actions">
-          <button type="button" class="btn-scanner-register" id="btn-modal-scanner-register">スキャナーで登録する</button>
-          <span id="modal-scanner-status" class="barcode-scanner-status" role="status">🔵 未接続</span>
-        </div>
+        <label for="modal-barcode">バーコード（推奨）</label>
+        <input type="text" id="modal-barcode" class="input-text" placeholder="手入力またはスキャナーで入力" inputmode="numeric" autocomplete="off">
         <p id="modal-barcode-dup-warning" class="barcode-dup-warning" hidden></p>
       </div>
       <div class="form-row">
@@ -483,6 +481,6 @@
 
 {% block scripts %}
 <script src="/static/js/filter_helpers.js?v=2"></script>
-<script src="/static/js/admin_products.js?v=11"></script>
+<script src="/static/js/admin_products.js?v=12"></script>
 <script src="/static/js/admin_masters.js?v=8"></script>
 {% endblock %}

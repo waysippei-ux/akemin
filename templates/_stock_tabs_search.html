@@ -13,6 +13,15 @@
         </select>
       </div>
       <div class="filter-field">
+        <label for="filter-dealer">ディーラー</label>
+        <select id="filter-dealer" class="select">
+          <option value="">すべて</option>
+          {% for d in dealers %}
+          <option value="{{ d.id }}">{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-field">
         <label for="filter-category">カテゴリ</label>
         <select id="filter-category" class="select">
           <option value="">すべて</option>
@@ -34,15 +43,6 @@
         <label for="filter-brand">ブランド</label>
         <select id="filter-brand" class="select">
           <option value="">すべて</option>
-        </select>
-      </div>
-      <div class="filter-field">
-        <label for="filter-dealer">ディーラー</label>
-        <select id="filter-dealer" class="select">
-          <option value="">すべて</option>
-          {% for d in dealers %}
-          <option value="{{ d.id }}">{{ d.name }}</option>
-          {% endfor %}
         </select>
       </div>
       <div class="filter-field filter-field-grow">
