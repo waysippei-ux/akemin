@@ -1262,6 +1262,15 @@ input[type="number"],
   border-radius: 8px;
   background: #fff;
   padding: 0.5rem 0.75rem;
+  max-height: 240px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.master-edit-modal .dealer-maker-actions .btn {
+  min-height: 44px;
+  min-width: 60px;
+  padding: 0.5rem 0.75rem;
 }
 
 .dealer-maker-list:empty::before {
@@ -1322,6 +1331,89 @@ input[type="number"],
 
 .dealer-maker-help {
   margin-top: 0.35rem;
+}
+
+/* マスタ編集モーダル — スマホ */
+@media (max-width: 768px) {
+  #dealer-edit-modal.modal-overlay,
+  #maker-edit-modal.modal-overlay {
+    padding: 0.5rem;
+    align-items: center;
+  }
+
+  #dealer-edit-modal .master-edit-modal,
+  #maker-edit-modal .master-edit-modal {
+    width: 92vw;
+    max-width: 92vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px;
+    margin: 0;
+    font-size: 14px;
+    box-sizing: border-box;
+  }
+
+  #dealer-edit-modal .master-edit-modal .form-group label,
+  #dealer-edit-modal .master-edit-modal .input-text,
+  #dealer-edit-modal .master-edit-modal .select,
+  #dealer-edit-modal .master-edit-modal .help-text,
+  #maker-edit-modal .master-edit-modal .form-group label,
+  #maker-edit-modal .master-edit-modal .input-text,
+  #maker-edit-modal .master-edit-modal .select,
+  #maker-edit-modal .master-edit-modal .help-text {
+    font-size: 14px;
+  }
+
+  #dealer-edit-modal .master-edit-modal h3,
+  #maker-edit-modal .master-edit-modal h3 {
+    font-size: 1.1rem;
+  }
+
+  #dealer-edit-modal .dealer-makers-box,
+  #maker-edit-modal .dealer-makers-box {
+    max-height: min(36vh, 200px);
+  }
+
+  #dealer-edit-modal .dealer-maker-add-row,
+  #maker-edit-modal .dealer-maker-add-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #dealer-edit-modal .dealer-maker-add-row .select,
+  #dealer-edit-modal .dealer-maker-add-row .btn,
+  #maker-edit-modal .dealer-maker-add-row .select,
+  #maker-edit-modal .dealer-maker-add-row .btn {
+    width: 100%;
+    min-width: 0;
+    font-size: 14px;
+  }
+
+  #dealer-edit-modal .dealer-maker-add-row .btn,
+  #maker-edit-modal .dealer-maker-add-row .btn {
+    min-height: 48px;
+  }
+
+  #dealer-edit-modal .modal-actions-stack,
+  #maker-edit-modal .modal-actions-stack {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  #dealer-edit-modal .modal-actions-stack .btn,
+  #maker-edit-modal .modal-actions-stack .btn {
+    width: 100%;
+    min-height: 48px;
+    font-size: 14px;
+    justify-content: center;
+  }
+
+  #dealer-edit-modal .error-msg,
+  #maker-edit-modal .error-msg {
+    font-size: 14px;
+  }
 }
 
 .btn-order {

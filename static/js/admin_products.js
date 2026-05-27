@@ -830,4 +830,30 @@
       alert(ex.message);
     }
   }
+
+  /** ディーラー/メーカー編集モーダル用（admin_masters.js から利用） */
+  window.MasterModalUi = {
+    errorMessage(ex) {
+      if (!ex) return "エラーが発生しました";
+      const msg = ex.message;
+      if (typeof msg === "string" && msg.trim()) return msg.trim();
+      return "エラーが発生しました";
+    },
+    showError(el, message) {
+      if (!el) return;
+      el.textContent = message || "エラーが発生しました";
+      el.hidden = false;
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    },
+    clearError(el) {
+      if (!el) return;
+      el.hidden = true;
+      el.textContent = "";
+    },
+    postEmpty(path) {
+      return Api.request(path, { method: "POST" });
+    },
+  };
 })();

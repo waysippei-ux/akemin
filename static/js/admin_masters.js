@@ -20,6 +20,27 @@
     return FH ? FH.dealerDisplayName(name) : name;
   }
 
+  const modalUi = () => window.MasterModalUi;
+
+  function showModalError(el, ex) {
+    const ui = modalUi();
+    const msg = ui ? ui.errorMessage(ex) : ex?.message || "エラーが発生しました";
+    if (ui) ui.showError(el, msg);
+    else if (el) {
+      el.textContent = msg;
+      el.hidden = false;
+    }
+  }
+
+  function clearModalError(el) {
+    const ui = modalUi();
+    if (ui) ui.clearError(el);
+    else if (el) {
+      el.hidden = true;
+      el.textContent = "";
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("btn-add-dealer")?.addEventListener("click", openDealerAddModal);
     document.getElementById("btn-add-maker")?.addEventListener("click", openMakerAddModal);
@@ -560,15 +581,12 @@
 
   async function refreshDealerMakerSection(dealerId) {
     const errEl = document.getElementById("dealer-maker-error");
-    if (errEl) errEl.hidden = true;
+    clearModalError(errEl);
     try {
       dealerMakersCache = await Api.get(`/admin/dealers/${dealerId}/makers`);
       renderDealerMakerSection();
     } catch (ex) {
-      if (errEl) {
-        errEl.textContent = ex.message;
-        errEl.hidden = false;
-      }
+      showModalError(errEl, ex);
     }
   }
 
@@ -605,12 +623,15 @@
 
   async function onDealerAddMakerClick() {
     const errEl = document.getElementById("dealer-maker-error");
-    if (errEl) errEl.hidden = true;
+    clearModalError(errEl);
 
     const dealerId = parseInt(document.getElementById("edit-dealer-id").value, 10);
     if (!dealerId) return;
     const selectEl = document.getElementById("dealer-add-maker-select");
-    if (!selectEl || !selectEl.value) return;
+    if (!selectEl || !selectEl.value) {
+      showModalError(errEl, new Error("メーカーを選択してください"));
+      return;
+    }
     const makerId = parseInt(selectEl.value, 10);
 
     try {
@@ -621,10 +642,7 @@
       renderDealerGroups();
       renderMakerGroups();
     } catch (ex) {
-      if (errEl) {
-        errEl.textContent = ex.message;
-        errEl.hidden = false;
-      }
+      showModalError(errEl, ex);
     }
   }
 
@@ -639,7 +657,7 @@
     if (!dealerId || !makerId) return;
 
     const errEl = document.getElementById("dealer-maker-error");
-    if (errEl) errEl.hidden = true;
+    clearModalError(errEl);
 
     try {
       await Api.delete(`/admin/dealers/${dealerId}/makers/${makerId}`);
@@ -649,10 +667,7 @@
       renderDealerGroups();
       renderMakerGroups();
     } catch (ex) {
-      if (errEl) {
-        errEl.textContent = ex.message;
-        errEl.hidden = false;
-      }
+      showModalError(errEl, ex);
     }
   }
 
@@ -695,7 +710,7 @@
   async function saveDealerEdit(e) {
     e.preventDefault();
     const errEl = document.getElementById("dealer-edit-error");
-    errEl.hidden = true;
+    clearModalError(errEl);
     const idVal = document.getElementById("edit-dealer-id").value;
     const name = document.getElementById("edit-dealer-name").value.trim();
     try {
@@ -713,8 +728,7 @@
       await loadDealers();
       if (typeof window.loadMasters === "function") window.loadMasters();
     } catch (ex) {
-      errEl.textContent = ex.message;
-      errEl.hidden = false;
+      showModalError(errEl, ex);
     }
   }
 
@@ -832,15 +846,12 @@
 
   async function refreshMakerBrandSection(makerId) {
     const errEl = document.getElementById("maker-brand-error");
-    if (errEl) errEl.hidden = true;
+    clearModalError(errEl);
     try {
       makerBrandsCache = await Api.get(`/admin/makers/${makerId}/brands`);
       renderMakerBrandSection();
     } catch (ex) {
-      if (errEl) {
-        errEl.textContent = ex.message;
-        errEl.hidden = false;
-      }
+      showModalError(errEl, ex);
     }
   }
 
@@ -886,16 +897,20 @@
 
   async function onMakerAddBrandClick() {
     const errEl = document.getElementById("maker-brand-error");
-    if (errEl) errEl.hidden = true;
+    clearModalError(errEl);
 
     const makerId = parseInt(document.getElementById("edit-maker-id").value, 10);
     if (!makerId) return;
     const selectEl = document.getElementById("maker-add-brand-select");
-    if (!selectEl || !selectEl.value) return;
+    if (!selectEl || !selectEl.value) {
+      showModalError(errEl, new Error("ブランドを選択してください"));
+      return;
+    }
     const brandId = parseInt(selectEl.value, 10);
 
     try {
-      const added = await Api.post(`/admin/makers/${makerId}/brands/${brandId}`);
+      const post = modalUi()?.postEmpty || ((path) => Api.request(path, { method: "POST" }));
+      const added = await post(`/admin/makers/${makerId}/brands/${brandId}`);
       if (!makerBrandsCache.some((b) => b.id === added.id)) makerBrandsCache.push(added);
       const idx = brandsCache.findIndex((b) => b.id === added.id);
       if (idx >= 0) brandsCache[idx] = added;
@@ -904,10 +919,7 @@
       renderMakerGroups();
       window.dispatchEvent(new Event("brands-updated"));
     } catch (ex) {
-      if (errEl) {
-        errEl.textContent = ex.message;
-        errEl.hidden = false;
-      }
+      showModalError(errEl, ex);
     }
   }
 
@@ -922,7 +934,7 @@
     if (!makerId || !brandId) return;
 
     const errEl = document.getElementById("maker-brand-error");
-    if (errEl) errEl.hidden = true;
+    clearModalError(errEl);
 
     try {
       await Api.delete(`/admin/makers/${makerId}/brands/${brandId}`);
@@ -933,10 +945,7 @@
       renderMakerGroups();
       window.dispatchEvent(new Event("brands-updated"));
     } catch (ex) {
-      if (errEl) {
-        errEl.textContent = ex.message;
-        errEl.hidden = false;
-      }
+      showModalError(errEl, ex);
     }
   }
 
@@ -992,7 +1001,7 @@
   async function saveMakerEdit(e) {
     e.preventDefault();
     const errEl = document.getElementById("maker-edit-error");
-    errEl.hidden = true;
+    clearModalError(errEl);
     const idVal = document.getElementById("edit-maker-id").value;
     const name = document.getElementById("edit-maker-name").value.trim();
     try {
@@ -1014,8 +1023,7 @@
       if (typeof window.loadMasters === "function") await window.loadMasters();
       if (typeof window.refreshBrandTab === "function") await window.refreshBrandTab();
     } catch (ex) {
-      errEl.textContent = ex.message;
-      errEl.hidden = false;
+      showModalError(errEl, ex);
     }
   }
 
