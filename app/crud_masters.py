@@ -356,11 +356,15 @@ def brand_to_out(brand: Brand, maker_name: str | None = None) -> BrandOut:
 def get_brands(
     db: Session, *, maker_id: int | None = None, active_maker_only: bool = True
 ) -> list[Brand]:
+    from sqlalchemy import or_
+
     q = db.query(Brand).options(joinedload(Brand.maker))
     if maker_id is not None:
         q = q.filter(Brand.maker_id == maker_id)
     if active_maker_only:
-        q = q.join(Maker).filter(Maker.is_active.is_(True))
+        q = q.outerjoin(Maker, Brand.maker_id == Maker.id).filter(
+            or_(Brand.maker_id.is_(None), Maker.is_active.is_(True))
+        )
     return q.order_by(Brand.sort_order, Brand.name).all()
 
 

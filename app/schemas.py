@@ -461,7 +461,7 @@ class MakerUpdate(BaseModel):
 class BrandOut(BaseModel):
     id: int
     name: str
-    maker_id: int
+    maker_id: Optional[int] = None
     maker_name: Optional[str] = None
     sort_order: int = 0
 

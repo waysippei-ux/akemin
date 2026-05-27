@@ -1270,6 +1270,10 @@ input[type="number"],
   font-size: 0.9rem;
 }
 
+.maker-brand-list:empty::before {
+  content: "紐づくブランドがありません";
+}
+
 .dealer-maker-row {
   display: flex;
   align-items: center;

@@ -148,10 +148,12 @@ class Brand(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    maker_id: Mapped[int] = mapped_column(ForeignKey("makers.id"), nullable=False, index=True)
+    maker_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("makers.id"), nullable=True, index=True
+    )
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
-    maker: Mapped["Maker"] = relationship(back_populates="brands")
+    maker: Mapped[Optional["Maker"]] = relationship(back_populates="brands")
     products: Mapped[list["Product"]] = relationship(back_populates="brand")
 
 

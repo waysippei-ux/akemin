@@ -274,6 +274,24 @@
         <label for="edit-maker-name">メーカー名 *</label>
         <input type="text" id="edit-maker-name" class="input-text" required>
       </div>
+
+      <div class="form-group" id="maker-brands-section" hidden>
+        <label>紐づくブランド</label>
+        <div class="dealer-makers-box">
+          <div id="maker-brand-list" class="dealer-maker-list maker-brand-list"></div>
+        </div>
+
+        <div class="dealer-maker-add">
+          <label class="dealer-maker-add-label" for="maker-add-brand-select">ブランドを追加：</label>
+          <div class="dealer-maker-add-row">
+            <select id="maker-add-brand-select" class="select"></select>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-maker-add-brand">追加する</button>
+          </div>
+          <p class="help-text dealer-maker-help">※このメーカーに未紐づけのブランド（未所属・他メーカー所属）のみ表示</p>
+          <p id="maker-brand-error" class="error-msg" hidden></p>
+        </div>
+      </div>
+
       <p id="maker-edit-error" class="error-msg" hidden></p>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost master-modal-close" data-close="maker-edit-modal">キャンセル</button>

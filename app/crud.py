@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.auth import verify_password
 from app.crud_store_settings import get_settings_map, resolve_thresholds
 from app.models import (
+    Brand,
     Category,
     DealerMaker,
     Inventory,
@@ -23,6 +24,7 @@ from app.models import (
     UserRole,
 )
 from app.schemas import (
+    BrandOut,
     InventoryItemOut,
     InventoryLogOut,
     InventoryScanRequest,
@@ -186,6 +188,46 @@ def unlink_maker_from_dealer(db: Session, *, dealer_id: int, maker_id: int) -> b
 
 
 # ---------------------------------------------------------------------------
+# メーカー × ブランド（管理画面モーダル用）
+# ---------------------------------------------------------------------------
+
+def get_brands_linked_to_maker(db: Session, maker_id: int) -> list[BrandOut]:
+    from app import crud_masters
+
+    if not crud_masters.get_maker(db, maker_id):
+        raise ValueError("メーカーが見つかりません。")
+    rows = crud_masters.get_brands(db, maker_id=maker_id, active_maker_only=False)
+    return [crud_masters.brand_to_out(b) for b in rows]
+
+
+def link_brand_to_maker(db: Session, *, maker_id: int, brand_id: int) -> BrandOut:
+    from app import crud_masters
+
+    if not crud_masters.get_maker(db, maker_id):
+        raise ValueError("メーカーが見つかりません。")
+    brand = crud_masters.get_brand(db, brand_id)
+    if not brand:
+        raise ValueError("ブランドが見つかりません。")
+    brand.maker_id = maker_id
+    db.commit()
+    db.refresh(brand)
+    return crud_masters.brand_to_out(brand)
+
+
+def unlink_brand_from_maker(db: Session, *, maker_id: int, brand_id: int) -> bool:
+    brand = (
+        db.query(Brand)
+        .filter(Brand.id == brand_id, Brand.maker_id == maker_id)
+        .first()
+    )
+    if not brand:
+        return False
+    brand.maker_id = None
+    db.commit()
+    return True
+
+
+# ---------------------------------------------------------------------------
 # 商品
 # ---------------------------------------------------------------------------
 
@@ -201,7 +243,7 @@ def _validate_product_brand(
         raise ValueError("ブランドが見つかりません。")
     if not maker_id:
         raise ValueError("ブランドを指定する場合はメーカーを選択してください。")
-    if brand.maker_id != maker_id:
+    if brand.maker_id is not None and brand.maker_id != maker_id:
         raise ValueError("ブランドは選択したメーカーに属していません。")
 
 

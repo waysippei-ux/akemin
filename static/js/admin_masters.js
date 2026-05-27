@@ -34,6 +34,9 @@
     document.getElementById("dealer-edit-form")?.addEventListener("submit", saveDealerEdit);
     document.getElementById("btn-dealer-add-maker")?.addEventListener("click", onDealerAddMakerClick);
     document.getElementById("dealer-maker-list")?.addEventListener("click", onDealerMakerListClick);
+    document.getElementById("maker-edit-form")?.addEventListener("submit", saveMakerEdit);
+    document.getElementById("btn-maker-add-brand")?.addEventListener("click", onMakerAddBrandClick);
+    document.getElementById("maker-brand-list")?.addEventListener("click", onMakerBrandListClick);
 
     bindMasterModalClose();
     bindListDelegation();
@@ -803,6 +806,7 @@
     document.querySelector("#maker-edit-modal h3").textContent = "メーカーを追加";
     document.getElementById("edit-maker-id").value = "";
     document.getElementById("edit-maker-name").value = "";
+    setMakerBrandsUIVisible(false);
     showModal("maker-edit-modal");
   }
 
@@ -810,7 +814,130 @@
     document.querySelector("#maker-edit-modal h3").textContent = "メーカーを編集";
     document.getElementById("edit-maker-id").value = m.id;
     document.getElementById("edit-maker-name").value = m.name;
+    setMakerBrandsUIVisible(true);
+    refreshMakerBrandSection(m.id);
     showModal("maker-edit-modal");
+  }
+
+  function setMakerBrandsUIVisible(visible) {
+    const sec = document.getElementById("maker-brands-section");
+    if (sec) sec.hidden = !visible;
+    if (!visible) {
+      makerBrandsCache = [];
+      renderMakerBrandSection();
+    }
+  }
+
+  let makerBrandsCache = [];
+
+  async function refreshMakerBrandSection(makerId) {
+    const errEl = document.getElementById("maker-brand-error");
+    if (errEl) errEl.hidden = true;
+    try {
+      makerBrandsCache = await Api.get(`/admin/makers/${makerId}/brands`);
+      renderMakerBrandSection();
+    } catch (ex) {
+      if (errEl) {
+        errEl.textContent = ex.message;
+        errEl.hidden = false;
+      }
+    }
+  }
+
+  function renderMakerBrandSection() {
+    const listEl = document.getElementById("maker-brand-list");
+    const selectEl = document.getElementById("maker-add-brand-select");
+    if (!listEl || !selectEl) return;
+
+    const makerId = parseInt(document.getElementById("edit-maker-id").value, 10);
+
+    listEl.innerHTML = (makerBrandsCache || [])
+      .slice()
+      .sort(
+        (a, b) =>
+          (a.sort_order || 0) - (b.sort_order || 0) ||
+          String(a.name).localeCompare(String(b.name), "ja")
+      )
+      .map(
+        (b) => `
+        <div class="dealer-maker-row" data-brand-id="${b.id}">
+          <span class="dealer-maker-name">${esc(b.name)}</span>
+          <span class="dealer-maker-actions">
+            <button type="button" class="btn btn-ghost btn-sm" data-action="remove-brand">削除</button>
+          </span>
+        </div>`
+      )
+      .join("");
+
+    const available = brandsCache
+      .filter((b) => !b.maker_id || b.maker_id !== makerId)
+      .sort(
+        (a, b) =>
+          (a.sort_order || 0) - (b.sort_order || 0) ||
+          String(a.name).localeCompare(String(b.name), "ja")
+      );
+    selectEl.innerHTML = available
+      .map((b) => `<option value="${b.id}">${esc(b.name)}</option>`)
+      .join("");
+    selectEl.disabled = !available.length;
+    const addBtn = document.getElementById("btn-maker-add-brand");
+    if (addBtn) addBtn.disabled = !available.length;
+  }
+
+  async function onMakerAddBrandClick() {
+    const errEl = document.getElementById("maker-brand-error");
+    if (errEl) errEl.hidden = true;
+
+    const makerId = parseInt(document.getElementById("edit-maker-id").value, 10);
+    if (!makerId) return;
+    const selectEl = document.getElementById("maker-add-brand-select");
+    if (!selectEl || !selectEl.value) return;
+    const brandId = parseInt(selectEl.value, 10);
+
+    try {
+      const added = await Api.post(`/admin/makers/${makerId}/brands/${brandId}`);
+      if (!makerBrandsCache.some((b) => b.id === added.id)) makerBrandsCache.push(added);
+      const idx = brandsCache.findIndex((b) => b.id === added.id);
+      if (idx >= 0) brandsCache[idx] = added;
+      else brandsCache.push(added);
+      renderMakerBrandSection();
+      renderMakerGroups();
+      window.dispatchEvent(new Event("brands-updated"));
+    } catch (ex) {
+      if (errEl) {
+        errEl.textContent = ex.message;
+        errEl.hidden = false;
+      }
+    }
+  }
+
+  async function onMakerBrandListClick(e) {
+    const btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+    if (btn.dataset.action !== "remove-brand") return;
+    const row = btn.closest(".dealer-maker-row[data-brand-id]");
+    if (!row) return;
+    const brandId = parseInt(row.dataset.brandId, 10);
+    const makerId = parseInt(document.getElementById("edit-maker-id").value, 10);
+    if (!makerId || !brandId) return;
+
+    const errEl = document.getElementById("maker-brand-error");
+    if (errEl) errEl.hidden = true;
+
+    try {
+      await Api.delete(`/admin/makers/${makerId}/brands/${brandId}`);
+      makerBrandsCache = (makerBrandsCache || []).filter((b) => b.id !== brandId);
+      const idx = brandsCache.findIndex((b) => b.id === brandId);
+      if (idx >= 0) brandsCache[idx] = { ...brandsCache[idx], maker_id: null, maker_name: null };
+      renderMakerBrandSection();
+      renderMakerGroups();
+      window.dispatchEvent(new Event("brands-updated"));
+    } catch (ex) {
+      if (errEl) {
+        errEl.textContent = ex.message;
+        errEl.hidden = false;
+      }
+    }
   }
 
   function openLinkDealerModal(maker) {
@@ -1002,8 +1129,7 @@
     await loadLinks();
   }
 
-  // maker/store edit form bindings
-  document.getElementById("maker-edit-form")?.addEventListener("submit", saveMakerEdit);
+  // store edit form binding
   document.getElementById("store-edit-form")?.addEventListener("submit", saveStoreEdit);
 
   function esc(s) {

@@ -166,9 +166,44 @@ def migrate_schema() -> None:
         from app.models import Brand
 
         Brand.__table__.create(bind=engine, checkfirst=True)
+    else:
+        _migrate_brands_maker_nullable(engine, insp)
 
     _ensure_default_sections(engine, insp)
     _ensure_direct_dealer(engine, insp)
+
+
+def _migrate_brands_maker_nullable(engine, insp) -> None:
+    """brands.maker_id を NULL 許可に（紐づけ解除用）"""
+    from sqlalchemy import text
+
+    cols = {c["name"]: c for c in insp.get_columns("brands")}
+    maker_col = cols.get("maker_id")
+    if not maker_col or maker_col.get("nullable"):
+        return
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE brands_new (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    maker_id INTEGER REFERENCES makers(id),
+                    sort_order INTEGER NOT NULL DEFAULT 0
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO brands_new (id, name, maker_id, sort_order) "
+                "SELECT id, name, maker_id, sort_order FROM brands"
+            )
+        )
+        conn.execute(text("DROP TABLE brands"))
+        conn.execute(text("ALTER TABLE brands_new RENAME TO brands"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_brands_maker_id ON brands (maker_id)"))
 
 
 def _ensure_direct_dealer(engine, insp) -> None:
