@@ -118,6 +118,7 @@ def orders_analytics_page(request: Request):
 # ---------------------------------------------------------------------------
 from app.routers import (
     analysis,
+    admin,
     auth,
     brands,
     categories,
@@ -146,6 +147,7 @@ app.include_router(stock.pages_router)
 app.include_router(stock.router, prefix="/api/stock", tags=["棚補充・使用"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["AI分析"])
 app.include_router(orders.router, prefix="/api/orders", tags=["発注"])
+app.include_router(admin.router, prefix="/admin", tags=["管理"])
 
 
 @app.get("/health")

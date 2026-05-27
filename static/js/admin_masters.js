@@ -31,6 +31,9 @@
     document.getElementById("section-edit-form")?.addEventListener("submit", saveSectionEdit);
     document.getElementById("btn-add-shelf")?.addEventListener("click", openSectionAddModal);
     document.getElementById("category-edit-form")?.addEventListener("submit", saveCategoryEdit);
+    document.getElementById("dealer-edit-form")?.addEventListener("submit", saveDealerEdit);
+    document.getElementById("btn-dealer-add-maker")?.addEventListener("click", onDealerAddMakerClick);
+    document.getElementById("dealer-maker-list")?.addEventListener("click", onDealerMakerListClick);
 
     bindMasterModalClose();
     bindListDelegation();
@@ -528,7 +531,7 @@
     document.querySelector("#dealer-edit-modal h3").textContent = "ディーラーを追加";
     document.getElementById("edit-dealer-id").value = "";
     document.getElementById("edit-dealer-name").value = "";
-    document.getElementById("edit-dealer-contact").value = "";
+    setDealerMakersUIVisible(false);
     showModal("dealer-edit-modal");
   }
 
@@ -536,8 +539,118 @@
     document.querySelector("#dealer-edit-modal h3").textContent = "ディーラーを編集";
     document.getElementById("edit-dealer-id").value = d.id;
     document.getElementById("edit-dealer-name").value = d.name;
-    document.getElementById("edit-dealer-contact").value = d.contact_info || "";
+    setDealerMakersUIVisible(true);
+    refreshDealerMakerSection(d.id);
     showModal("dealer-edit-modal");
+  }
+
+  function setDealerMakersUIVisible(visible) {
+    const sec = document.getElementById("dealer-makers-section");
+    if (sec) sec.hidden = !visible;
+    if (!visible) {
+      dealerMakersCache = [];
+      renderDealerMakerSection();
+    }
+  }
+
+  let dealerMakersCache = [];
+
+  async function refreshDealerMakerSection(dealerId) {
+    const errEl = document.getElementById("dealer-maker-error");
+    if (errEl) errEl.hidden = true;
+    try {
+      dealerMakersCache = await Api.get(`/admin/dealers/${dealerId}/makers`);
+      renderDealerMakerSection();
+    } catch (ex) {
+      if (errEl) {
+        errEl.textContent = ex.message;
+        errEl.hidden = false;
+      }
+    }
+  }
+
+  function renderDealerMakerSection() {
+    const listEl = document.getElementById("dealer-maker-list");
+    const selectEl = document.getElementById("dealer-add-maker-select");
+    if (!listEl || !selectEl) return;
+
+    const linkedIds = new Set((dealerMakersCache || []).map((m) => m.id));
+    listEl.innerHTML = (dealerMakersCache || [])
+      .slice()
+      .sort((a, b) => String(a.name).localeCompare(String(b.name), "ja"))
+      .map(
+        (m) => `
+        <div class="dealer-maker-row" data-maker-id="${m.id}">
+          <span class="dealer-maker-name">${esc(m.name)}</span>
+          <span class="dealer-maker-actions">
+            <button type="button" class="btn btn-ghost btn-sm" data-action="remove-maker">削除</button>
+          </span>
+        </div>`
+      )
+      .join("");
+
+    const available = makersCache
+      .filter((m) => m.is_active !== false && !linkedIds.has(m.id))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name), "ja"));
+    selectEl.innerHTML = available
+      .map((m) => `<option value="${m.id}">${esc(m.name)}</option>`)
+      .join("");
+    selectEl.disabled = !available.length;
+    const addBtn = document.getElementById("btn-dealer-add-maker");
+    if (addBtn) addBtn.disabled = !available.length;
+  }
+
+  async function onDealerAddMakerClick() {
+    const errEl = document.getElementById("dealer-maker-error");
+    if (errEl) errEl.hidden = true;
+
+    const dealerId = parseInt(document.getElementById("edit-dealer-id").value, 10);
+    if (!dealerId) return;
+    const selectEl = document.getElementById("dealer-add-maker-select");
+    if (!selectEl || !selectEl.value) return;
+    const makerId = parseInt(selectEl.value, 10);
+
+    try {
+      const added = await Api.post(`/admin/dealers/${dealerId}/makers`, { maker_id: makerId });
+      if (!dealerMakersCache.some((m) => m.id === added.id)) dealerMakersCache.push(added);
+      renderDealerMakerSection();
+      await loadLinks();
+      renderDealerGroups();
+      renderMakerGroups();
+    } catch (ex) {
+      if (errEl) {
+        errEl.textContent = ex.message;
+        errEl.hidden = false;
+      }
+    }
+  }
+
+  async function onDealerMakerListClick(e) {
+    const btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+    if (btn.dataset.action !== "remove-maker") return;
+    const row = btn.closest(".dealer-maker-row[data-maker-id]");
+    if (!row) return;
+    const makerId = parseInt(row.dataset.makerId, 10);
+    const dealerId = parseInt(document.getElementById("edit-dealer-id").value, 10);
+    if (!dealerId || !makerId) return;
+
+    const errEl = document.getElementById("dealer-maker-error");
+    if (errEl) errEl.hidden = true;
+
+    try {
+      await Api.delete(`/admin/dealers/${dealerId}/makers/${makerId}`);
+      dealerMakersCache = (dealerMakersCache || []).filter((m) => m.id !== makerId);
+      renderDealerMakerSection();
+      await loadLinks();
+      renderDealerGroups();
+      renderMakerGroups();
+    } catch (ex) {
+      if (errEl) {
+        errEl.textContent = ex.message;
+        errEl.hidden = false;
+      }
+    }
   }
 
   function openLinkMakerModal(dealer) {
@@ -582,16 +695,14 @@
     errEl.hidden = true;
     const idVal = document.getElementById("edit-dealer-id").value;
     const name = document.getElementById("edit-dealer-name").value.trim();
-    const contact_info = document.getElementById("edit-dealer-contact").value.trim() || null;
     try {
       if (!idVal) {
-        await Api.post("/api/dealers", { name, contact_info, is_active: true });
+        await Api.post("/api/dealers", { name, is_active: true });
       } else {
         const id = parseInt(idVal, 10);
         const current = dealersCache.find((d) => d.id === id);
         await Api.put(`/api/dealers/${id}`, {
           name,
-          contact_info,
           is_active: current ? current.is_active : true,
         });
       }
@@ -891,8 +1002,7 @@
     await loadLinks();
   }
 
-  // dealer/maker edit form bindings
-  document.getElementById("dealer-edit-form")?.addEventListener("submit", saveDealerEdit);
+  // maker/store edit form bindings
   document.getElementById("maker-edit-form")?.addEventListener("submit", saveMakerEdit);
   document.getElementById("store-edit-form")?.addEventListener("submit", saveStoreEdit);
 

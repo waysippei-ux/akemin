@@ -1257,6 +1257,69 @@ input[type="number"],
   flex-shrink: 0;
 }
 
+.dealer-makers-box {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 0.5rem 0.75rem;
+}
+
+.dealer-maker-list:empty::before {
+  content: "紐づくメーカーがありません";
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.dealer-maker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dealer-maker-row:last-child {
+  border-bottom: none;
+}
+
+.dealer-maker-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.dealer-maker-actions {
+  flex-shrink: 0;
+}
+
+.dealer-maker-add {
+  margin-top: 0.75rem;
+}
+
+.dealer-maker-add-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.dealer-maker-add-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.dealer-maker-add-row .select {
+  flex: 1;
+  min-width: 180px;
+}
+
+.dealer-maker-help {
+  margin-top: 0.35rem;
+}
+
 .btn-order {
   min-width: 2rem;
   padding: 0.25rem 0.45rem;

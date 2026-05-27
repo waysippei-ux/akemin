@@ -235,10 +235,24 @@
         <label for="edit-dealer-name">ディーラー名 *</label>
         <input type="text" id="edit-dealer-name" class="input-text" required>
       </div>
-      <div class="form-group">
-        <label for="edit-dealer-contact">連絡先</label>
-        <input type="text" id="edit-dealer-contact" class="input-text">
+
+      <div class="form-group" id="dealer-makers-section" hidden>
+        <label>紐づくメーカー</label>
+        <div class="dealer-makers-box">
+          <div id="dealer-maker-list" class="dealer-maker-list"></div>
+        </div>
+
+        <div class="dealer-maker-add">
+          <label class="dealer-maker-add-label" for="dealer-add-maker-select">メーカーを追加：</label>
+          <div class="dealer-maker-add-row">
+            <select id="dealer-add-maker-select" class="select"></select>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-dealer-add-maker">追加する</button>
+          </div>
+          <p class="help-text dealer-maker-help">※未紐づけのメーカーのみ選択肢に表示</p>
+          <p id="dealer-maker-error" class="error-msg" hidden></p>
+        </div>
       </div>
+
       <p id="dealer-edit-error" class="error-msg" hidden></p>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost master-modal-close" data-close="dealer-edit-modal">キャンセル</button>

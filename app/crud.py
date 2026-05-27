@@ -11,9 +11,11 @@ from app.auth import verify_password
 from app.crud_store_settings import get_settings_map, resolve_thresholds
 from app.models import (
     Category,
+    DealerMaker,
     Inventory,
     InventoryAction,
     InventoryLog,
+    Maker,
     Product,
     ProductDeliveryCode,
     Store,
@@ -25,6 +27,7 @@ from app.schemas import (
     InventoryLogOut,
     InventoryScanRequest,
     InventoryScanResponse,
+    MakerOut,
     ProductCreate,
     ProductUpdate,
     StockLevel,
@@ -123,6 +126,63 @@ def delete_store(db: Session, store: Store) -> None:
         raise ValueError("この店舗には発注データが紐づいています")
     db.delete(store)
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# ディーラー × メーカー（管理画面モーダル用）
+# ---------------------------------------------------------------------------
+
+def get_makers_linked_to_dealer(db: Session, dealer_id: int) -> list[MakerOut]:
+    rows = (
+        db.query(Maker)
+        .join(DealerMaker, DealerMaker.maker_id == Maker.id)
+        .filter(
+            DealerMaker.dealer_id == dealer_id,
+            DealerMaker.is_active.is_(True),
+            Maker.is_active.is_(True),
+        )
+        .order_by(Maker.name)
+        .all()
+    )
+    return [MakerOut.model_validate(m) for m in rows]
+
+
+def link_maker_to_dealer(db: Session, *, dealer_id: int, maker_id: int) -> MakerOut:
+    maker = db.query(Maker).filter(Maker.id == maker_id, Maker.is_active.is_(True)).first()
+    if not maker:
+        raise ValueError("メーカーが見つかりません。")
+
+    existing = (
+        db.query(DealerMaker)
+        .filter(DealerMaker.dealer_id == dealer_id, DealerMaker.maker_id == maker_id)
+        .first()
+    )
+    if existing:
+        existing.is_active = True
+        db.commit()
+        return MakerOut.model_validate(maker)
+
+    dm = DealerMaker(dealer_id=dealer_id, maker_id=maker_id, is_active=True)
+    db.add(dm)
+    db.commit()
+    return MakerOut.model_validate(maker)
+
+
+def unlink_maker_from_dealer(db: Session, *, dealer_id: int, maker_id: int) -> bool:
+    dm = (
+        db.query(DealerMaker)
+        .filter(
+            DealerMaker.dealer_id == dealer_id,
+            DealerMaker.maker_id == maker_id,
+            DealerMaker.is_active.is_(True),
+        )
+        .first()
+    )
+    if not dm:
+        return False
+    dm.is_active = False
+    db.commit()
+    return True
 
 
 # ---------------------------------------------------------------------------
