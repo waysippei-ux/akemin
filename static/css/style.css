@@ -700,6 +700,50 @@ input[type="number"],
   font-weight: 600;
 }
 
+/* 商品モーダル — バーコードスキャン（棚補充スキャンタブと同じ見た目） */
+.product-barcode-scanner {
+  grid-column: 1 / -1;
+}
+
+.product-barcode-scan-block .hint-text {
+  margin-bottom: 1rem;
+}
+
+.product-barcode-scan-block > .btn.btn-primary {
+  width: 100%;
+}
+
+.product-barcode-scan-block .scanner-status {
+  display: block;
+}
+
+.product-barcode-row {
+  margin-top: 0.75rem;
+}
+
+.product-barcode-row .input-text {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .product-barcode-scan-block > .btn.btn-primary,
+  .product-barcode-row .btn.btn-primary {
+    min-height: 48px;
+    font-size: 14px;
+  }
+
+  .product-barcode-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .product-barcode-row .btn {
+    width: 100%;
+    min-height: 48px;
+  }
+}
+
 .reg-readonly {
   margin: 0;
   font-weight: 600;

@@ -438,9 +438,18 @@
           <label for="modal-name">商品名 *</label>
           <input type="text" id="modal-name" required>
         </div>
-        <div class="form-group">
+        <div class="form-group product-barcode-scanner">
           <label for="modal-barcode">バーコード *</label>
-          <input type="text" id="modal-barcode" required inputmode="numeric">
+          <div class="product-barcode-scan-block">
+            <p class="hint-text">Bluetoothスキャナーはキーボード入力として動作します。接続後、下の入力欄にフォーカスしてスキャンしてください。</p>
+            <button type="button" class="btn btn-primary" id="btn-modal-bluetooth-connect">スキャナーとBluetooth接続する</button>
+            <p id="modal-scanner-status" class="scanner-status" role="status">🔵 スキャナー未接続</p>
+            <div class="manual-row product-barcode-row">
+              <input type="text" id="modal-barcode" class="input-text" required inputmode="numeric" autocomplete="off" aria-label="バーコード">
+              <button type="button" class="btn btn-primary" id="btn-modal-barcode-scan">📡 スキャンで読み込む</button>
+            </div>
+            <p id="modal-barcode-dup-warning" class="error-msg" hidden></p>
+          </div>
         </div>
       </div>
       <div class="form-row">
@@ -478,6 +487,6 @@
 
 {% block scripts %}
 <script src="/static/js/filter_helpers.js?v=2"></script>
-<script src="/static/js/admin_products.js?v=8"></script>
+<script src="/static/js/admin_products.js?v=10"></script>
 <script src="/static/js/admin_masters.js?v=8"></script>
 {% endblock %}

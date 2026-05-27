@@ -15,6 +15,269 @@
   const mobileMedia = window.matchMedia("(max-width: 768px)");
   let lastPageSize = 0;
 
+  /** Eyoyo BLE（Web Bluetooth） */
+  const EYOYO_BLE_SERVICE = 0xfeea;
+  const EYOYO_BLE_CHAR = 0x2aa1;
+  let bleDevice = null;
+  let bleCharacteristic = null;
+  let bleScanBuffer = "";
+  let scannerConnectionState = "idle"; // idle | connecting | connected
+  let scannerScanWait = false;
+  let scannerLastError = null;
+
+  function isWebBluetoothSupported() {
+    return typeof navigator !== "undefined" && !!navigator.bluetooth && window.isSecureContext;
+  }
+
+  function getScannerEls() {
+    return {
+      status: document.getElementById("modal-scanner-status"),
+      dup: document.getElementById("modal-barcode-dup-warning"),
+      connectBtn: document.getElementById("btn-modal-bluetooth-connect"),
+      scanBtn: document.getElementById("btn-modal-barcode-scan"),
+      barcode: document.getElementById("modal-barcode"),
+    };
+  }
+
+  function updateScannerStatusUI() {
+    const { status, connectBtn } = getScannerEls();
+    if (!status) return;
+
+    status.className = "scanner-status";
+    status.style.display = "block";
+
+    if (connectBtn) {
+      connectBtn.className = "btn btn-primary";
+      connectBtn.disabled = scannerConnectionState === "connecting";
+    }
+
+    if (scannerScanWait) {
+      status.textContent =
+        "スキャン待機中…（Bluetoothスキャナーで読み取ってください）";
+      return;
+    }
+
+    if (!isWebBluetoothSupported()) {
+      status.textContent =
+        "このブラウザはBluetooth接続に対応していません。ChromeまたはSafariをご使用ください。";
+      if (connectBtn) connectBtn.disabled = true;
+      return;
+    }
+
+    if (scannerLastError && !bleDevice?.gatt?.connected) {
+      status.textContent = scannerLastError;
+      return;
+    }
+
+    if (scannerConnectionState === "connecting") {
+      status.textContent = "接続中...";
+      if (connectBtn) connectBtn.disabled = true;
+      return;
+    }
+
+    if (bleDevice?.gatt?.connected) {
+      status.textContent = "🟢 スキャナー接続済み";
+      if (connectBtn) connectBtn.textContent = "スキャナーとBluetooth接続する";
+      return;
+    }
+
+    status.textContent = "🔵 スキャナー未接続";
+    if (connectBtn) {
+      connectBtn.textContent = "スキャナーとBluetooth接続する";
+      connectBtn.disabled = false;
+    }
+  }
+
+  function setScanWaitMode(on) {
+    scannerScanWait = on;
+    updateScannerStatusUI();
+    if (on) getScannerEls().barcode?.focus();
+  }
+
+  function clearBarcodeDupWarning() {
+    const { dup } = getScannerEls();
+    if (dup) {
+      dup.hidden = true;
+      dup.textContent = "";
+    }
+  }
+
+  function checkBarcodeDuplicate(barcode) {
+    const code = (barcode || "").trim();
+    clearBarcodeDupWarning();
+    if (!code) return false;
+
+    const excludeId = editingId != null ? Number(editingId) : null;
+    const local = products.find(
+      (p) => p.barcode === code && (excludeId == null || p.id !== excludeId)
+    );
+    if (local) {
+      const { dup } = getScannerEls();
+      if (dup) {
+        dup.textContent = `このバーコードは既に登録されています（${local.name}）`;
+        dup.hidden = false;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function applyScannedBarcode(code) {
+    const { barcode } = getScannerEls();
+    const value = (code || "").trim();
+    if (!value || !barcode) return;
+
+    barcode.value = value;
+    setScanWaitMode(false);
+    checkBarcodeDuplicate(value);
+    document.getElementById("modal-name")?.focus();
+  }
+
+  function onBleCharacteristicValue(event) {
+    if (!scannerScanWait) return;
+    const chunk = new TextDecoder("utf-8").decode(event.target.value);
+    bleScanBuffer += chunk;
+    if (!/[\r\n]/.test(bleScanBuffer)) return;
+    const code = bleScanBuffer.replace(/[\r\n]+/g, "").trim();
+    bleScanBuffer = "";
+    if (code) applyScannedBarcode(code);
+  }
+
+  function onBleGattDisconnected() {
+    bleCharacteristic = null;
+    scannerConnectionState = "idle";
+    bleScanBuffer = "";
+    updateScannerStatusUI();
+  }
+
+  async function disconnectBleScanner() {
+    try {
+      if (bleCharacteristic) {
+        try {
+          await bleCharacteristic.stopNotifications();
+        } catch {
+          /* ignore */
+        }
+        bleCharacteristic.removeEventListener(
+          "characteristicvaluechanged",
+          onBleCharacteristicValue
+        );
+      }
+      bleCharacteristic = null;
+      if (bleDevice?.gatt?.connected) {
+        bleDevice.gatt.disconnect();
+      }
+    } catch {
+      /* ignore */
+    }
+    bleDevice = null;
+    scannerConnectionState = "idle";
+    updateScannerStatusUI();
+  }
+
+  async function connectBleScanner() {
+    const { connectBtn } = getScannerEls();
+    if (!isWebBluetoothSupported()) {
+      updateScannerStatusUI();
+      return;
+    }
+
+    if (bleDevice?.gatt?.connected) {
+      await disconnectBleScanner();
+      return;
+    }
+
+    scannerConnectionState = "connecting";
+    updateScannerStatusUI();
+
+    try {
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ namePrefix: "Eyoyo" }, { namePrefix: "EYOYO" }],
+        optionalServices: [EYOYO_BLE_SERVICE, 0xfee7],
+      });
+
+      device.addEventListener("gattserverdisconnected", onBleGattDisconnected);
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(EYOYO_BLE_SERVICE);
+      const characteristic = await service.getCharacteristic(EYOYO_BLE_CHAR);
+      await characteristic.startNotifications();
+      characteristic.addEventListener(
+        "characteristicvaluechanged",
+        onBleCharacteristicValue
+      );
+
+      bleDevice = device;
+      bleCharacteristic = characteristic;
+      scannerConnectionState = "connected";
+      scannerLastError = null;
+      sessionStorage.setItem("product_scanner_ble_name", device.name || "Eyoyo");
+      updateScannerStatusUI();
+    } catch (ex) {
+      bleDevice = null;
+      bleCharacteristic = null;
+      scannerConnectionState = "idle";
+      const cancelled =
+        ex?.name === "AbortError" ||
+        (typeof ex?.message === "string" &&
+          /cancel|キャンセル/i.test(ex.message));
+      if (!cancelled) {
+        scannerLastError =
+          "接続できませんでした。USBまたは手入力で登録してください";
+      }
+      updateScannerStatusUI();
+    } finally {
+      if (connectBtn) connectBtn.disabled = false;
+    }
+  }
+
+  function onBarcodeScanButtonClick() {
+    setScanWaitMode(true);
+    clearBarcodeDupWarning();
+    const { barcode } = getScannerEls();
+    if (barcode) barcode.focus();
+  }
+
+  function finishBarcodeInputFromKeyboard() {
+    const { barcode } = getScannerEls();
+    const value = barcode?.value.trim();
+    if (!value) return;
+    if (scannerScanWait) {
+      applyScannedBarcode(value);
+    } else {
+      checkBarcodeDuplicate(value);
+    }
+  }
+
+  function bindProductBarcodeScanner() {
+    document.getElementById("btn-modal-bluetooth-connect")?.addEventListener("click", () => {
+      connectBleScanner();
+    });
+    document.getElementById("btn-modal-barcode-scan")?.addEventListener("click", onBarcodeScanButtonClick);
+
+    const barcodeEl = document.getElementById("modal-barcode");
+    barcodeEl?.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      finishBarcodeInputFromKeyboard();
+    });
+    barcodeEl?.addEventListener("blur", () => {
+      const value = barcodeEl.value.trim();
+      if (value) checkBarcodeDuplicate(value);
+    });
+  }
+
+  function resetProductScannerUI() {
+    setScanWaitMode(false);
+    clearBarcodeDupWarning();
+    bleScanBuffer = "";
+    if (bleDevice?.gatt?.connected) {
+      scannerConnectionState = "connected";
+    } else {
+      scannerConnectionState = "idle";
+    }
+    updateScannerStatusUI();
+  }
+
   function getPageSize() {
     return mobileMedia.matches ? 20 : 40;
   }
@@ -450,6 +713,7 @@
       mobileMedia.addListener(onViewportPageSizeChange);
     }
     window.addEventListener("resize", onViewportPageSizeChange);
+    bindProductBarcodeScanner();
   }
 
   function getModalFormData() {
@@ -482,6 +746,7 @@
   function openModal() {
     document.getElementById("product-modal").hidden = false;
     document.body.style.overflow = "hidden";
+    resetProductScannerUI();
   }
 
   function closeModal() {
@@ -490,12 +755,18 @@
     editingId = null;
     modalJanCode = null;
     document.getElementById("modal-form-error").hidden = true;
+    setScanWaitMode(false);
+    clearBarcodeDupWarning();
+    /* BLE 接続は維持（切断しない） */
+    updateScannerStatusUI();
   }
 
   function resetModalDefaults() {
     document.getElementById("modal-product-id").value = "";
     document.getElementById("modal-name").value = "";
     document.getElementById("modal-barcode").value = "";
+    clearBarcodeDupWarning();
+    setScanWaitMode(false);
     document.getElementById("modal-unit").value = "本";
     document.getElementById("modal-warning_threshold").value = "4";
     document.getElementById("modal-critical_threshold").value = "2";
