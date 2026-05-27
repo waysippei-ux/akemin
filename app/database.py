@@ -76,39 +76,120 @@ def get_db():
         db.close()
 
 
+def _table_column_names(insp, table: str) -> set[str]:
+    if table not in insp.get_table_names():
+        return set()
+    return {c["name"] for c in insp.get_columns(table)}
+
+
+def _column_is_nullable(insp, table: str, column: str) -> bool | None:
+    if table not in insp.get_table_names():
+        return None
+    for col in insp.get_columns(table):
+        if col["name"] == column:
+            return col.get("nullable")
+    return None
+
+
+def _ensure_brands_table(engine, insp) -> None:
+    """
+    brands テーブルを用意する。
+    ・存在しなければ CREATE TABLE（SQLAlchemy / dialect 準拠）
+    ・存在すれば不足列を ALTER TABLE で追加
+    ・maker_id は NULL 許可へ（DROP NOT NULL）
+    """
+    from sqlalchemy import inspect, text
+
+    from app.models import Brand
+
+    if "brands" not in insp.get_table_names():
+        Brand.__table__.create(bind=engine, checkfirst=True)
+        return
+
+    brand_cols = _table_column_names(insp, "brands")
+    with engine.begin() as conn:
+        if "name" not in brand_cols:
+            conn.execute(
+                text(
+                    "ALTER TABLE brands ADD COLUMN name VARCHAR(100) NOT NULL DEFAULT ''"
+                )
+            )
+        if "maker_id" not in brand_cols:
+            conn.execute(
+                text(
+                    "ALTER TABLE brands ADD COLUMN maker_id INTEGER "
+                    "REFERENCES makers(id)"
+                )
+            )
+        if "sort_order" not in brand_cols:
+            conn.execute(
+                text(
+                    "ALTER TABLE brands ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0"
+                )
+            )
+
+    # 列追加後に再取得（既存列が NOT NULL のときのみ緩和）
+    insp = inspect(engine)
+    if (
+        engine.dialect.name == "postgresql"
+        and _column_is_nullable(insp, "brands", "maker_id") is False
+    ):
+        with engine.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE brands ALTER COLUMN maker_id DROP NOT NULL")
+            )
+
+
+def _migrate_products_columns(engine, insp) -> None:
+    """products に不足列を ALTER TABLE で追加（brand_id は brands 作成後に追加）"""
+    from sqlalchemy import text
+
+    cols = _table_column_names(insp, "products")
+    need_category_id = "category_id" not in cols
+    alters: list[str] = []
+    if need_category_id:
+        alters.append("ALTER TABLE products ADD COLUMN category_id INTEGER")
+    if "maker_id" not in cols:
+        alters.append("ALTER TABLE products ADD COLUMN maker_id INTEGER")
+    if "dealer_id" not in cols:
+        alters.append("ALTER TABLE products ADD COLUMN dealer_id INTEGER")
+    # brand_id: 列が無い場合のみ追加（PostgreSQL でも inspect で存在確認）
+    if "brand_id" not in cols:
+        alters.append(
+            "ALTER TABLE products ADD COLUMN brand_id INTEGER REFERENCES brands(id)"
+        )
+
+    if not alters:
+        return
+
+    with engine.begin() as conn:
+        for sql in alters:
+            conn.execute(text(sql))
+        if need_category_id:
+            conn.execute(
+                text("UPDATE products SET category_id = 1 WHERE category_id IS NULL")
+            )
+
+
 def migrate_schema() -> None:
     """
-    既存 SQLite DB への列追加（後方互換）
-    create_all だけでは既存テーブルに列が足されないため ALTER TABLE する
+    既存 DB への列追加（後方互換）。
+    create_all だけでは既存テーブルに列が足されないため ALTER TABLE する。
+    PostgreSQL / SQLite 双方で動作する DDL を使用する。
     """
     from sqlalchemy import inspect, text
 
     from app import models  # noqa: F401
 
     insp = inspect(engine)
-    if "products" not in insp.get_table_names():
-        return
 
-    cols = {c["name"] for c in insp.get_columns("products")}
-    alters = []
-    if "category_id" not in cols:
-        alters.append("ALTER TABLE products ADD COLUMN category_id INTEGER")
-    if "maker_id" not in cols:
-        alters.append("ALTER TABLE products ADD COLUMN maker_id INTEGER")
-    if "dealer_id" not in cols:
-        alters.append("ALTER TABLE products ADD COLUMN dealer_id INTEGER")
-    if "brand_id" not in cols:
-        alters.append(
-            "ALTER TABLE products ADD COLUMN brand_id INTEGER REFERENCES brands(id)"
-        )
+    # brands を先に用意（products.brand_id の FK 参照先）
+    _ensure_brands_table(engine, insp)
+    insp = inspect(engine)
 
-    if alters:
-        with engine.begin() as conn:
-            for sql in alters:
-                conn.execute(text(sql))
-            conn.execute(
-                text("UPDATE products SET category_id = 1 WHERE category_id IS NULL")
-            )
+    if "products" in insp.get_table_names():
+        _migrate_products_columns(engine, insp)
+        insp = inspect(engine)
 
     if "categories" in insp.get_table_names():
         cat_cols = {c["name"] for c in insp.get_columns("categories")}
@@ -162,48 +243,8 @@ def migrate_schema() -> None:
                     )
                 )
 
-    if "brands" not in insp.get_table_names():
-        from app.models import Brand
-
-        Brand.__table__.create(bind=engine, checkfirst=True)
-    else:
-        _migrate_brands_maker_nullable(engine, insp)
-
     _ensure_default_sections(engine, insp)
     _ensure_direct_dealer(engine, insp)
-
-
-def _migrate_brands_maker_nullable(engine, insp) -> None:
-    """brands.maker_id を NULL 許可に（紐づけ解除用）"""
-    from sqlalchemy import text
-
-    cols = {c["name"]: c for c in insp.get_columns("brands")}
-    maker_col = cols.get("maker_id")
-    if not maker_col or maker_col.get("nullable"):
-        return
-
-    with engine.begin() as conn:
-        conn.execute(
-            text(
-                """
-                CREATE TABLE brands_new (
-                    id INTEGER NOT NULL PRIMARY KEY,
-                    name VARCHAR(100) NOT NULL,
-                    maker_id INTEGER REFERENCES makers(id),
-                    sort_order INTEGER NOT NULL DEFAULT 0
-                )
-                """
-            )
-        )
-        conn.execute(
-            text(
-                "INSERT INTO brands_new (id, name, maker_id, sort_order) "
-                "SELECT id, name, maker_id, sort_order FROM brands"
-            )
-        )
-        conn.execute(text("DROP TABLE brands"))
-        conn.execute(text("ALTER TABLE brands_new RENAME TO brands"))
-        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_brands_maker_id ON brands (maker_id)"))
 
 
 def _ensure_direct_dealer(engine, insp) -> None:
