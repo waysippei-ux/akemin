@@ -789,6 +789,22 @@ input[type="number"],
   font-weight: 600;
 }
 
+/* 補充/使用: 登録モーダル内の発注目安 */
+.register-modal-divider {
+  margin: 1rem 0 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.register-modal-settings-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+}
+
 .stock-log-row-edited {
   background: #f3f4f6;
 }

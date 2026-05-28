@@ -1271,3 +1271,35 @@ def brand_to_out(brand, maker_name: str | None = None):
     from app import crud_masters
 
     return crud_masters.brand_to_out(brand, maker_name=maker_name)
+
+
+# ---------------------------------------------------------------------------
+# 店舗別発注目安（store_product_settings）— 全画面共通
+# ---------------------------------------------------------------------------
+
+
+def get_store_product_setting(db: Session, store_id: int, product_id: int) -> dict:
+    from app import crud_store_settings
+
+    return crud_store_settings.get_store_product_setting(db, store_id, product_id)
+
+
+def upsert_store_product_setting_product(
+    db: Session,
+    store_id: int,
+    product_id: int,
+    *,
+    standard_stock: int | None,
+    warning_threshold: int,
+    critical_threshold: int,
+):
+    from app import crud_store_settings
+
+    return crud_store_settings.upsert_store_product_setting_product(
+        db,
+        store_id,
+        product_id,
+        standard_stock=standard_stock,
+        warning_threshold=warning_threshold,
+        critical_threshold=critical_threshold,
+    )

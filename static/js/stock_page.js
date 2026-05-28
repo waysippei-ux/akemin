@@ -10,6 +10,11 @@
   const LOG_TYPE = IS_REPLENISH ? "replenish" : "consume";
   const TODAY_LIST_LABEL = IS_REPLENISH ? "本日の補充一覧" : "本日の使用済み一覧";
   const DATETIME_LABEL = IS_REPLENISH ? "補充日時" : "使用日時";
+  const REG_SETTING_IDS = {
+    standardStock: "reg-standard-stock",
+    warning: "reg-warning-threshold",
+    critical: "reg-critical-threshold",
+  };
 
   let stores = [];
   let sections = [];
@@ -29,6 +34,7 @@
   let bulkCameraOn = false;
   let scanCooldown = false;
   let activeTab = "search";
+  let modalSettingsSnapshot = null;
 
   const storeSelect = document.getElementById("store-select");
   const productGrid = document.getElementById("product-grid");
@@ -489,6 +495,7 @@
     hideOverlay("register-modal");
     modalProductId = null;
     modalCurrentQty = 0;
+    modalSettingsSnapshot = null;
   }
 
   async function refreshModalQty() {
@@ -500,14 +507,16 @@
       return;
     }
     try {
-      const data = await Api.get(
-        `/api/stock/quantity?store_id=${getStoreId()}&product_id=${modalProductId}`
-      );
-      modalCurrentQty = data.quantity;
-      modalUnit = data.unit || "本";
-      modalOnShelf = data.is_on_shelf !== false;
+      const storeId = getStoreId();
+      const [qtyData, settingData] = await Promise.all([
+        Api.get(`/api/stock/quantity?store_id=${storeId}&product_id=${modalProductId}`),
+        StoreProductSettingsApi.fetchSetting(storeId, modalProductId),
+      ]);
+      modalCurrentQty = qtyData.quantity;
+      modalUnit = qtyData.unit || "本";
+      modalOnShelf = qtyData.is_on_shelf !== false;
       const inv = products.find((x) => x.product_id === modalProductId);
-      if (inv) inv.quantity = data.quantity;
+      if (inv) inv.quantity = qtyData.quantity;
 
       if (!IS_REPLENISH && !modalOnShelf) {
         closeRegisterModal();
@@ -515,7 +524,11 @@
         return;
       }
 
-      if (qtyEl) qtyEl.textContent = `${data.quantity}${modalUnit}`;
+      if (qtyEl) qtyEl.textContent = `${qtyData.quantity}${modalUnit}`;
+      modalSettingsSnapshot = StoreProductSettingsApi.applyToForm(
+        settingData,
+        REG_SETTING_IDS
+      );
       if (!IS_REPLENISH) {
         applyConsumeQuantityLimits();
         if (errEl) errEl.style.display = "none";
@@ -596,13 +609,36 @@
 
     const recorded_at = datetimeToIso(document.getElementById("reg-datetime").value);
 
+    const body = {
+      store_id: storeId,
+      product_id: productId,
+      quantity,
+      recorded_at,
+    };
+
+    const currentSettings = StoreProductSettingsApi.readFromForm(REG_SETTING_IDS);
+    const settingsChanged = StoreProductSettingsApi.changed(
+      modalSettingsSnapshot,
+      currentSettings
+    );
+    if (settingsChanged) {
+      const settingsError = StoreProductSettingsApi.validate(currentSettings);
+      if (settingsError) {
+        if (errEl) {
+          errEl.textContent = settingsError;
+          errEl.style.display = "block";
+        }
+        return;
+      }
+    }
+
     try {
-      const res = await Api.post(SUBMIT_URL, {
-        store_id: storeId,
-        product_id: productId,
-        quantity,
-        recorded_at,
-      });
+      await Api.post(SUBMIT_URL, body);
+      if (settingsChanged) {
+        await StoreProductSettingsApi.saveSetting(
+          StoreProductSettingsApi.buildPutBody(storeId, productId, currentSettings)
+        );
+      }
       closeRegisterModal();
       showToast("✓ 登録しました", 2000);
       await reloadProducts();

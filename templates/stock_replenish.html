@@ -90,6 +90,22 @@
           <input type="datetime-local" id="reg-datetime" class="input-text" required>
         </div>
       </div>
+      <p class="register-modal-divider" role="presentation">──── この店舗の発注目安 ────</p>
+      <div class="form-group">
+        <label for="reg-standard-stock">標準在庫数</label>
+        <input type="number" id="reg-standard-stock" class="input-number" min="0" placeholder="">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="reg-warning-threshold">黄アラート ≤</label>
+          <input type="number" id="reg-warning-threshold" class="input-number" min="0">
+        </div>
+        <div class="form-group">
+          <label for="reg-critical-threshold">赤アラート ≤</label>
+          <input type="number" id="reg-critical-threshold" class="input-number" min="0">
+        </div>
+      </div>
+      <p class="help-text register-modal-settings-note">※ 変更すると店舗別設定に保存されます</p>
       <p id="register-form-error" class="error-msg" style="display:none"></p>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="register-modal-cancel">キャンセル</button>
@@ -197,5 +213,6 @@
 {% block scripts %}
 <script>window.STOCK_PAGE = {{ page_json | safe }};</script>
 <script src="/static/js/filter_helpers.js?v=2"></script>
-<script src="/static/js/stock_page.js?v=5"></script>
+<script src="/static/js/store_product_settings_api.js?v=1"></script>
+<script src="/static/js/stock_page.js?v=7"></script>
 {% endblock %}

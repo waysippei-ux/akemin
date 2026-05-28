@@ -93,6 +93,35 @@ class StoreProductSettingUpsert(BaseModel):
     standard_stock: Optional[int] = Field(default=None, ge=0)
 
 
+class StoreProductSettingProductOut(BaseModel):
+    """店舗×商品の発注目安（モーダル・設定画面共通）"""
+
+    store_id: int
+    product_id: int
+    product_name: str
+    unit: str = "本"
+    standard_stock: Optional[int] = None
+    warning_threshold: int
+    critical_threshold: int
+    default_standard_stock: int = 0
+    default_warning_threshold: int
+    default_critical_threshold: int
+    custom_standard_stock: Optional[int] = None
+    custom_warning_threshold: Optional[int] = None
+    custom_critical_threshold: Optional[int] = None
+    has_custom_setting: bool = False
+
+
+class StoreProductSettingProductPut(BaseModel):
+    """店舗×商品の発注目安 UPSERT（全画面共通）"""
+
+    store_id: int = Field(gt=0)
+    product_id: int = Field(gt=0)
+    standard_stock: Optional[int] = Field(default=None, ge=0)
+    warning_threshold: Optional[int] = Field(default=None, ge=0)
+    critical_threshold: Optional[int] = Field(default=None, ge=0)
+
+
 # ---------------------------------------------------------------------------
 # 商品（カラー材）
 # ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from app import crud
+from app import crud, crud_store_settings
 from app.models import Inventory, InventoryAction, User
 from app.schemas import (
     InventoryScanResponse,
@@ -70,8 +70,8 @@ def _apply_stock_by_product(
         inv.quantity += quantity
         action_label = "補充"
 
-    setting = crud.get_settings_map(db, store_id).get(product.id)
-    warning, critical = crud.resolve_thresholds(product, setting)
+    setting = crud_store_settings.get_settings_map(db, store_id).get(product.id)
+    warning, critical = crud_store_settings.resolve_thresholds(product, setting)
     level = crud.calc_stock_level(inv.quantity, warning, critical)
 
     from app.models import InventoryLog

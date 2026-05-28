@@ -78,16 +78,13 @@ def upsert_store_product_setting(
     if not crud.get_store(db, store_id):
         raise HTTPException(404, "店舗が見つかりません。")
     try:
-        clear_std = "standard_stock" in body.model_fields_set and body.standard_stock is None
-        std_value = body.standard_stock if body.standard_stock is not None else None
-        crud_store_settings.upsert_store_product_setting(
+        crud.upsert_store_product_setting_product(
             db,
             store_id,
             product_id,
-            body.warning_threshold,
-            body.critical_threshold,
-            standard_stock=std_value,
-            clear_standard_stock=clear_std,
+            standard_stock=body.standard_stock,
+            warning_threshold=body.warning_threshold,
+            critical_threshold=body.critical_threshold,
         )
     except ValueError as e:
         raise HTTPException(400, str(e))

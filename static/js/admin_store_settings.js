@@ -11,6 +11,11 @@
   let currentStoreName = "";
   let filtersReady = false;
   let editingRow = null;
+  const SETTING_IDS = {
+    standardStock: "setting-edit-standard-stock",
+    warning: "setting-edit-warning",
+    critical: "setting-edit-critical",
+  };
 
   document.addEventListener("DOMContentLoaded", async () => {
     try {
@@ -275,47 +280,38 @@
     });
   }
 
-  function openEditModal(productId) {
+  async function openEditModal(productId) {
     const row = rows.find((r) => r.product_id === productId);
-    if (!row) return;
+    if (!row || !currentStoreId) return;
     editingRow = row;
 
     document.getElementById("setting-edit-product-id").value = String(productId);
     document.getElementById("setting-edit-product-name").textContent = row.product_name || "";
     document.getElementById("setting-edit-store-name").textContent = `店舗：${currentStoreName}`;
 
-    const stdInput = document.getElementById("setting-edit-standard-stock");
-    if (row.custom_standard_stock != null) {
-      stdInput.value = String(row.custom_standard_stock);
-    } else {
-      stdInput.value = "";
-    }
-
-    const defStd = row.default_standard_stock ?? 0;
-    const hint = document.getElementById("setting-edit-standard-hint");
-    if (hint) {
-      hint.textContent =
-        defStd > 0
-          ? `デフォルト: 商品マスタ ${defStd}${row.unit || "本"}`
-          : "デフォルト: 商品マスタ未設定";
-    }
-
-    const warnVal =
-      row.custom_warning_threshold != null
-        ? row.custom_warning_threshold
-        : row.default_warning_threshold;
-    const critVal =
-      row.custom_critical_threshold != null
-        ? row.custom_critical_threshold
-        : row.default_critical_threshold;
-    document.getElementById("setting-edit-warning").value = String(warnVal);
-    document.getElementById("setting-edit-critical").value = String(critVal);
-
     const err = document.getElementById("setting-edit-error");
     if (err) err.style.display = "none";
 
     const modal = document.getElementById("setting-edit-modal");
     if (modal) modal.style.display = "flex";
+
+    try {
+      const data = await StoreProductSettingsApi.fetchSetting(currentStoreId, productId);
+      StoreProductSettingsApi.applyToForm(data, SETTING_IDS);
+      const defStd = data.default_standard_stock ?? 0;
+      const hint = document.getElementById("setting-edit-standard-hint");
+      if (hint) {
+        hint.textContent =
+          defStd > 0
+            ? `デフォルト: 商品マスタ ${defStd}${data.unit || "本"}`
+            : "デフォルト: 商品マスタ未設定";
+      }
+    } catch (ex) {
+      if (err) {
+        err.textContent = ex.message || "設定を取得できませんでした";
+        err.style.display = "block";
+      }
+    }
   }
 
   function closeEditModal() {
@@ -344,33 +340,26 @@
       return;
     }
 
-    const payload = {
+    const current = {
+      standard_stock: stdRaw === "" ? null : parseInt(stdRaw, 10),
       warning_threshold: warning,
       critical_threshold: critical,
     };
-    if (stdRaw === "") {
-      payload.standard_stock = null;
-    } else {
-      const n = parseInt(stdRaw, 10);
-      if (!Number.isFinite(n) || n < 0) {
-        if (err) {
-          err.textContent = "標準在庫数は0以上の数値で入力してください。";
-          err.style.display = "block";
-        }
-        return;
+    const validateErr = StoreProductSettingsApi.validate(current);
+    if (validateErr) {
+      if (err) {
+        err.textContent = validateErr;
+        err.style.display = "block";
       }
-      payload.standard_stock = n;
+      return;
     }
 
     try {
-      const updated = await Api.put(
-        `/api/stores/${currentStoreId}/product-settings/${productId}`,
-        payload
+      await StoreProductSettingsApi.saveSetting(
+        StoreProductSettingsApi.buildPutBody(currentStoreId, productId, current)
       );
-      const idx = rows.findIndex((r) => r.product_id === productId);
-      if (idx >= 0) rows[idx] = { ...rows[idx], ...updated };
       closeEditModal();
-      applyFilters();
+      await loadSettings();
     } catch (ex) {
       if (err) {
         err.textContent = ex.message || "保存できませんでした";
