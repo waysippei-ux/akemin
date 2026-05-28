@@ -871,6 +871,9 @@ def get_inventory_list(
     store_id: int,
     category_id: int | None = None,
     *,
+    maker_id: int | None = None,
+    brand_id: int | None = None,
+    section: int | None = None,
     active_only: bool = True,
 ) -> list[InventoryItemOut]:
     """
@@ -900,13 +903,27 @@ def get_inventory_list(
             product = inv.product
             if category_id and product.category_id != category_id:
                 continue
+            if section and (
+                not product.category or product.category.section != section
+            ):
+                continue
+            if maker_id and product.maker_id != maker_id:
+                continue
+            if brand_id and product.brand_id != brand_id:
+                continue
             result.append(
                 _inventory_item_from_row(db, store_id, product, inv, settings_map)
             )
         result.sort(key=lambda x: x.product_name)
         return result
 
-    products = get_products(db, category_id=category_id)
+    products = get_products(
+        db,
+        category_id=category_id,
+        maker_id=maker_id,
+        brand_id=brand_id,
+        section=section,
+    )
     for product in products:
         inv = get_inventory_row(db, store_id, product.id)
         if not inv:

@@ -314,7 +314,7 @@
         return;
       }
       brandEl.disabled = false;
-      if (FH) FH.fillBrandSelect(brandEl, brands, makerId, false, true);
+      if (FH) FH.fillBrandSelect(brandEl, brands, makerId, false, true, false);
       else brandEl.innerHTML = '<option value="">—</option>';
     };
 
@@ -591,9 +591,6 @@
       applyProductFilters({ resetPage: true });
     });
     document.getElementById("product-filter-category")?.addEventListener("change", () =>
-      applyProductFilters({ resetPage: true })
-    );
-    document.getElementById("product-filter-maker")?.addEventListener("change", () =>
       applyProductFilters({ resetPage: true })
     );
     document.getElementById("product-filter-brand")?.addEventListener("change", () =>

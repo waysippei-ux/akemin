@@ -47,6 +47,8 @@
     <select id="filter-dealer" class="select select-sm"><option value="">すべて</option></select>
     <label class="filter-label">メーカー</label>
     <select id="filter-maker" class="select select-sm"><option value="">すべて</option></select>
+    <label class="filter-label">ブランド</label>
+    <select id="filter-brand" class="select select-sm"><option value="">すべて</option></select>
   </div>
 </div>
 
@@ -86,6 +88,7 @@
     <button type="button" class="tab-btn" data-tab="category">カテゴリ別</button>
     <button type="button" class="tab-btn" data-tab="dealer">ディーラー別</button>
     <button type="button" class="tab-btn" data-tab="maker">メーカー別</button>
+    <button type="button" class="tab-btn" data-tab="brand">ブランド別</button>
     <button type="button" class="tab-btn" data-tab="history">発注履歴</button>
     <button type="button" class="tab-btn" data-tab="insights">棚の動き</button>
   </div>
@@ -127,6 +130,13 @@
     </div>
     <div class="chart-wrap"><canvas id="chart-maker"></canvas></div>
     <div class="table-wrap" id="table-maker"></div>
+  </div>
+  <div class="tab-panel" id="panel-brand" hidden>
+    <div class="panel-toolbar">
+      <button type="button" class="btn btn-secondary btn-sm btn-tab-csv" data-tab="brand">CSVダウンロード</button>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-brand"></canvas></div>
+    <div class="table-wrap" id="table-brand"></div>
   </div>
   <div class="tab-panel" id="panel-history" hidden>
     <div class="panel-toolbar">
@@ -199,5 +209,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/orders.js?v=2"></script>
+<script src="/static/js/filter_helpers.js?v=3"></script>
+<script src="/static/js/orders.js?v=3"></script>
 {% endblock %}

@@ -167,6 +167,7 @@ def list_stock_products(
     store_id: int = Query(..., gt=0),
     page: Literal["replenish", "consume"] = Query(...),
     category_id: Optional[int] = Query(None, gt=0),
+    section: Optional[int] = Query(None, gt=0),
     maker_id: Optional[int] = Query(None, gt=0),
     brand_id: Optional[int] = Query(None, gt=0),
     db: Session = Depends(get_db),
@@ -176,14 +177,15 @@ def list_stock_products(
     check_store_access(current_user, store_id)
     _validate_store(db, store_id)
     active_only = page == "consume"
-    items = crud.get_inventory_list(db, store_id, active_only=active_only)
-    if category_id is not None:
-        items = [i for i in items if i.category_id == category_id]
-    if maker_id is not None:
-        items = [i for i in items if i.maker_id == maker_id]
-    if brand_id is not None:
-        items = [i for i in items if i.brand_id == brand_id]
-    return items
+    return crud.get_inventory_list(
+        db,
+        store_id,
+        category_id=category_id,
+        maker_id=maker_id,
+        brand_id=brand_id,
+        section=section,
+        active_only=active_only,
+    )
 
 
 @router.get("/quantity", response_model=StockQuantityOut)

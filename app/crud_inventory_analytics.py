@@ -11,6 +11,20 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.crud_order_analytics import OrderFilter
 from app.models import Category, Inventory, InventoryAction, InventoryLog, Product, Store
+
+
+def _product_matches_filter(product: Product, f: OrderFilter) -> bool:
+    if f.section and (not product.category or product.category.section != f.section):
+        return False
+    if f.category_id and product.category_id != f.category_id:
+        return False
+    if f.dealer_id and product.dealer_id != f.dealer_id:
+        return False
+    if f.maker_id and product.maker_id != f.maker_id:
+        return False
+    if f.brand_id and product.brand_id != f.brand_id:
+        return False
+    return True
 from app.schemas import (
     InventoryAnalyticsOut,
     StagnantProductRowOut,
@@ -52,9 +66,22 @@ def get_store_popularity(
         )
         .join(Store, Store.id == InventoryLog.store_id)
         .join(Product, Product.id == InventoryLog.product_id)
+        .options(joinedload(Product.category))
         .filter(InventoryLog.action == InventoryAction.USE)
     )
     q = _log_date_filter(q, f)
+    if f.section:
+        q = q.join(Category, Category.id == Product.category_id).filter(
+            Category.section == f.section
+        )
+    if f.category_id:
+        q = q.filter(Product.category_id == f.category_id)
+    if f.dealer_id:
+        q = q.filter(Product.dealer_id == f.dealer_id)
+    if f.maker_id:
+        q = q.filter(Product.maker_id == f.maker_id)
+    if f.brand_id:
+        q = q.filter(Product.brand_id == f.brand_id)
     rows = (
         q.group_by(Store.id, Product.id)
         .order_by(func.sum(InventoryLog.quantity_change).desc())
@@ -88,7 +115,7 @@ def get_stagnant_products(
     q = (
         db.query(Inventory)
         .options(
-            joinedload(Inventory.product),
+            joinedload(Inventory.product).joinedload(Product.category),
             joinedload(Inventory.store),
         )
         .filter(Inventory.is_active.is_(True))
@@ -98,6 +125,8 @@ def get_stagnant_products(
 
     result: list[StagnantProductRowOut] = []
     for inv in q.all():
+        if not _product_matches_filter(inv.product, f):
+            continue
         last_log = (
             db.query(func.max(InventoryLog.created_at))
             .filter(

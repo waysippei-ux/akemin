@@ -8,6 +8,7 @@
     category: "/api/orders/by-category",
     dealer: "/api/orders/by-dealer",
     maker: "/api/orders/by-maker",
+    brand: "/api/orders/by-brand",
     history: "/api/orders/history",
     insights: "/api/orders/inventory-insights",
   };
@@ -18,6 +19,7 @@
     category: "カテゴリ別",
     dealer: "ディーラー別",
     maker: "メーカー別",
+    brand: "ブランド別",
     history: "発注履歴",
     insights: "棚の動き",
   };
@@ -26,6 +28,7 @@
   let categories = [];
   let dealers = [];
   let makers = [];
+  let brands = [];
   let parsedLines = [];
   let currentTab = "store";
   let hasData = false;
@@ -42,9 +45,14 @@
     document.getElementById("filter-month").addEventListener("change", refreshAll);
     document.getElementById("filter-date-from").addEventListener("change", refreshAll);
     document.getElementById("filter-date-to").addEventListener("change", refreshAll);
-    ["filter-store", "filter-section", "filter-category", "filter-dealer", "filter-maker"].forEach(
-      (id) => document.getElementById(id).addEventListener("change", onFilterChange)
-    );
+    [
+      "filter-store",
+      "filter-section",
+      "filter-category",
+      "filter-dealer",
+      "filter-maker",
+      "filter-brand",
+    ].forEach((id) => document.getElementById(id).addEventListener("change", onFilterChange));
 
     document.querySelectorAll(".orders-tabs .tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => switchTab(btn.dataset.tab));
@@ -75,10 +83,12 @@
       categories = await Api.get("/api/categories");
       dealers = await Api.get("/api/dealers");
       makers = await Api.get("/api/makers");
+      brands = await Api.get("/api/brands");
 
       fillStoreFilter(stores, user);
       fillMasterSelect("filter-dealer", dealers);
       fillMasterSelect("filter-maker", makers);
+      setupOrdersMakerBrandFilter();
       fillCategoryOptions();
       fillSelect("import-store", stores);
       fillSelect("import-dealer", dealers);
@@ -108,6 +118,14 @@
   function onFilterChange(e) {
     if (e.target.id === "filter-section") fillCategoryOptions();
     refreshAll();
+  }
+
+  function setupOrdersMakerBrandFilter() {
+    const FH = window.FilterHelpers;
+    if (!FH) return;
+    const makerEl = document.getElementById("filter-maker");
+    const brandEl = document.getElementById("filter-brand");
+    FH.bindMakerBrand(makerEl, brandEl, brands, () => refreshAll());
   }
 
   function fillStoreFilter(items, user) {
@@ -160,11 +178,13 @@
     const categoryId = document.getElementById("filter-category").value;
     const dealerId = document.getElementById("filter-dealer").value;
     const makerId = document.getElementById("filter-maker").value;
+    const brandId = document.getElementById("filter-brand").value;
     if (storeId) p.set("store_id", storeId);
     if (section) p.set("section", section);
     if (categoryId) p.set("category_id", categoryId);
     if (dealerId) p.set("dealer_id", dealerId);
     if (makerId) p.set("maker_id", makerId);
+    if (brandId) p.set("brand_id", brandId);
     return p.toString();
   }
 
@@ -297,6 +317,9 @@
         break;
       case "maker":
         renderMakerTab(items);
+        break;
+      case "brand":
+        renderBrandTab(items);
         break;
       case "history":
         renderHistoryTab(items);
@@ -439,6 +462,26 @@
       items.map((r) => [
         r.maker_name,
         r.dealer_name,
+        yen(r.amount),
+        r.quantity.toLocaleString(),
+        pct(r.ratio_percent),
+      ])
+    );
+  }
+
+  function renderBrandTab(items) {
+    makeBarChart(
+      "chart-brand",
+      items.map((r) => r.brand_name),
+      items.map((r) => r.amount),
+      items.map((r) => r.quantity)
+    );
+    document.getElementById("table-brand").innerHTML = tableHtml(
+      ["ブランド名", "メーカー名", "SKU数", "発注金額", "発注数量", "割合"],
+      items.map((r) => [
+        r.brand_name,
+        r.maker_name,
+        r.sku_count,
         yen(r.amount),
         r.quantity.toLocaleString(),
         pct(r.ratio_percent),

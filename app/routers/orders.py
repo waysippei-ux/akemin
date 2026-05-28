@@ -19,6 +19,7 @@ from app.crud_order_analytics import (
     build_tab_csv_rows,
     get_by_category,
     get_by_dealer,
+    get_by_brand,
     get_by_maker,
     get_by_section,
     get_by_store,
@@ -51,7 +52,7 @@ ALLOWED_TYPES = {
     "application/pdf",
 }
 
-EXPORT_TABS = frozenset({"store", "section", "category", "dealer", "maker", "history"})
+EXPORT_TABS = frozenset({"store", "section", "category", "dealer", "maker", "brand", "history"})
 
 
 def _build_filter(
@@ -64,6 +65,7 @@ def _build_filter(
     category_id: Optional[int] = None,
     dealer_id: Optional[int] = None,
     maker_id: Optional[int] = None,
+    brand_id: Optional[int] = None,
 ) -> OrderFilter:
     now = datetime.now()
     use_month = not date_from and not date_to
@@ -85,6 +87,7 @@ def _build_filter(
         category_id=category_id,
         dealer_id=dealer_id,
         maker_id=maker_id,
+        brand_id=brand_id,
     )
 
 
@@ -108,6 +111,7 @@ def _filter_dep(
     category_id: Optional[int] = None,
     dealer_id: Optional[int] = None,
     maker_id: Optional[int] = None,
+    brand_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> OrderFilter:
@@ -121,6 +125,7 @@ def _filter_dep(
         category_id=category_id,
         dealer_id=dealer_id,
         maker_id=maker_id,
+        brand_id=brand_id,
     )
     return _apply_user_scope(f, current_user)
 
@@ -186,6 +191,12 @@ def orders_by_maker(f: OrderFilter = Depends(_filter_dep), db: Session = Depends
     return OrderAnalyticsListOut(has_data=has_order_data(db, f), items=items)
 
 
+@router.get("/by-brand", response_model=OrderAnalyticsListOut)
+def orders_by_brand(f: OrderFilter = Depends(_filter_dep), db: Session = Depends(get_db)):
+    items = get_by_brand(db, f)
+    return OrderAnalyticsListOut(has_data=has_order_data(db, f), items=items)
+
+
 @router.get("/history", response_model=OrderAnalyticsListOut)
 def orders_history(f: OrderFilter = Depends(_filter_dep), db: Session = Depends(get_db)):
     items = get_history(db, f)
@@ -203,12 +214,15 @@ def inventory_insights(
 
 @router.get("/export/csv")
 def export_orders_csv(
-    tab: str = Query(..., description="store|section|category|dealer|maker|history"),
+    tab: str = Query(..., description="store|section|category|dealer|maker|brand|history"),
     f: OrderFilter = Depends(_filter_dep),
     db: Session = Depends(get_db),
 ):
     if tab not in EXPORT_TABS:
-        raise HTTPException(400, "tab は store / section / category / dealer / maker / history のいずれかです。")
+        raise HTTPException(
+            400,
+            "tab は store / section / category / dealer / maker / brand / history のいずれかです。",
+        )
     rows = build_tab_csv_rows(db, tab, f)
     label = TAB_LABELS.get(tab, tab)
     filename = f"AKEMIN_発注データ_{label}_{_period_suffix(f)}.csv"

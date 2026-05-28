@@ -13,6 +13,7 @@ from sqlalchemy import extract, func
 from sqlalchemy.orm import Session
 
 from app.models import (
+    Brand,
     Category,
     Dealer,
     Maker,
@@ -42,6 +43,7 @@ class OrderFilter:
     category_id: Optional[int] = None
     dealer_id: Optional[int] = None
     maker_id: Optional[int] = None
+    brand_id: Optional[int] = None
 
 
 def _apply_filters(q, f: OrderFilter):
@@ -63,6 +65,8 @@ def _apply_filters(q, f: OrderFilter):
         q = q.filter(PurchaseOrder.dealer_id == f.dealer_id)
     if f.maker_id:
         q = q.filter(Product.maker_id == f.maker_id)
+    if f.brand_id:
+        q = q.filter(Product.brand_id == f.brand_id)
     return q
 
 
@@ -84,6 +88,8 @@ def _base_line_query(db: Session, f: OrderFilter):
             Product.unit.label("unit"),
             Maker.id.label("maker_id"),
             Maker.name.label("maker_name"),
+            Brand.id.label("brand_id"),
+            Brand.name.label("brand_name"),
             PurchaseOrderItem.quantity.label("quantity"),
             PurchaseOrderItem.unit_price.label("unit_price"),
             LINE_AMOUNT.label("amount"),
@@ -95,6 +101,7 @@ def _base_line_query(db: Session, f: OrderFilter):
         .join(Product, Product.id == PurchaseOrderItem.product_id)
         .join(Category, Category.id == Product.category_id)
         .outerjoin(Maker, Maker.id == Product.maker_id)
+        .outerjoin(Brand, Brand.id == Product.brand_id)
     )
     return _apply_filters(q, f)
 
@@ -271,6 +278,37 @@ def get_by_maker(db: Session, f: OrderFilter) -> list[dict]:
     return out
 
 
+def get_by_brand(db: Session, f: OrderFilter) -> list[dict]:
+    sub = _base_line_query(db, f).subquery()
+    rows = (
+        db.query(
+            sub.c.brand_id,
+            sub.c.brand_name,
+            sub.c.maker_name,
+            func.count(func.distinct(sub.c.product_id)),
+            func.sum(sub.c.amount),
+            func.sum(sub.c.quantity),
+        )
+        .filter(sub.c.brand_id.isnot(None))
+        .group_by(sub.c.brand_id, sub.c.brand_name, sub.c.maker_name)
+        .order_by(func.sum(sub.c.amount).desc())
+        .all()
+    )
+    total = sum(int(r[4] or 0) for r in rows)
+    return [
+        {
+            "brand_id": r[0],
+            "brand_name": r[1] or "（未設定）",
+            "maker_name": r[2] or "—",
+            "sku_count": int(r[3] or 0),
+            "amount": int(r[4] or 0),
+            "quantity": int(r[5] or 0),
+            "ratio_percent": _ratio(int(r[4] or 0), total),
+        }
+        for r in rows
+    ]
+
+
 def get_history(db: Session, f: OrderFilter) -> list[dict]:
     sub = _base_line_query(db, f).subquery()
     rows = (
@@ -399,6 +437,7 @@ TAB_LABELS = {
     "category": "カテゴリ別",
     "dealer": "ディーラー別",
     "maker": "メーカー別",
+    "brand": "ブランド別",
     "history": "発注履歴",
 }
 
@@ -447,6 +486,20 @@ def build_tab_csv_rows(db: Session, tab: str, f: OrderFilter) -> list[list]:
                 [
                     r["maker_name"],
                     r["dealer_name"],
+                    r["amount"],
+                    r["quantity"],
+                    r["ratio_percent"],
+                ]
+            )
+        return rows
+    if tab == "brand":
+        rows = [["ブランド名", "メーカー名", "SKU数", "発注金額", "発注数量", "割合(%)"]]
+        for r in get_by_brand(db, f):
+            rows.append(
+                [
+                    r["brand_name"],
+                    r["maker_name"],
+                    r["sku_count"],
                     r["amount"],
                     r["quantity"],
                     r["ratio_percent"],

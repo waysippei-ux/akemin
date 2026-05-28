@@ -1,5 +1,5 @@
 /**
- * 棚・カテゴリ絞り込みの共通ヘルパー
+ * 棚・カテゴリ・メーカー・ブランド絞り込みの共通ヘルパー
  */
 window.FilterHelpers = (function () {
   const DIRECT_DEALER_NAME = "メーカー直";
@@ -60,14 +60,25 @@ window.FilterHelpers = (function () {
     return dealerName;
   }
 
-  function fillBrandSelect(el, brands, makerId, includeAll = true, includeEmpty = false) {
+  /**
+   * @param {HTMLSelectElement|null} el
+   * @param {Array} brands
+   * @param {string|number} makerId メーカー指定時はそのメーカーのブランドのみ。空なら全ブランド
+   * @param {boolean} prefiltered true のとき brands は既に絞り込み済み（API取得結果など）
+   */
+  function fillBrandSelect(
+    el,
+    brands,
+    makerId,
+    includeAll = true,
+    includeEmpty = false,
+    prefiltered = false
+  ) {
     if (!el) return;
     const prev = el.value;
     let list = brands || [];
-    if (makerId) {
+    if (!prefiltered && makerId) {
       list = list.filter((b) => String(b.maker_id) === String(makerId));
-    } else {
-      list = [];
     }
     const opts = [];
     if (includeAll) opts.push('<option value="">すべて</option>');
@@ -86,16 +97,44 @@ window.FilterHelpers = (function () {
     else el.value = "";
   }
 
+  async function fetchBrandsByMaker(makerId) {
+    if (!makerId) return null;
+    return Api.get(`/api/brands?maker_id=${encodeURIComponent(makerId)}`);
+  }
+
+  async function refreshBrandSelect(brandEl, allBrands, makerId, onFilterChange) {
+    if (!brandEl) return;
+    if (makerId) {
+      try {
+        const list = await fetchBrandsByMaker(makerId);
+        fillBrandSelect(brandEl, list, "", true, false, true);
+      } catch {
+        fillBrandSelect(brandEl, allBrands, makerId, true, false, false);
+      }
+    } else {
+      fillBrandSelect(brandEl, allBrands, "", true, false, false);
+    }
+    onFilterChange?.();
+  }
+
   function bindMakerBrand(makerEl, brandEl, brands, onFilterChange) {
-    makerEl?.addEventListener("change", () => {
-      fillBrandSelect(brandEl, brands, makerEl.value, true, false);
-      onFilterChange?.();
-    });
+    if (!makerEl || !brandEl) return;
+    const run = () => refreshBrandSelect(brandEl, brands, makerEl.value || "", onFilterChange);
+    if (!makerEl.dataset.brandBound) {
+      makerEl.dataset.brandBound = "1";
+      makerEl.addEventListener("change", run);
+    }
+    fillBrandSelect(brandEl, brands, makerEl.value || "", true, false, false);
   }
 
   function matchesBrand(productBrandId, brandId) {
     if (!brandId) return true;
     return String(productBrandId || "") === String(brandId);
+  }
+
+  function matchesMaker(productMakerId, makerId) {
+    if (!makerId) return true;
+    return String(productMakerId || "") === String(makerId);
   }
 
   return {
@@ -104,10 +143,13 @@ window.FilterHelpers = (function () {
     fillSectionSelect,
     fillCategorySelect,
     fillBrandSelect,
+    fetchBrandsByMaker,
+    refreshBrandSelect,
     bindShelfCategory,
     bindMakerBrand,
     matchesSection,
     matchesBrand,
+    matchesMaker,
     dealerDisplayName,
     esc,
   };
