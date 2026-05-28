@@ -71,7 +71,11 @@ class User(Base):
     store_id: Mapped[Optional[int]] = mapped_column(ForeignKey("stores.id"), nullable=True)
 
     store: Mapped[Optional["Store"]] = relationship(back_populates="users")
-    inventory_logs: Mapped[list["InventoryLog"]] = relationship(back_populates="user")
+    inventory_logs: Mapped[list["InventoryLog"]] = relationship(
+        "InventoryLog",
+        foreign_keys="[InventoryLog.user_id]",
+        back_populates="user",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -263,9 +267,16 @@ class InventoryLog(Base):
     edit_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     is_edited: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    user: Mapped["User"] = relationship(back_populates="inventory_logs")
+    user: Mapped[Optional["User"]] = relationship(
+        "User",
+        foreign_keys="[InventoryLog.user_id]",
+        back_populates="inventory_logs",
+    )
     product: Mapped["Product"] = relationship(back_populates="inventory_logs")
-    editor: Mapped[Optional["User"]] = relationship(foreign_keys=[edited_by])
+    editor: Mapped[Optional["User"]] = relationship(
+        "User",
+        foreign_keys="[InventoryLog.edited_by]",
+    )
     edits: Mapped[list["InventoryLogEdit"]] = relationship(
         back_populates="log", cascade="all, delete-orphan"
     )
