@@ -413,6 +413,7 @@ def update_product(db: Session, product: Product, data: ProductUpdate) -> Produc
     )
     product.jan_code = (data.jan_code or "").strip() or None
     product.unit = data.unit
+    product.standard_stock = data.standard_stock
     product.warning_threshold = data.warning_threshold
     product.critical_threshold = data.critical_threshold
     product.category_id = data.category_id
@@ -844,6 +845,7 @@ def _inventory_item_from_row(
         barcode=product.barcode,
         unit=product.unit,
         quantity=inv.quantity,
+        standard_stock=getattr(product, "standard_stock", 0) or 0,
         stock_level=level,
         warning_threshold=warning,
         critical_threshold=critical,

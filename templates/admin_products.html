@@ -88,7 +88,7 @@
       <div class="table-wrap" id="table-wrap" hidden>
         <table class="data-table">
           <thead>
-            <tr><th>商品名</th><th>コード</th><th>カテゴリ</th><th>店舗</th><th>黄/赤</th><th></th></tr>
+            <tr><th>商品名</th><th>コード</th><th>カテゴリ</th><th>店舗</th><th>標準</th><th>黄/赤</th><th>編集</th><th>削除</th></tr>
           </thead>
           <tbody id="products-tbody"></tbody>
         </table>
@@ -451,6 +451,13 @@
         <div class="form-group">
           <label for="modal-unit">単位</label>
           <input type="text" id="modal-unit" value="本">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="modal-standard_stock">標準在庫数</label>
+          <input type="number" id="modal-standard_stock" value="0" min="0">
+          <p class="help-text">通常時に維持したい在庫数</p>
         </div>
         <div class="form-group">
           <label for="modal-warning_threshold">黄アラート ≤</label>

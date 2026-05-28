@@ -71,6 +71,7 @@ def list_store_product_settings(db: Session, store_id: int) -> list[dict]:
                 "product_id": product.id,
                 "product_name": product.name,
                 "barcode": product.barcode,
+                "standard_stock": getattr(product, "standard_stock", 0) or 0,
                 "category_id": product.category_id,
                 "category_name": product.category.name if product.category else "",
                 "maker_id": product.maker_id,

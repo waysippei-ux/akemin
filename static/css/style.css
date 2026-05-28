@@ -735,6 +735,43 @@ input[type="number"],
   color: #991b1b;
 }
 
+/* 標準在庫数バッジ */
+.standard-stock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #eae9fd;
+  color: #332f6d;
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.standard-stock-unset {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+/* ダッシュボード: 標準在庫数表示 */
+.inventory-item .item-standard {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.9rem;
+}
+
+.inventory-item .item-standard-ok {
+  color: #047857; /* green */
+  font-weight: 700;
+}
+
+.inventory-item .item-standard-under {
+  color: #b91c1c; /* red */
+  font-weight: 800;
+}
+
 .reg-readonly {
   margin: 0;
   font-weight: 600;

@@ -216,6 +216,13 @@ def migrate_schema() -> None:
         if "jan_code" not in prod_cols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE products ADD COLUMN jan_code VARCHAR(50)"))
+        if "standard_stock" not in prod_cols:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "ALTER TABLE products ADD COLUMN standard_stock INTEGER NOT NULL DEFAULT 0"
+                    )
+                )
 
     # 店舗別発注目安（新規テーブルのみ作成・既存テーブルは変更しない）
     if "store_product_settings" not in insp.get_table_names():

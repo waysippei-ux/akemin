@@ -65,6 +65,7 @@ class StoreProductSettingRowOut(BaseModel):
     product_id: int
     product_name: str
     barcode: str
+    standard_stock: int = 0
     category_id: int
     category_name: str = ""
     maker_id: Optional[int] = None
@@ -87,6 +88,7 @@ class StoreProductSettingRowOut(BaseModel):
 class StoreProductSettingUpsert(BaseModel):
     warning_threshold: int = Field(ge=0)
     critical_threshold: int = Field(ge=0)
+    standard_stock: Optional[int] = Field(default=None, ge=0)
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +125,7 @@ class ProductOut(BaseModel):
     barcode: str
     jan_code: Optional[str] = None
     unit: str
+    standard_stock: int = 0
     warning_threshold: int
     critical_threshold: int
     category_id: int
@@ -150,6 +153,7 @@ class ProductCreate(BaseModel):
     category_id: int
     jan_code: Optional[str] = None
     unit: str = "本"
+    standard_stock: int = Field(default=0, ge=0)
     warning_threshold: int = 5
     critical_threshold: int = 2
     maker_id: Optional[int] = None
@@ -164,6 +168,7 @@ class ProductUpdate(BaseModel):
     category_id: int
     jan_code: Optional[str] = None
     unit: str = "本"
+    standard_stock: int = Field(default=0, ge=0)
     warning_threshold: int = Field(ge=0)
     critical_threshold: int = Field(ge=0)
     maker_id: Optional[int] = None
@@ -190,6 +195,7 @@ class InventoryItemOut(BaseModel):
     barcode: str
     unit: str
     quantity: int
+    standard_stock: int = 0
     stock_level: StockLevel
     warning_threshold: int
     critical_threshold: int

@@ -551,6 +551,7 @@
       jan_code: modalJanCode,
       category_id: parseInt(categoryId, 10),
       unit: document.getElementById("modal-unit").value.trim() || "本",
+      standard_stock: parseInt(document.getElementById("modal-standard_stock").value, 10) || 0,
       warning_threshold: parseInt(document.getElementById("modal-warning_threshold").value, 10),
       critical_threshold: parseInt(document.getElementById("modal-critical_threshold").value, 10),
       maker_id: maker ? parseInt(maker, 10) : null,
@@ -581,6 +582,7 @@
     document.getElementById("modal-barcode").value = "";
     clearBarcodeDupWarning();
     document.getElementById("modal-unit").value = "本";
+    document.getElementById("modal-standard_stock").value = "0";
     document.getElementById("modal-warning_threshold").value = "4";
     document.getElementById("modal-critical_threshold").value = "2";
     document.getElementById("modal-section").value = "";
@@ -628,6 +630,7 @@
     document.getElementById("modal-brand_id").value = p.brand_id || "";
     document.getElementById("modal-dealer_id").value = p.dealer_id || "";
     document.getElementById("modal-unit").value = p.unit;
+    document.getElementById("modal-standard_stock").value = String(p.standard_stock ?? 0);
     document.getElementById("modal-warning_threshold").value = p.warning_threshold;
     document.getElementById("modal-critical_threshold").value = p.critical_threshold;
     const expandAll = document.getElementById("modal-expand-all-stores");
@@ -655,7 +658,7 @@
     const tbody = document.getElementById("products-tbody");
     if (!list.length) {
       tbody.innerHTML =
-        '<tr><td colspan="6" class="empty-msg">該当する商品がありません</td></tr>';
+        '<tr><td colspan="8" class="empty-msg">該当する商品がありません</td></tr>';
       return;
     }
     tbody.innerHTML = list
@@ -666,11 +669,16 @@
         <td data-label="コード"><code>${formatBarcodeForList(p.barcode)}</code>${p.jan_code ? `<br><small>納品:${esc(p.jan_code)}</small>` : ""}</td>
         <td data-label="カテゴリ">${esc(p.category_name || "")}</td>
         <td data-label="店舗">${esc(p.deployment_label || formatDeploymentFallback(p))}</td>
-        <td data-label="閾値">${p.warning_threshold}/${p.critical_threshold}</td>
-        <td class="cell-actions">
-          <button type="button" class="btn btn-ghost btn-sm" data-edit="${p.id}">編集</button>
-          <button type="button" class="btn btn-ghost btn-sm" data-del="${p.id}">削除</button>
-        </td>
+        <td data-label="標準">${
+          (p.standard_stock ?? 0) > 0
+            ? `<span class="standard-stock-badge">📦 ${esc(
+                String(p.standard_stock)
+              )}${esc(p.unit || "")}</span>`
+            : `<span class="standard-stock-unset">未設定</span>`
+        }</td>
+        <td data-label="黄/赤">${p.warning_threshold}/${p.critical_threshold}</td>
+        <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-edit="${p.id}">編集</button></td>
+        <td class="cell-actions"><button type="button" class="btn btn-ghost btn-sm" data-del="${p.id}">削除</button></td>
       </tr>`
       )
       .join("");

@@ -188,13 +188,25 @@
       list.innerHTML = items.length
         ? items
             .map(
-              (item) => `
+              (item) => {
+                const std = item.standard_stock ?? 0;
+                const showStd = std > 0;
+                const under = showStd && item.quantity < std;
+                const stdIcon = under ? "🔽" : "📦";
+                const stdClass = under ? "item-standard item-standard-under" : "item-standard item-standard-ok";
+                const stdTitle = under ? ' title="標準を下回っています"' : "";
+                const stdRow = showStd
+                  ? `<span class="${stdClass}"${stdTitle}>標準: ${stdIcon} ${std} ${escapeHtml(item.unit)}</span>`
+                  : "";
+                return `
           <div class="inventory-item stock-${item.stock_level}">
             <span class="item-name">${escapeHtml(item.product_name)}</span>
             <span class="item-badge">${LEVEL_LABEL[item.stock_level]}</span>
             <span class="item-qty">${item.quantity} ${escapeHtml(item.unit)}</span>
+            ${stdRow}
           </div>
         `
+              }
             )
             .join("")
         : '<p class="empty-msg">このカテゴリに商品はありません</p>';

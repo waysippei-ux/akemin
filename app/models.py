@@ -184,6 +184,7 @@ class Product(Base):
     barcode: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
     jan_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
     unit: Mapped[str] = mapped_column(String(20), default="本")
+    standard_stock: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     warning_threshold: Mapped[int] = mapped_column(Integer, default=5)
     critical_threshold: Mapped[int] = mapped_column(Integer, default=2)
 

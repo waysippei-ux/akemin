@@ -233,6 +233,10 @@
         <tr data-product-id="${r.product_id}">
           <td data-label="商品名">${esc(r.product_name)}</td>
           <td data-label="カテゴリ">${esc(r.category_name)}</td>
+          <td data-label="標準">
+            <input type="number" class="input-number input-sm" min="0"
+              data-field="standard_stock" value="${r.standard_stock ?? 0}">
+          </td>
           <td data-label="デフォルト">${r.default_warning_threshold} / ${r.default_critical_threshold}</td>
           <td data-label="適用中">${r.effective_warning_threshold} / ${r.effective_critical_threshold} ${customBadge}</td>
           <td data-label="黄 ≤">
@@ -268,7 +272,11 @@
     if (!tr) return null;
     const warning = parseInt(tr.querySelector('[data-field="warning"]').value, 10);
     const critical = parseInt(tr.querySelector('[data-field="critical"]').value, 10);
-    return { warning, critical };
+    const standard_stock = parseInt(
+      tr.querySelector('[data-field="standard_stock"]').value,
+      10
+    );
+    return { warning, critical, standard_stock: Number.isFinite(standard_stock) ? standard_stock : 0 };
   }
 
   function syncRowFromInputs(productId, warning, critical) {
@@ -284,7 +292,7 @@
   async function saveRow(storeId, productId) {
     const inputs = getRowInputs(productId);
     if (!inputs) return;
-    const { warning, critical } = inputs;
+    const { warning, critical, standard_stock } = inputs;
     if (critical > warning) {
       return alert("危険閾値（赤）は警告閾値（黄）以下にしてください。");
     }
@@ -292,6 +300,7 @@
       const updated = await Api.put(`/api/stores/${storeId}/product-settings/${productId}`, {
         warning_threshold: warning,
         critical_threshold: critical,
+        standard_stock,
       });
       const idx = rows.findIndex((r) => r.product_id === productId);
       if (idx >= 0) rows[idx] = { ...rows[idx], ...updated };

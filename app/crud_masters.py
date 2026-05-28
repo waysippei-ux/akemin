@@ -537,6 +537,7 @@ def product_to_out(
         barcode=product.barcode,
         jan_code=product.jan_code,
         unit=product.unit,
+        standard_stock=getattr(product, "standard_stock", 0) or 0,
         warning_threshold=product.warning_threshold,
         critical_threshold=product.critical_threshold,
         category_id=product.category_id,
