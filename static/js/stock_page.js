@@ -7,6 +7,8 @@
   const IS_REPLENISH = PAGE === "replenish";
   const SUBMIT_URL = IS_REPLENISH ? "/api/stock/replenish" : "/api/stock/consume";
   const BULK_ACTION = IS_REPLENISH ? "restock" : "use";
+  const LOG_TYPE = IS_REPLENISH ? "replenish" : "consume";
+  const TODAY_LIST_LABEL = IS_REPLENISH ? "本日の補充一覧" : "本日の使用済み一覧";
   const DATETIME_LABEL = IS_REPLENISH ? "補充日時" : "使用日時";
 
   let stores = [];
@@ -47,7 +49,7 @@
 
     setupStoreSelect();
     renderProducts();
-    loadRecentLogs();
+    refreshTodayLogs();
     switchTab("search");
 
     Api.get("/api/auth/me")
@@ -55,6 +57,7 @@
         currentUser = user;
         filterStoresForUser();
         setupStoreSelect();
+        if (isTodayLogsModalOpen()) renderTodayLogs();
       })
       .catch(() => {});
   }
@@ -121,6 +124,7 @@
     }
     updateStoreHint();
     updateBulkSubmitState();
+    refreshTodayLogs();
   }
 
   function getStoreId() {
@@ -198,24 +202,31 @@
     try {
       products = await Api.get(`/api/stock/products?store_id=${storeId}&page=${PAGE}`);
       renderProducts();
-      await loadRecentLogs();
+      await refreshTodayLogs();
     } catch (err) {
       showError(err.message);
     }
   }
 
-  /* ---------- 登録履歴 ---------- */
-  let recentLogs = [];
+  /* ---------- 本日の登録履歴（モーダル） ---------- */
+  let todayLogsCache = [];
+  let todayStoreName = "";
 
   function bindLogHistory() {
-    document.getElementById("stock-logs-tbody")?.addEventListener("click", (e) => {
+    document.getElementById("btn-today-logs")?.addEventListener("click", openTodayLogsModal);
+    document.getElementById("today-logs-close")?.addEventListener("click", closeTodayLogsModal);
+    document.getElementById("today-logs-modal")?.addEventListener("click", (e) => {
+      if (e.target.id === "today-logs-modal") closeTodayLogsModal();
+    });
+    document.getElementById("today-logs-tbody")?.addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-edit-log]");
       if (!btn) return;
       if (currentUser?.role !== "admin") return;
       const id = parseInt(btn.dataset.editLog, 10);
-      const log = recentLogs.find((x) => x.id === id);
+      const log = todayLogsCache.find((x) => x.id === id);
       if (log) openLogEditModal(log);
     });
+    document.getElementById("btn-today-logs-csv")?.addEventListener("click", downloadTodayLogsCsv);
 
     document.getElementById("log-edit-close")?.addEventListener("click", closeLogEditModal);
     document.getElementById("log-edit-cancel")?.addEventListener("click", closeLogEditModal);
@@ -225,31 +236,37 @@
     document.getElementById("log-edit-form")?.addEventListener("submit", onSaveLogEdit);
   }
 
-  async function loadRecentLogs() {
-    const tbody = document.getElementById("stock-logs-tbody");
-    if (!tbody) return;
+  function isTodayLogsModalOpen() {
+    const el = document.getElementById("today-logs-modal");
+    return el && el.style.display !== "none";
+  }
+
+  async function refreshTodayLogs() {
+    const countEl = document.getElementById("today-logs-count");
     const storeId = getStoreId();
     if (!storeId) {
-      tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">店舗を選択してください</td></tr>';
+      todayLogsCache = [];
+      todayStoreName = "";
+      if (countEl) countEl.textContent = "0";
       return;
     }
     try {
-      recentLogs = await Api.get(`/api/stock/logs?store_id=${storeId}&limit=20`);
-      renderRecentLogs();
-    } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="5" class="empty-msg">${escapeHtml(
-        err.message || "履歴を取得できませんでした"
-      )}</td></tr>`;
+      const data = await Api.get(`/api/stock/logs/today?store_id=${storeId}&type=${LOG_TYPE}`);
+      todayLogsCache = data.items || [];
+      todayStoreName = data.store_name || "";
+      const n = data.count ?? todayLogsCache.length;
+      if (countEl) countEl.textContent = String(n);
+      if (isTodayLogsModalOpen()) renderTodayLogs();
+    } catch {
+      if (countEl) countEl.textContent = "—";
     }
   }
 
-  function formatLogDate(iso) {
+  function formatLogTime(iso) {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return "";
     const pad = (n) => String(n).padStart(2, "0");
-    return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}<br>${pad(d.getHours())}:${pad(
-      d.getMinutes()
-    )}`;
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
   function signedQuantityText(log) {
@@ -257,41 +274,97 @@
     return `${sign}${log.quantity_change}${escapeHtml(log.unit || "本")}`;
   }
 
-  function renderRecentLogs() {
-    const tbody = document.getElementById("stock-logs-tbody");
+  function signedQuantityPlain(log) {
+    const sign = log.action === "use" ? "-" : "+";
+    return `${sign}${log.quantity_change}${log.unit || "本"}`;
+  }
+
+  function renderTodayLogs() {
+    const tbody = document.getElementById("today-logs-tbody");
     if (!tbody) return;
-    if (!recentLogs.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">履歴がありません</td></tr>';
+    const title = document.getElementById("today-logs-title");
+    if (title) {
+      title.textContent = todayStoreName
+        ? `${TODAY_LIST_LABEL}（${todayStoreName}）`
+        : TODAY_LIST_LABEL;
+    }
+    if (!todayLogsCache.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">本日の登録はありません</td></tr>';
       return;
     }
     const canEdit = currentUser?.role === "admin";
-    tbody.innerHTML = recentLogs
+    tbody.innerHTML = todayLogsCache
       .map((log) => {
         const edited = !!log.is_edited;
         const editBadge = edited ? '<span class="log-edited-badge">✏️修正済</span>' : "";
         const rowClass = edited ? " stock-log-row-edited" : "";
-        const qtyClass = log.action === "use" ? "stock-log-qty stock-log-qty-minus" : "stock-log-qty stock-log-qty-plus";
+        const qtyClass =
+          log.action === "use"
+            ? "stock-log-qty stock-log-qty-minus"
+            : "stock-log-qty stock-log-qty-plus";
         const actionCell = canEdit
           ? `<button type="button" class="btn btn-ghost btn-sm" data-edit-log="${log.id}">編集</button>`
           : "";
         return `<tr class="stock-log-row${rowClass}" data-log-id="${log.id}">
-          <td data-label="日時">${formatLogDate(log.created_at)}${editBadge}</td>
+          <td data-label="時刻">${formatLogTime(log.created_at)}${editBadge}</td>
           <td data-label="商品名">${escapeHtml(log.product_name)}</td>
           <td data-label="数量"><span class="${qtyClass}">${signedQuantityText(log)}</span></td>
-          <td data-label="店舗">${escapeHtml(log.store_name || "")}</td>
           <td data-label="操作">${actionCell}</td>
         </tr>`;
       })
       .join("");
   }
 
+  async function openTodayLogsModal() {
+    const storeId = getStoreId();
+    if (!storeId) {
+      showError("店舗を選択してください。");
+      return;
+    }
+    await refreshTodayLogs();
+    renderTodayLogs();
+    showOverlay("today-logs-modal");
+  }
+
+  function closeTodayLogsModal() {
+    hideOverlay("today-logs-modal");
+  }
+
+  function downloadTodayLogsCsv() {
+    if (!todayLogsCache.length) {
+      showToast("ダウンロードするデータがありません", 2000);
+      return;
+    }
+    const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = ["時刻", "商品名", "数量", "修正済み"];
+    const rows = todayLogsCache.map((log) => [
+      formatLogTime(log.created_at),
+      log.product_name || "",
+      signedQuantityPlain(log),
+      log.is_edited ? "はい" : "",
+    ]);
+    const bom = "\uFEFF";
+    const csv =
+      bom +
+      [header, ...rows].map((row) => row.map(esc).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+    const suffix = IS_REPLENISH ? "replenish" : "consume";
+    a.href = url;
+    a.download = `${suffix}_${date}_store${getStoreId()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function openLogEditModal(log) {
     document.getElementById("log-edit-id").value = String(log.id);
     document.getElementById("log-edit-product").textContent = log.product_name || "";
-    document.getElementById("log-edit-datetime").textContent = `登録日時：${new Date(
+    document.getElementById("log-edit-datetime").textContent = `登録日時：${formatLogTime(
       log.created_at
-    ).toLocaleString("ja-JP")}`;
-    document.getElementById("log-edit-before").textContent = String(log.quantity_change);
+    )}`;
+    document.getElementById("log-edit-current").textContent = String(log.quantity_change);
     document.getElementById("log-edit-quantity").value = String(log.quantity_change);
     document.getElementById("log-edit-reason").value = "";
     const err = document.getElementById("log-edit-error");
@@ -315,7 +388,7 @@
       closeLogEditModal();
       showToast("✓ 登録内容を修正しました", 2000);
       await reloadProducts();
-      await loadRecentLogs();
+      await refreshTodayLogs();
       resetScanInput();
     } catch (ex) {
       if (err) {

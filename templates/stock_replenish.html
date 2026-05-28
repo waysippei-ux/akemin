@@ -24,6 +24,9 @@
     {% endif %}
   </select>
   <p id="store-hint" class="error-msg store-required-hint" style="display:none">店舗を選択してください。</p>
+  <button type="button" class="btn btn-outline btn-today-logs" id="btn-today-logs">
+    📋 本日の補充一覧を見る（<span id="today-logs-count">0</span>件）
+  </button>
 </div>
 
 <div class="tabs card" id="stock-tabs">
@@ -38,17 +41,25 @@
 <p id="page-toast" class="scan-result" style="display:none"></p>
 <p id="page-error" class="error-msg" style="display:none"></p>
 
-<section class="card stock-history-card">
-  <h2 class="section-title">登録履歴（直近20件）</h2>
-  <div class="table-wrap">
-    <table class="data-table">
-      <thead>
-        <tr><th>日時</th><th>商品名</th><th>数量</th><th>店舗</th><th>操作</th></tr>
-      </thead>
-      <tbody id="stock-logs-tbody"></tbody>
-    </table>
+<div class="modal-overlay" id="today-logs-modal" style="display:none">
+  <div class="modal card modal-today-logs" role="dialog" aria-labelledby="today-logs-title">
+    <div class="modal-header">
+      <h3 id="today-logs-title">本日の補充一覧</h3>
+      <button type="button" class="btn-icon" id="today-logs-close" aria-label="閉じる">×</button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>時刻</th><th>商品名</th><th>数量</th><th>操作</th></tr>
+        </thead>
+        <tbody id="today-logs-tbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions modal-actions-start">
+      <button type="button" class="btn btn-ghost" id="btn-today-logs-csv">CSVダウンロード</button>
+    </div>
   </div>
-</section>
+</div>
 
 <div class="modal-overlay" id="register-modal" style="display:none">
   <div class="modal card" role="dialog" aria-labelledby="register-modal-title">
@@ -97,11 +108,11 @@
     <form id="log-edit-form">
       <p class="hint-text">⚠️ 修正記録が残ります</p>
       <input type="hidden" id="log-edit-id">
-      <p class="reg-product-name" id="log-edit-product"></p>
+      <p class="reg-product-name"><span class="log-edit-label">商品名：</span><span id="log-edit-product"></span></p>
       <p class="help-text" id="log-edit-datetime"></p>
       <div class="form-row">
         <div class="form-group">
-          <label for="log-edit-quantity">数量（修正前: <span id="log-edit-before">—</span>）</label>
+          <label for="log-edit-quantity">数量（現在: <span id="log-edit-current">—</span>）</label>
           <input type="number" id="log-edit-quantity" class="input-number" min="0" required>
         </div>
       </div>
@@ -186,5 +197,5 @@
 {% block scripts %}
 <script>window.STOCK_PAGE = {{ page_json | safe }};</script>
 <script src="/static/js/filter_helpers.js?v=2"></script>
-<script src="/static/js/stock_page.js?v=4"></script>
+<script src="/static/js/stock_page.js?v=5"></script>
 {% endblock %}

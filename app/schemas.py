@@ -372,6 +372,14 @@ class StockLogRowOut(BaseModel):
     is_edited: bool = False
 
 
+class StockLogsTodayOut(BaseModel):
+    """当日の補充/使用履歴（件数＋全件）"""
+
+    count: int
+    store_name: str
+    items: list[StockLogRowOut] = Field(default_factory=list)
+
+
 class StockLogEditIn(BaseModel):
     quantity: int = Field(ge=0)
     reason: Optional[str] = None

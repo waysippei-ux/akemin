@@ -1001,6 +1001,32 @@ def get_recent_logs(db: Session, store_id: int, days: int = 14) -> list[Inventor
     ]
 
 
+def _today_start_utc() -> datetime:
+    """当日 0:00（JST）を UTC naive で返す"""
+    from datetime import timedelta, timezone
+
+    jst = timezone(timedelta(hours=9))
+    now_jst = datetime.now(jst)
+    start_jst = now_jst.replace(hour=0, minute=0, second=0, microsecond=0)
+    return start_jst.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _stock_log_row_dict(log: InventoryLog, store_name: str) -> dict:
+    return {
+        "id": log.id,
+        "store_id": log.store_id,
+        "store_name": store_name,
+        "product_id": log.product_id,
+        "product_name": log.product.name if log.product else "",
+        "unit": (log.product.unit if log.product else "本") or "本",
+        "action": log.action,
+        "quantity_change": log.quantity_change,
+        "quantity_after": log.quantity_after,
+        "created_at": log.created_at,
+        "is_edited": bool(getattr(log, "is_edited", False)),
+    }
+
+
 def list_stock_logs(
     db: Session, *, store_id: int, limit: int = 20
 ) -> list[dict]:
@@ -1019,24 +1045,40 @@ def list_stock_logs(
     )
     store = get_store(db, store_id)
     store_name = store.name if store else ""
-    out: list[dict] = []
-    for log in logs:
-        out.append(
-            {
-                "id": log.id,
-                "store_id": log.store_id,
-                "store_name": store_name,
-                "product_id": log.product_id,
-                "product_name": log.product.name if log.product else "",
-                "unit": (log.product.unit if log.product else "本") or "本",
-                "action": log.action,
-                "quantity_change": log.quantity_change,
-                "quantity_after": log.quantity_after,
-                "created_at": log.created_at,
-                "is_edited": bool(getattr(log, "is_edited", False)),
-            }
+    return [_stock_log_row_dict(log, store_name) for log in logs]
+
+
+def list_stock_logs_today(
+    db: Session, *, store_id: int, log_type: str
+) -> dict:
+    """当日（JST 0:00〜現在）の補充 or 使用履歴を全件返す"""
+    if log_type == "replenish":
+        action = InventoryAction.RESTOCK
+    elif log_type == "consume":
+        action = InventoryAction.USE
+    else:
+        raise ValueError("type は replenish または consume を指定してください。")
+
+    start = _today_start_utc()
+    store = get_store(db, store_id)
+    store_name = store.name if store else ""
+
+    logs = (
+        db.query(InventoryLog)
+        .options(
+            joinedload(InventoryLog.product),
+            joinedload(InventoryLog.user),
         )
-    return out
+        .filter(
+            InventoryLog.store_id == store_id,
+            InventoryLog.action == action,
+            InventoryLog.created_at >= start,
+        )
+        .order_by(InventoryLog.created_at.desc(), InventoryLog.id.desc())
+        .all()
+    )
+    items = [_stock_log_row_dict(log, store_name) for log in logs]
+    return {"count": len(items), "store_name": store_name, "items": items}
 
 
 def edit_stock_log(
@@ -1080,13 +1122,14 @@ def edit_stock_log(
         db.add(inv)
         db.flush()
 
+    unit = product.unit or "本"
     if inv.quantity + delta < 0:
-        raise ValueError("在庫がマイナスになる修正はできません。")
+        raise ValueError(f"在庫が不足しています（現在庫: {inv.quantity}{unit}）。")
 
     before_after = int(log.quantity_after or 0)
     next_after = before_after + delta
     if next_after < 0:
-        raise ValueError("在庫がマイナスになる修正はできません。")
+        raise ValueError(f"在庫が不足しています（現在庫: {inv.quantity}{unit}）。")
 
     if not getattr(log, "is_edited", False):
         log.original_quantity = old_q

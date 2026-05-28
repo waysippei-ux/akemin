@@ -29,6 +29,7 @@ from app.schemas import (
     StockLookupOut,
     StockLogEditIn,
     StockLogRowOut,
+    StockLogsTodayOut,
     StockQuantityOut,
     StockRegisterWithProductRequest,
     StockReplenishRequest,
@@ -264,6 +265,23 @@ def list_stock_logs_endpoint(
     check_store_access(current_user, store_id)
     _validate_store(db, store_id)
     return crud.list_stock_logs(db, store_id=store_id, limit=limit)
+
+
+@router.get("/logs/today", response_model=StockLogsTodayOut)
+def list_stock_logs_today_endpoint(
+    store_id: int = Query(..., gt=0),
+    type: Literal["replenish", "consume"] = Query(..., description="replenish | consume"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """当日の補充/使用履歴（全件＋件数）"""
+    check_store_access(current_user, store_id)
+    _validate_store(db, store_id)
+    try:
+        data = crud.list_stock_logs_today(db, store_id=store_id, log_type=type)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return StockLogsTodayOut(**data)
 
 
 @router.put("/logs/{log_id}", response_model=StockLogRowOut)

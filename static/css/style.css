@@ -761,9 +761,32 @@ input[type="number"],
   filter: brightness(0.98);
 }
 
-/* 棚補充・使用: 登録履歴 */
-.stock-history-card {
-  margin-top: 1rem;
+/* 棚補充・使用: 本日の履歴ボタン・モーダル */
+.btn-today-logs {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+  text-align: center;
+}
+
+.modal-today-logs {
+  max-width: 36rem;
+  width: calc(100% - 2rem);
+}
+
+.modal-today-logs .table-wrap {
+  max-height: min(60vh, 28rem);
+  overflow: auto;
+}
+
+.modal-actions-start {
+  justify-content: flex-start;
+  margin-top: 0.75rem;
+}
+
+.log-edit-label {
+  color: var(--color-text-muted);
+  font-weight: 600;
 }
 
 .stock-log-row-edited {
