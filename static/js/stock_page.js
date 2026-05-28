@@ -270,13 +270,14 @@
         const edited = !!log.is_edited;
         const editBadge = edited ? '<span class="log-edited-badge">✏️修正済</span>' : "";
         const rowClass = edited ? " stock-log-row-edited" : "";
+        const qtyClass = log.action === "use" ? "stock-log-qty stock-log-qty-minus" : "stock-log-qty stock-log-qty-plus";
         const actionCell = canEdit
           ? `<button type="button" class="btn btn-ghost btn-sm" data-edit-log="${log.id}">編集</button>`
           : "";
         return `<tr class="stock-log-row${rowClass}" data-log-id="${log.id}">
           <td data-label="日時">${formatLogDate(log.created_at)}${editBadge}</td>
           <td data-label="商品名">${escapeHtml(log.product_name)}</td>
-          <td data-label="数量">${signedQuantityText(log)}</td>
+          <td data-label="数量"><span class="${qtyClass}">${signedQuantityText(log)}</span></td>
           <td data-label="店舗">${escapeHtml(log.store_name || "")}</td>
           <td data-label="操作">${actionCell}</td>
         </tr>`;

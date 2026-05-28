@@ -778,6 +778,19 @@ input[type="number"],
   white-space: nowrap;
 }
 
+.stock-log-qty {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.stock-log-qty-plus {
+  color: #047857; /* green */
+}
+
+.stock-log-qty-minus {
+  color: #b91c1c; /* red */
+}
+
 /* 商品モーダル — バーコード */
 .product-barcode-field {
   grid-column: 1 / -1;

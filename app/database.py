@@ -247,7 +247,9 @@ def migrate_schema() -> None:
         if "edited_at" not in log_cols:
             alters.append("ALTER TABLE inventory_logs ADD COLUMN edited_at TIMESTAMP")
         if "edited_by" not in log_cols:
-            alters.append("ALTER TABLE inventory_logs ADD COLUMN edited_by INTEGER")
+            alters.append(
+                "ALTER TABLE inventory_logs ADD COLUMN edited_by INTEGER REFERENCES users(id)"
+            )
         if "original_quantity" not in log_cols:
             alters.append("ALTER TABLE inventory_logs ADD COLUMN original_quantity INTEGER")
         if "edit_reason" not in log_cols:
