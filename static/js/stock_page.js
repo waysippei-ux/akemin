@@ -404,8 +404,9 @@
         recorded_at,
       });
       closeRegisterModal();
-      showToast(res.message);
+      showToast("✓ 登録しました", 2000);
       await reloadProducts();
+      resetScanInput();
     } catch (err) {
       if (!IS_REPLENISH && errEl) {
         const msg = err.message || "";
@@ -426,28 +427,28 @@
   /* ---------- スキャンタブ ---------- */
   function bindScanTab() {
     const input = document.getElementById("scanner-input");
-    const status = document.getElementById("scanner-status");
+    const btn = document.getElementById("btn-scan-search");
 
-    document.getElementById("btn-bluetooth-focus")?.addEventListener("click", () => {
-      if (!getStoreId()) {
-        showError("店舗を選択してください。");
-        return;
-      }
-      input?.focus();
-      if (status) {
-        status.style.display = "block";
-        status.textContent = "スキャン待機中…（Bluetoothスキャナーで読み取ってください）";
-      }
-    });
+    const runSearch = async () => {
+      if (!input) return;
+      const code = input.value.trim();
+      if (!code) return;
+      await handleScanCode(code);
+    };
 
+    btn?.addEventListener("click", runSearch);
     input?.addEventListener("keydown", async (e) => {
       if (e.key !== "Enter") return;
       e.preventDefault();
-      const code = input.value.trim();
-      input.value = "";
-      if (!code) return;
-      await handleScanCode(code);
+      await runSearch();
     });
+  }
+
+  function resetScanInput() {
+    const input = document.getElementById("scanner-input");
+    if (!input) return;
+    input.value = "";
+    if (activeTab === "scan") input.focus();
   }
 
   async function handleScanCode(code) {
@@ -539,8 +540,9 @@
           product,
         });
         closeNewProductModal();
-        showToast(res.message);
+        showToast("✓ 登録しました", 2000);
         await reloadProducts();
+        resetScanInput();
       } catch (err) {
         if (errEl) {
           errEl.textContent = err.message;
@@ -888,14 +890,14 @@
       .replace(/"/g, "&quot;");
   }
 
-  function showToast(msg) {
+  function showToast(msg, ms = 4000) {
     const el = document.getElementById("page-toast");
     if (!el) return;
     el.textContent = msg;
     el.style.display = "block";
     setTimeout(() => {
       el.style.display = "none";
-    }, 4000);
+    }, ms);
   }
 
   function showError(msg) {

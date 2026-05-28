@@ -1,10 +1,19 @@
 {# スキャン・一括タブ（補充・使用共通） #}
 <div id="tab-scan" class="stock-tab-content" style="display:none">
-  <div class="card">
-    <p class="hint-text">Bluetoothスキャナーはキーボード入力として動作します。接続後、下の入力欄にフォーカスしてスキャンしてください。</p>
-    <button type="button" class="btn btn-primary" id="btn-bluetooth-focus">スキャナーとBluetooth接続する</button>
-    <input type="text" id="scanner-input" class="scanner-hidden-input" autocomplete="off" aria-label="バーコードスキャン入力">
-    <p id="scanner-status" class="scanner-status" style="display:none">スキャン待機中…</p>
+  <div class="scanner-section card scan-search-card">
+    <p class="scan-search-title">バーコードを入力またはスキャナーで読み込む</p>
+    <div class="scan-search-row">
+      <input
+        type="text"
+        id="scanner-input"
+        class="input-text scan-search-input"
+        placeholder="手入力またはスキャナーで入力"
+        inputmode="numeric"
+        autocomplete="off"
+        aria-label="バーコード"
+      >
+      <button type="button" class="btn scan-search-btn" id="btn-scan-search">検索する</button>
+    </div>
   </div>
 </div>
 

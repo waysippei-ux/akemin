@@ -724,6 +724,43 @@ input[type="number"],
   font-weight: 600;
 }
 
+/* 棚補充・使用: スキャンタブ新UI */
+.scan-search-card {
+  padding: 1rem 1.25rem;
+}
+
+.scan-search-title {
+  margin: 0 0 0.75rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.scan-search-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.scan-search-input {
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+
+.scan-search-btn {
+  flex: 1 1 140px;
+  min-width: 140px;
+  border-radius: 8px;
+  background: #4a3fc7;
+  color: #fff;
+  border: 1px solid #4a3fc7;
+  font-weight: 700;
+}
+
+.scan-search-btn:hover {
+  filter: brightness(0.98);
+}
+
 /* 商品モーダル — バーコード */
 .product-barcode-field {
   grid-column: 1 / -1;
