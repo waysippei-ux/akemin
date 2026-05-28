@@ -16,6 +16,7 @@ from app.models import (
     Inventory,
     InventoryAction,
     InventoryLog,
+    InventoryLogEdit,
     Maker,
     Product,
     ProductDeliveryCode,
@@ -998,6 +999,154 @@ def get_recent_logs(db: Session, store_id: int, days: int = 14) -> list[Inventor
         )
         for log in logs
     ]
+
+
+def list_stock_logs(
+    db: Session, *, store_id: int, limit: int = 20
+) -> list[dict]:
+    """補充/使用の登録履歴（最新順）"""
+    limit = max(1, min(int(limit or 20), 100))
+    logs = (
+        db.query(InventoryLog)
+        .options(
+            joinedload(InventoryLog.product),
+            joinedload(InventoryLog.user),
+        )
+        .filter(InventoryLog.store_id == store_id)
+        .order_by(InventoryLog.created_at.desc(), InventoryLog.id.desc())
+        .limit(limit)
+        .all()
+    )
+    store = get_store(db, store_id)
+    store_name = store.name if store else ""
+    out: list[dict] = []
+    for log in logs:
+        out.append(
+            {
+                "id": log.id,
+                "store_id": log.store_id,
+                "store_name": store_name,
+                "product_id": log.product_id,
+                "product_name": log.product.name if log.product else "",
+                "unit": (log.product.unit if log.product else "本") or "本",
+                "action": log.action,
+                "quantity_change": log.quantity_change,
+                "quantity_after": log.quantity_after,
+                "created_at": log.created_at,
+                "is_edited": bool(getattr(log, "is_edited", False)),
+            }
+        )
+    return out
+
+
+def edit_stock_log(
+    db: Session,
+    *,
+    log_id: int,
+    new_quantity: int,
+    reason: str | None,
+    editor_user: User,
+) -> InventoryLog:
+    """在庫ログの数量を修正し、差分を在庫へ反映して修正履歴を残す（管理者のみ想定）"""
+    log = (
+        db.query(InventoryLog)
+        .options(joinedload(InventoryLog.product))
+        .filter(InventoryLog.id == log_id)
+        .first()
+    )
+    if not log:
+        raise ValueError("ログが見つかりません。")
+    product = log.product or get_product_by_id(db, log.product_id)
+    if not product:
+        raise ValueError("商品が見つかりません。")
+
+    try:
+        new_q = int(new_quantity)
+    except (TypeError, ValueError):
+        raise ValueError("数量が不正です。")
+    if new_q < 0:
+        raise ValueError("数量は0以上にしてください。")
+
+    old_q = int(log.quantity_change or 0)
+    if new_q == old_q and not reason:
+        return log
+
+    sign = -1 if log.action == InventoryAction.USE else 1
+    delta = sign * (new_q - old_q)
+
+    inv = get_inventory_row(db, log.store_id, log.product_id)
+    if not inv:
+        inv = Inventory(store_id=log.store_id, product_id=log.product_id, quantity=0, is_active=False)
+        db.add(inv)
+        db.flush()
+
+    if inv.quantity + delta < 0:
+        raise ValueError("在庫がマイナスになる修正はできません。")
+
+    before_after = int(log.quantity_after or 0)
+    next_after = before_after + delta
+    if next_after < 0:
+        raise ValueError("在庫がマイナスになる修正はできません。")
+
+    if not getattr(log, "is_edited", False):
+        log.original_quantity = old_q
+
+    inv.quantity += delta
+    log.quantity_change = new_q
+    log.quantity_after = next_after
+    log.is_edited = True
+    log.edited_at = datetime.utcnow()
+    log.edited_by = editor_user.id
+    log.edit_reason = (reason or "").strip() or None
+
+    edit = InventoryLogEdit(
+        log_id=log.id,
+        edited_at=log.edited_at,
+        edited_by=editor_user.id,
+        before_quantity=old_q,
+        after_quantity=new_q,
+        edit_reason=log.edit_reason,
+    )
+    db.add(edit)
+    db.commit()
+    db.refresh(log)
+    return log
+
+
+def list_inventory_log_edits(db: Session, *, limit: int = 200) -> list[dict]:
+    """在庫ログの修正履歴（管理者画面用）"""
+    limit = max(1, min(int(limit or 200), 2000))
+    rows = (
+        db.query(InventoryLogEdit, InventoryLog, Product, Store, User)
+        .join(InventoryLog, InventoryLog.id == InventoryLogEdit.log_id)
+        .join(Product, Product.id == InventoryLog.product_id)
+        .join(Store, Store.id == InventoryLog.store_id)
+        .join(User, User.id == InventoryLogEdit.edited_by)
+        .order_by(InventoryLogEdit.edited_at.desc(), InventoryLogEdit.id.desc())
+        .limit(limit)
+        .all()
+    )
+    out: list[dict] = []
+    for edit, log, product, store, user in rows:
+        out.append(
+            {
+                "id": edit.id,
+                "log_id": edit.log_id,
+                "edited_at": edit.edited_at,
+                "edited_by": edit.edited_by,
+                "editor_name": user.username if user else None,
+                "store_id": store.id if store else log.store_id,
+                "store_name": store.name if store else "",
+                "product_id": product.id if product else log.product_id,
+                "product_name": product.name if product else "",
+                "unit": (product.unit if product else "本") or "本",
+                "action": log.action,
+                "before_quantity": edit.before_quantity,
+                "after_quantity": edit.after_quantity,
+                "edit_reason": edit.edit_reason,
+            }
+        )
+    return out
 
 
 def build_analysis_context(

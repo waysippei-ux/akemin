@@ -761,6 +761,23 @@ input[type="number"],
   filter: brightness(0.98);
 }
 
+/* 棚補充・使用: 登録履歴 */
+.stock-history-card {
+  margin-top: 1rem;
+}
+
+.stock-log-row-edited {
+  background: #f3f4f6;
+}
+
+.log-edited-badge {
+  display: inline-block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
 /* 商品モーダル — バーコード */
 .product-barcode-field {
   grid-column: 1 / -1;

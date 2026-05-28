@@ -22,6 +22,7 @@
     <button type="button" class="admin-tab-btn" data-admin-tab="brands">ブランド</button>
     <button type="button" class="admin-tab-btn" data-admin-tab="stores">店舗</button>
     <button type="button" class="admin-tab-btn" data-admin-tab="links">紐付け</button>
+    <button type="button" class="admin-tab-btn" data-admin-tab="edit-logs">修正ログ</button>
   </nav>
 
   <!-- 商品タブ -->
@@ -169,6 +170,28 @@
         <button type="submit" class="btn btn-primary btn-sm">紐付け追加</button>
       </form>
       <ul id="link-list" class="master-list"></ul>
+    </section>
+  </div>
+
+  <!-- 修正ログ -->
+  <div class="admin-tab-panel" id="admin-tab-edit-logs" hidden>
+    <section class="admin-section">
+      <div class="panel-toolbar">
+        <h2 class="section-title">修正ログ</h2>
+        <div class="panel-toolbar-actions">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-edit-logs-reload">更新する</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-edit-logs-csv">CSVダウンロード</button>
+        </div>
+      </div>
+      <div id="edit-logs-loading" class="loading" hidden>読み込み中…</div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>修正日時</th><th>商品名</th><th>修正前</th><th>修正後</th><th>修正者</th><th>理由</th></tr>
+          </thead>
+          <tbody id="edit-logs-tbody"></tbody>
+        </table>
+      </div>
     </section>
   </div>
 </div>

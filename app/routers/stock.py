@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app import crud, crud_masters, crud_stock
-from app.auth import check_store_access, get_current_user
+from app.auth import check_store_access, get_current_user, require_admin
 from app.config import BASE_DIR
 from app.database import get_db
 from app.models import InventoryAction, User
@@ -27,6 +27,8 @@ from app.schemas import (
     StockBulkRegisterRequest,
     StockConsumeRequest,
     StockLookupOut,
+    StockLogEditIn,
+    StockLogRowOut,
     StockQuantityOut,
     StockRegisterWithProductRequest,
     StockReplenishRequest,
@@ -249,6 +251,56 @@ def lookup_product(
     check_store_access(current_user, store_id)
     _validate_store(db, store_id)
     return crud_stock.lookup_stock_product(db, store_id, code)
+
+
+@router.get("/logs", response_model=list[StockLogRowOut])
+def list_stock_logs_endpoint(
+    store_id: int = Query(..., gt=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """補充・使用の登録履歴（直近N件）"""
+    check_store_access(current_user, store_id)
+    _validate_store(db, store_id)
+    return crud.list_stock_logs(db, store_id=store_id, limit=limit)
+
+
+@router.put("/logs/{log_id}", response_model=StockLogRowOut)
+def edit_stock_log_endpoint(
+    log_id: int,
+    body: StockLogEditIn,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin),
+):
+    """登録履歴の数量を修正（管理者のみ）"""
+    try:
+        log = crud.edit_stock_log(
+            db,
+            log_id=log_id,
+            new_quantity=body.quantity,
+            reason=body.reason,
+            editor_user=admin_user,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    store = crud.get_store(db, log.store_id)
+    store_name = store.name if store else ""
+    product = crud.get_product_by_id(db, log.product_id)
+    return StockLogRowOut(
+        id=log.id,
+        store_id=log.store_id,
+        store_name=store_name,
+        product_id=log.product_id,
+        product_name=product.name if product else "",
+        unit=(product.unit if product else "本") or "本",
+        action=log.action,
+        quantity_change=log.quantity_change,
+        quantity_after=log.quantity_after,
+        created_at=log.created_at,
+        is_edited=bool(getattr(log, "is_edited", False)),
+    )
 
 
 @router.post("/register-with-product", response_model=InventoryScanResponse)

@@ -40,12 +40,14 @@
     bindStoreChange();
     bindModal();
     bindScanTab();
+    bindLogHistory();
     bindBulkTab();
     if (IS_REPLENISH) bindNewProductModal();
     else bindNotOnShelfModal();
 
     setupStoreSelect();
     renderProducts();
+    loadRecentLogs();
     switchTab("search");
 
     Api.get("/api/auth/me")
@@ -77,6 +79,9 @@
     });
 
     if (tab !== "bulk" && bulkCameraOn) stopBulkCamera();
+    if (tab === "scan") {
+      document.getElementById("scanner-input")?.focus();
+    }
   }
 
   /* ---------- 共通 ---------- */
@@ -193,8 +198,129 @@
     try {
       products = await Api.get(`/api/stock/products?store_id=${storeId}&page=${PAGE}`);
       renderProducts();
+      await loadRecentLogs();
     } catch (err) {
       showError(err.message);
+    }
+  }
+
+  /* ---------- 登録履歴 ---------- */
+  let recentLogs = [];
+
+  function bindLogHistory() {
+    document.getElementById("stock-logs-tbody")?.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-edit-log]");
+      if (!btn) return;
+      if (currentUser?.role !== "admin") return;
+      const id = parseInt(btn.dataset.editLog, 10);
+      const log = recentLogs.find((x) => x.id === id);
+      if (log) openLogEditModal(log);
+    });
+
+    document.getElementById("log-edit-close")?.addEventListener("click", closeLogEditModal);
+    document.getElementById("log-edit-cancel")?.addEventListener("click", closeLogEditModal);
+    document.getElementById("log-edit-modal")?.addEventListener("click", (e) => {
+      if (e.target.id === "log-edit-modal") closeLogEditModal();
+    });
+    document.getElementById("log-edit-form")?.addEventListener("submit", onSaveLogEdit);
+  }
+
+  async function loadRecentLogs() {
+    const tbody = document.getElementById("stock-logs-tbody");
+    if (!tbody) return;
+    const storeId = getStoreId();
+    if (!storeId) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">店舗を選択してください</td></tr>';
+      return;
+    }
+    try {
+      recentLogs = await Api.get(`/api/stock/logs?store_id=${storeId}&limit=20`);
+      renderRecentLogs();
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="5" class="empty-msg">${escapeHtml(
+        err.message || "履歴を取得できませんでした"
+      )}</td></tr>`;
+    }
+  }
+
+  function formatLogDate(iso) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}<br>${pad(d.getHours())}:${pad(
+      d.getMinutes()
+    )}`;
+  }
+
+  function signedQuantityText(log) {
+    const sign = log.action === "use" ? "-" : "+";
+    return `${sign}${log.quantity_change}${escapeHtml(log.unit || "本")}`;
+  }
+
+  function renderRecentLogs() {
+    const tbody = document.getElementById("stock-logs-tbody");
+    if (!tbody) return;
+    if (!recentLogs.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-msg">履歴がありません</td></tr>';
+      return;
+    }
+    const canEdit = currentUser?.role === "admin";
+    tbody.innerHTML = recentLogs
+      .map((log) => {
+        const edited = !!log.is_edited;
+        const editBadge = edited ? '<span class="log-edited-badge">✏️修正済</span>' : "";
+        const rowClass = edited ? " stock-log-row-edited" : "";
+        const actionCell = canEdit
+          ? `<button type="button" class="btn btn-ghost btn-sm" data-edit-log="${log.id}">編集</button>`
+          : "";
+        return `<tr class="stock-log-row${rowClass}" data-log-id="${log.id}">
+          <td data-label="日時">${formatLogDate(log.created_at)}${editBadge}</td>
+          <td data-label="商品名">${escapeHtml(log.product_name)}</td>
+          <td data-label="数量">${signedQuantityText(log)}</td>
+          <td data-label="店舗">${escapeHtml(log.store_name || "")}</td>
+          <td data-label="操作">${actionCell}</td>
+        </tr>`;
+      })
+      .join("");
+  }
+
+  function openLogEditModal(log) {
+    document.getElementById("log-edit-id").value = String(log.id);
+    document.getElementById("log-edit-product").textContent = log.product_name || "";
+    document.getElementById("log-edit-datetime").textContent = `登録日時：${new Date(
+      log.created_at
+    ).toLocaleString("ja-JP")}`;
+    document.getElementById("log-edit-before").textContent = String(log.quantity_change);
+    document.getElementById("log-edit-quantity").value = String(log.quantity_change);
+    document.getElementById("log-edit-reason").value = "";
+    const err = document.getElementById("log-edit-error");
+    if (err) err.style.display = "none";
+    showOverlay("log-edit-modal");
+  }
+
+  function closeLogEditModal() {
+    hideOverlay("log-edit-modal");
+  }
+
+  async function onSaveLogEdit(e) {
+    e.preventDefault();
+    const err = document.getElementById("log-edit-error");
+    if (err) err.style.display = "none";
+    const id = parseInt(document.getElementById("log-edit-id").value, 10);
+    const quantity = parseInt(document.getElementById("log-edit-quantity").value, 10);
+    const reason = (document.getElementById("log-edit-reason").value || "").trim();
+    try {
+      await Api.put(`/api/stock/logs/${id}`, { quantity, reason });
+      closeLogEditModal();
+      showToast("✓ 登録内容を修正しました", 2000);
+      await reloadProducts();
+      await loadRecentLogs();
+      resetScanInput();
+    } catch (ex) {
+      if (err) {
+        err.textContent = ex.message || "修正できませんでした";
+        err.style.display = "block";
+      }
     }
   }
 

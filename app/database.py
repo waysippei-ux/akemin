@@ -240,6 +240,31 @@ def migrate_schema() -> None:
                 # 既存データは棚に並んでいるものとして有効化
                 conn.execute(text("UPDATE inventories SET is_active = true"))
 
+    # 在庫ログ: 修正情報カラム追加
+    if "inventory_logs" in insp.get_table_names():
+        log_cols = {c["name"] for c in insp.get_columns("inventory_logs")}
+        alters: list[str] = []
+        if "edited_at" not in log_cols:
+            alters.append("ALTER TABLE inventory_logs ADD COLUMN edited_at TIMESTAMP")
+        if "edited_by" not in log_cols:
+            alters.append("ALTER TABLE inventory_logs ADD COLUMN edited_by INTEGER")
+        if "original_quantity" not in log_cols:
+            alters.append("ALTER TABLE inventory_logs ADD COLUMN original_quantity INTEGER")
+        if "edit_reason" not in log_cols:
+            alters.append("ALTER TABLE inventory_logs ADD COLUMN edit_reason VARCHAR(255)")
+        if "is_edited" not in log_cols:
+            alters.append(
+                "ALTER TABLE inventory_logs ADD COLUMN is_edited BOOLEAN NOT NULL DEFAULT false"
+            )
+        if alters:
+            with engine.begin() as conn:
+                for sql in alters:
+                    conn.execute(text(sql))
+
+    # 在庫ログ修正履歴テーブル（新規）
+    if "inventory_log_edits" not in insp.get_table_names():
+        models.InventoryLogEdit.__table__.create(bind=engine, checkfirst=True)
+
     if "categories" in insp.get_table_names():
         cat_cols = {c["name"] for c in insp.get_columns("categories")}
         if "sort_order" not in cat_cols:

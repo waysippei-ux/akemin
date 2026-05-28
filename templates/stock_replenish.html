@@ -38,6 +38,18 @@
 <p id="page-toast" class="scan-result" style="display:none"></p>
 <p id="page-error" class="error-msg" style="display:none"></p>
 
+<section class="card stock-history-card">
+  <h2 class="section-title">登録履歴（直近20件）</h2>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>日時</th><th>商品名</th><th>数量</th><th>店舗</th><th>操作</th></tr>
+      </thead>
+      <tbody id="stock-logs-tbody"></tbody>
+    </table>
+  </div>
+</section>
+
 <div class="modal-overlay" id="register-modal" style="display:none">
   <div class="modal card" role="dialog" aria-labelledby="register-modal-title">
     <div class="modal-header">
@@ -71,6 +83,36 @@
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="register-modal-cancel">キャンセル</button>
         <button type="submit" class="btn btn-primary" id="reg-submit-btn">登録する</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="log-edit-modal" style="display:none">
+  <div class="modal card" role="dialog" aria-labelledby="log-edit-title">
+    <div class="modal-header">
+      <h3 id="log-edit-title">登録内容を修正</h3>
+      <button type="button" class="btn-icon" id="log-edit-close" aria-label="閉じる">×</button>
+    </div>
+    <form id="log-edit-form">
+      <p class="hint-text">⚠️ 修正記録が残ります</p>
+      <input type="hidden" id="log-edit-id">
+      <p class="reg-product-name" id="log-edit-product"></p>
+      <p class="help-text" id="log-edit-datetime"></p>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="log-edit-quantity">数量（修正前: <span id="log-edit-before">—</span>）</label>
+          <input type="number" id="log-edit-quantity" class="input-number" min="0" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="log-edit-reason">修正理由（任意）</label>
+        <input type="text" id="log-edit-reason" class="input-text" maxlength="255">
+      </div>
+      <p id="log-edit-error" class="error-msg" style="display:none"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="log-edit-cancel">キャンセル</button>
+        <button type="submit" class="btn btn-primary">修正を保存</button>
       </div>
     </form>
   </div>

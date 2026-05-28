@@ -257,9 +257,33 @@ class InventoryLog(Base):
     quantity_change: Mapped[int] = mapped_column(Integer, nullable=False)
     quantity_after: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    edited_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    edited_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    original_quantity: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    edit_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    is_edited: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     user: Mapped["User"] = relationship(back_populates="inventory_logs")
     product: Mapped["Product"] = relationship(back_populates="inventory_logs")
+    editor: Mapped[Optional["User"]] = relationship(foreign_keys=[edited_by])
+    edits: Mapped[list["InventoryLogEdit"]] = relationship(
+        back_populates="log", cascade="all, delete-orphan"
+    )
+
+
+class InventoryLogEdit(Base):
+    __tablename__ = "inventory_log_edits"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    log_id: Mapped[int] = mapped_column(ForeignKey("inventory_logs.id"), nullable=False, index=True)
+    edited_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    edited_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    before_quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    after_quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    edit_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    log: Mapped["InventoryLog"] = relationship(back_populates="edits")
+    editor: Mapped["User"] = relationship(foreign_keys=[edited_by])
 
 
 # ---------------------------------------------------------------------------

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app import crud
 from app.auth import require_admin
 from app.database import get_db
-from app.schemas import BrandOut, MakerOut
+from app.schemas import BrandOut, InventoryLogEditOut, MakerOut
 
 
 router = APIRouter()
@@ -87,3 +87,13 @@ def admin_remove_maker_brand(
 ):
     if not crud.unlink_brand_from_maker(db, maker_id=maker_id, brand_id=brand_id):
         raise HTTPException(status_code=404, detail="紐付けが見つかりません。")
+
+
+@router.get("/inventory-log-edits", response_model=list[InventoryLogEditOut])
+def admin_list_inventory_log_edits(
+    limit: int = 200,
+    db: Session = Depends(get_db),
+    _=Depends(require_admin),
+):
+    """在庫登録の修正ログ（管理者のみ）"""
+    return crud.list_inventory_log_edits(db, limit=limit)

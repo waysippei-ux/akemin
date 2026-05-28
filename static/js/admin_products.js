@@ -90,6 +90,7 @@
       await loadMasters({ refreshProducts: false });
       bindProductEvents();
       bindBrandTab();
+      bindEditLogsTab();
       await refreshBrandTab();
       window.dispatchEvent(new Event("admin-ready"));
       await loadProducts({ resetPage: true });
@@ -109,6 +110,89 @@
       document.getElementById("admin-denied").hidden = false;
     }
   });
+
+  // ---------- 修正ログタブ ----------
+  let editLogsCache = [];
+
+  function bindEditLogsTab() {
+    document.getElementById("btn-edit-logs-reload")?.addEventListener("click", loadEditLogs);
+    document.getElementById("btn-edit-logs-csv")?.addEventListener("click", downloadEditLogsCsv);
+    // 初回は表示に備えて読み込み（軽量）
+    loadEditLogs();
+  }
+
+  async function loadEditLogs() {
+    const loading = document.getElementById("edit-logs-loading");
+    const tbody = document.getElementById("edit-logs-tbody");
+    if (!tbody) return;
+    if (loading) loading.hidden = false;
+    try {
+      editLogsCache = await Api.get("/admin/inventory-log-edits?limit=500");
+      renderEditLogsTable(editLogsCache);
+    } catch (ex) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-msg">${esc(
+        ex?.message || "読み込みできませんでした"
+      )}</td></tr>`;
+    } finally {
+      if (loading) loading.hidden = true;
+    }
+  }
+
+  function formatEditLogDate(iso) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleString("ja-JP");
+  }
+
+  function renderEditLogsTable(list) {
+    const tbody = document.getElementById("edit-logs-tbody");
+    if (!tbody) return;
+    if (!list?.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">修正ログがありません</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list
+      .map(
+        (r) => `<tr>
+        <td data-label="修正日時">${esc(formatEditLogDate(r.edited_at))}</td>
+        <td data-label="商品名">${esc(r.product_name || "")}</td>
+        <td data-label="修正前">${esc(String(r.before_quantity))}${esc(r.unit || "本")}</td>
+        <td data-label="修正後">${esc(String(r.after_quantity))}${esc(r.unit || "本")}</td>
+        <td data-label="修正者">${esc(r.editor_name || "")}</td>
+        <td data-label="理由">${esc(r.edit_reason || "")}</td>
+      </tr>`
+      )
+      .join("");
+  }
+
+  function csvEscape(v) {
+    const s = String(v ?? "");
+    if (/[\",\n]/.test(s)) return `"${s.replace(/\"/g, "\"\"")}"`;
+    return s;
+  }
+
+  function downloadEditLogsCsv() {
+    const rows = editLogsCache || [];
+    const header = ["edited_at", "product_name", "before", "after", "editor", "reason"];
+    const lines = [header.join(",")].concat(
+      rows.map((r) =>
+        [
+          csvEscape(formatEditLogDate(r.edited_at)),
+          csvEscape(r.product_name || ""),
+          csvEscape(`${r.before_quantity}${r.unit || "本"}`),
+          csvEscape(`${r.after_quantity}${r.unit || "本"}`),
+          csvEscape(r.editor_name || ""),
+          csvEscape(r.edit_reason || ""),
+        ].join(",")
+      )
+    );
+    const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "inventory_log_edits.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
 
   let toastTimer = null;
   function showSuccessToast(message = "保存しました ✓") {

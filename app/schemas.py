@@ -358,6 +358,42 @@ class InventoryLogOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class StockLogRowOut(BaseModel):
+    id: int
+    store_id: int
+    store_name: str
+    product_id: int
+    product_name: str
+    unit: str = "本"
+    action: InventoryAction
+    quantity_change: int
+    quantity_after: int
+    created_at: datetime
+    is_edited: bool = False
+
+
+class StockLogEditIn(BaseModel):
+    quantity: int = Field(ge=0)
+    reason: Optional[str] = None
+
+
+class InventoryLogEditOut(BaseModel):
+    id: int
+    log_id: int
+    edited_at: datetime
+    edited_by: int
+    editor_name: Optional[str] = None
+    store_id: int
+    store_name: str
+    product_id: int
+    product_name: str
+    unit: str = "本"
+    action: InventoryAction
+    before_quantity: int
+    after_quantity: int
+    edit_reason: Optional[str] = None
+
+
 # ---------------------------------------------------------------------------
 # AI 在庫分析
 # ---------------------------------------------------------------------------
