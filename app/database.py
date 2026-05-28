@@ -228,6 +228,17 @@ def migrate_schema() -> None:
     if "store_product_settings" not in insp.get_table_names():
         models.StoreProductSetting.__table__.create(bind=engine, checkfirst=True)
 
+    if "store_product_settings" in insp.get_table_names():
+        sps_cols = {c["name"] for c in insp.get_columns("store_product_settings")}
+        if "standard_stock" not in sps_cols:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "ALTER TABLE store_product_settings "
+                        "ADD COLUMN standard_stock INTEGER"
+                    )
+                )
+
     if "inventories" in insp.get_table_names():
         inv_cols = {c["name"] for c in insp.get_columns("inventories")}
         if "is_active" not in inv_cols:

@@ -8,7 +8,11 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session, joinedload
 
 from app.auth import verify_password
-from app.crud_store_settings import get_settings_map, resolve_thresholds
+from app.crud_store_settings import (
+    get_settings_map,
+    resolve_standard_stock,
+    resolve_thresholds,
+)
 from app.models import (
     Brand,
     Category,
@@ -846,7 +850,7 @@ def _inventory_item_from_row(
         barcode=product.barcode,
         unit=product.unit,
         quantity=inv.quantity,
-        standard_stock=getattr(product, "standard_stock", 0) or 0,
+        standard_stock=resolve_standard_stock(product, settings_map.get(product.id)),
         stock_level=level,
         warning_threshold=warning,
         critical_threshold=critical,

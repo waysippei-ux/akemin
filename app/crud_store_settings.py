@@ -17,6 +17,15 @@ def get_settings_map(db: Session, store_id: int) -> dict[int, StoreProductSettin
     return {r.product_id: r for r in rows}
 
 
+def resolve_standard_stock(
+    product: Product, setting: StoreProductSetting | None
+) -> int:
+    """店舗別 standard_stock を優先し、未設定なら商品マスタのデフォルト"""
+    if setting is not None and setting.standard_stock is not None:
+        return int(setting.standard_stock)
+    return int(getattr(product, "standard_stock", 0) or 0)
+
+
 def resolve_thresholds(
     product: Product, setting: StoreProductSetting | None
 ) -> tuple[int, int]:
@@ -64,6 +73,13 @@ def list_store_product_settings(db: Session, store_id: int) -> list[dict]:
     for product in products:
         setting = settings_map.get(product.id)
         effective_w, effective_c = resolve_thresholds(product, setting)
+        default_std = int(getattr(product, "standard_stock", 0) or 0)
+        custom_std = (
+            int(setting.standard_stock)
+            if setting is not None and setting.standard_stock is not None
+            else None
+        )
+        effective_std = resolve_standard_stock(product, setting)
         rows.append(
             {
                 "store_id": store_id,
@@ -71,7 +87,9 @@ def list_store_product_settings(db: Session, store_id: int) -> list[dict]:
                 "product_id": product.id,
                 "product_name": product.name,
                 "barcode": product.barcode,
-                "standard_stock": getattr(product, "standard_stock", 0) or 0,
+                "standard_stock": effective_std,
+                "default_standard_stock": default_std,
+                "custom_standard_stock": custom_std,
                 "category_id": product.category_id,
                 "category_name": product.category.name if product.category else "",
                 "maker_id": product.maker_id,
@@ -100,6 +118,9 @@ def upsert_store_product_setting(
     product_id: int,
     warning_threshold: int,
     critical_threshold: int,
+    *,
+    standard_stock: int | None = None,
+    clear_standard_stock: bool = False,
 ) -> StoreProductSetting:
     if critical_threshold > warning_threshold:
         raise ValueError("危険閾値は警告閾値以下にしてください。")
@@ -112,12 +133,17 @@ def upsert_store_product_setting(
     if row:
         row.warning_threshold = warning_threshold
         row.critical_threshold = critical_threshold
+        if clear_standard_stock:
+            row.standard_stock = None
+        elif standard_stock is not None:
+            row.standard_stock = standard_stock
     else:
         row = StoreProductSetting(
             store_id=store_id,
             product_id=product_id,
             warning_threshold=warning_threshold,
             critical_threshold=critical_threshold,
+            standard_stock=None if clear_standard_stock else standard_stock,
         )
         db.add(row)
     db.commit()

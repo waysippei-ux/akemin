@@ -845,6 +845,16 @@ input[type="number"],
   white-space: nowrap;
 }
 
+.standard-stock-store {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.standard-stock-default {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
 /* ダッシュボード: 標準在庫数表示 */
 .inventory-item .item-standard {
   display: block;

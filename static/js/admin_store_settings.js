@@ -8,7 +8,9 @@
   let brands = [];
   let rows = [];
   let currentStoreId = null;
+  let currentStoreName = "";
   let filtersReady = false;
+  let editingRow = null;
 
   document.addEventListener("DOMContentLoaded", async () => {
     try {
@@ -43,6 +45,9 @@
       document.getElementById("filter-dealer")?.addEventListener("change", applyFilters);
       document.getElementById("filter-name")?.addEventListener("input", applyFilters);
       document.getElementById("btn-filter-reset")?.addEventListener("click", resetFilters);
+
+      bindEditModal();
+
       filtersReady = true;
       await loadSettings();
     } catch (e) {
@@ -50,6 +55,15 @@
       document.getElementById("settings-denied").hidden = false;
     }
   });
+
+  function bindEditModal() {
+    document.getElementById("setting-edit-close")?.addEventListener("click", closeEditModal);
+    document.getElementById("setting-edit-cancel")?.addEventListener("click", closeEditModal);
+    document.getElementById("setting-edit-modal")?.addEventListener("click", (e) => {
+      if (e.target.id === "setting-edit-modal") closeEditModal();
+    });
+    document.getElementById("setting-edit-form")?.addEventListener("submit", onSaveEditModal);
+  }
 
   function setupShelfFilter() {
     const FH = window.FilterHelpers;
@@ -185,7 +199,7 @@
   function applyFilters() {
     if (!currentStoreId) return;
     const filtered = getFilteredRows();
-    renderTable(currentStoreId, filtered);
+    renderTable(filtered);
     updateFilterCount(filtered.length, rows.length);
   }
 
@@ -193,6 +207,8 @@
     const storeId = document.getElementById("store-select").value;
     if (!storeId) return;
     currentStoreId = storeId;
+    const store = stores.find((s) => String(s.id) === String(storeId));
+    currentStoreName = store?.name || "";
     const loading = document.getElementById("settings-loading");
     const wrap = document.getElementById("settings-table-wrap");
     loading.hidden = false;
@@ -209,46 +225,38 @@
     }
   }
 
-  function renderTable(storeId, list) {
+  function renderStandardStockCell(r) {
+    const unit = esc(r.unit || "本");
+    if (r.custom_standard_stock != null) {
+      return `<span class="standard-stock-badge standard-stock-store">📦 ${r.custom_standard_stock}${unit}</span>`;
+    }
+    const def = r.default_standard_stock ?? 0;
+    if (def > 0) {
+      return `<span class="standard-stock-badge standard-stock-default">📦 ${def}${unit}</span>`;
+    }
+    return '<span class="standard-stock-unset">未設定</span>';
+  }
+
+  function renderTable(list) {
     const tbody = document.getElementById("settings-tbody");
     if (!list.length) {
       tbody.innerHTML =
-        '<tr><td colspan="7" class="empty-msg">該当する商品がありません</td></tr>';
+        '<tr><td colspan="5" class="empty-msg">該当する商品がありません</td></tr>';
       return;
     }
     tbody.innerHTML = list
       .map((r) => {
         const customBadge = r.has_custom_setting
-          ? '<span class="badge-pill badge-yellow">店舗設定</span>'
-          : '<span class="badge-pill">デフォルト</span>';
-        const warnVal =
-          r.custom_warning_threshold != null
-            ? r.custom_warning_threshold
-            : r.default_warning_threshold;
-        const critVal =
-          r.custom_critical_threshold != null
-            ? r.custom_critical_threshold
-            : r.default_critical_threshold;
+          ? ' <span class="badge-pill badge-yellow">店舗</span>'
+          : "";
         return `
         <tr data-product-id="${r.product_id}">
           <td data-label="商品名">${esc(r.product_name)}</td>
-          <td data-label="カテゴリ">${esc(r.category_name)}</td>
-          <td data-label="標準">
-            <input type="number" class="input-number input-sm" min="0"
-              data-field="standard_stock" value="${r.standard_stock ?? 0}">
-          </td>
-          <td data-label="デフォルト">${r.default_warning_threshold} / ${r.default_critical_threshold}</td>
-          <td data-label="適用中">${r.effective_warning_threshold} / ${r.effective_critical_threshold} ${customBadge}</td>
-          <td data-label="黄 ≤">
-            <input type="number" class="input-number input-sm" min="0"
-              data-field="warning" value="${warnVal}">
-          </td>
-          <td data-label="赤 ≤">
-            <input type="number" class="input-number input-sm" min="0"
-              data-field="critical" value="${critVal}">
-          </td>
+          <td data-label="標準在庫">${renderStandardStockCell(r)}</td>
+          <td data-label="黄アラート">≤ ${r.effective_warning_threshold}${customBadge}</td>
+          <td data-label="赤アラート">≤ ${r.effective_critical_threshold}${customBadge}</td>
           <td class="cell-actions">
-            <button type="button" class="btn btn-primary btn-sm" data-save="${r.product_id}">保存</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-edit="${r.product_id}">編集</button>
             ${
               r.has_custom_setting
                 ? `<button type="button" class="btn btn-ghost btn-sm" data-reset="${r.product_id}">デフォルトに戻す</button>`
@@ -259,54 +267,115 @@
       })
       .join("");
 
-    tbody.querySelectorAll("[data-save]").forEach((btn) => {
-      btn.addEventListener("click", () => saveRow(storeId, +btn.dataset.save));
+    tbody.querySelectorAll("[data-edit]").forEach((btn) => {
+      btn.addEventListener("click", () => openEditModal(+btn.dataset.edit));
     });
     tbody.querySelectorAll("[data-reset]").forEach((btn) => {
-      btn.addEventListener("click", () => resetRow(storeId, +btn.dataset.reset));
+      btn.addEventListener("click", () => resetRow(currentStoreId, +btn.dataset.reset));
     });
   }
 
-  function getRowInputs(productId) {
-    const tr = document.querySelector(`tr[data-product-id="${productId}"]`);
-    if (!tr) return null;
-    const warning = parseInt(tr.querySelector('[data-field="warning"]').value, 10);
-    const critical = parseInt(tr.querySelector('[data-field="critical"]').value, 10);
-    const standard_stock = parseInt(
-      tr.querySelector('[data-field="standard_stock"]').value,
-      10
-    );
-    return { warning, critical, standard_stock: Number.isFinite(standard_stock) ? standard_stock : 0 };
-  }
-
-  function syncRowFromInputs(productId, warning, critical) {
+  function openEditModal(productId) {
     const row = rows.find((r) => r.product_id === productId);
     if (!row) return;
-    row.custom_warning_threshold = warning;
-    row.custom_critical_threshold = critical;
-    row.has_custom_setting = true;
-    row.effective_warning_threshold = warning;
-    row.effective_critical_threshold = critical;
+    editingRow = row;
+
+    document.getElementById("setting-edit-product-id").value = String(productId);
+    document.getElementById("setting-edit-product-name").textContent = row.product_name || "";
+    document.getElementById("setting-edit-store-name").textContent = `店舗：${currentStoreName}`;
+
+    const stdInput = document.getElementById("setting-edit-standard-stock");
+    if (row.custom_standard_stock != null) {
+      stdInput.value = String(row.custom_standard_stock);
+    } else {
+      stdInput.value = "";
+    }
+
+    const defStd = row.default_standard_stock ?? 0;
+    const hint = document.getElementById("setting-edit-standard-hint");
+    if (hint) {
+      hint.textContent =
+        defStd > 0
+          ? `デフォルト: 商品マスタ ${defStd}${row.unit || "本"}`
+          : "デフォルト: 商品マスタ未設定";
+    }
+
+    const warnVal =
+      row.custom_warning_threshold != null
+        ? row.custom_warning_threshold
+        : row.default_warning_threshold;
+    const critVal =
+      row.custom_critical_threshold != null
+        ? row.custom_critical_threshold
+        : row.default_critical_threshold;
+    document.getElementById("setting-edit-warning").value = String(warnVal);
+    document.getElementById("setting-edit-critical").value = String(critVal);
+
+    const err = document.getElementById("setting-edit-error");
+    if (err) err.style.display = "none";
+
+    const modal = document.getElementById("setting-edit-modal");
+    if (modal) modal.style.display = "flex";
   }
 
-  async function saveRow(storeId, productId) {
-    const inputs = getRowInputs(productId);
-    if (!inputs) return;
-    const { warning, critical, standard_stock } = inputs;
+  function closeEditModal() {
+    const modal = document.getElementById("setting-edit-modal");
+    if (modal) modal.style.display = "none";
+    editingRow = null;
+  }
+
+  async function onSaveEditModal(e) {
+    e.preventDefault();
+    if (!currentStoreId || !editingRow) return;
+
+    const err = document.getElementById("setting-edit-error");
+    if (err) err.style.display = "none";
+
+    const productId = parseInt(document.getElementById("setting-edit-product-id").value, 10);
+    const warning = parseInt(document.getElementById("setting-edit-warning").value, 10);
+    const critical = parseInt(document.getElementById("setting-edit-critical").value, 10);
+    const stdRaw = document.getElementById("setting-edit-standard-stock").value.trim();
+
     if (critical > warning) {
-      return alert("危険閾値（赤）は警告閾値（黄）以下にしてください。");
+      if (err) {
+        err.textContent = "危険閾値（赤）は警告閾値（黄）以下にしてください。";
+        err.style.display = "block";
+      }
+      return;
     }
+
+    const payload = {
+      warning_threshold: warning,
+      critical_threshold: critical,
+    };
+    if (stdRaw === "") {
+      payload.standard_stock = null;
+    } else {
+      const n = parseInt(stdRaw, 10);
+      if (!Number.isFinite(n) || n < 0) {
+        if (err) {
+          err.textContent = "標準在庫数は0以上の数値で入力してください。";
+          err.style.display = "block";
+        }
+        return;
+      }
+      payload.standard_stock = n;
+    }
+
     try {
-      const updated = await Api.put(`/api/stores/${storeId}/product-settings/${productId}`, {
-        warning_threshold: warning,
-        critical_threshold: critical,
-        standard_stock,
-      });
+      const updated = await Api.put(
+        `/api/stores/${currentStoreId}/product-settings/${productId}`,
+        payload
+      );
       const idx = rows.findIndex((r) => r.product_id === productId);
       if (idx >= 0) rows[idx] = { ...rows[idx], ...updated };
+      closeEditModal();
       applyFilters();
-    } catch (err) {
-      alert(err.message);
+    } catch (ex) {
+      if (err) {
+        err.textContent = ex.message || "保存できませんでした";
+        err.style.display = "block";
+      }
     }
   }
 

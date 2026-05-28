@@ -348,6 +348,7 @@ class StoreProductSetting(Base):
     product_id: Mapped[int] = mapped_column(Integer, ForeignKey("products.id"), nullable=False)
     warning_threshold: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     critical_threshold: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    standard_stock: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     store: Mapped["Store"] = relationship(back_populates="product_settings")
     product: Mapped["Product"] = relationship(back_populates="store_settings")

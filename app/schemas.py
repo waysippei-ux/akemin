@@ -66,6 +66,8 @@ class StoreProductSettingRowOut(BaseModel):
     product_name: str
     barcode: str
     standard_stock: int = 0
+    default_standard_stock: int = 0
+    custom_standard_stock: Optional[int] = None
     category_id: int
     category_name: str = ""
     maker_id: Optional[int] = None
