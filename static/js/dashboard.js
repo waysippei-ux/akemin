@@ -12,41 +12,47 @@
 
   document.addEventListener("DOMContentLoaded", init);
 
-  function vendorChipLabel(item) {
+  function displayBrand(item) {
     const brand = (item.brand_name || "").trim();
     if (brand) return brand;
-    const maker = (item.maker_name || "").trim();
-    if (maker) return maker;
-    return "";
+    return (item.maker_name || "").trim();
+  }
+
+  function cardStatus(item) {
+    const qty = item.quantity ?? 0;
+    const critical = item.critical_threshold ?? 0;
+    const warning = item.warning_threshold ?? 0;
+    if (qty <= critical) {
+      return { card: "card-crit", badge: "badge-crit", label: "至急", sort: 0 };
+    }
+    if (qty <= warning) {
+      return { card: "card-warn", badge: "badge-warn", label: "要発注", sort: 1 };
+    }
+    return { card: "card-ok", badge: "badge-ok", label: "十分", sort: 2 };
   }
 
   function renderInventoryCard(item) {
-    const chip = vendorChipLabel(item);
-    const chipHtml = chip
-      ? `<span class="item-chip">${escapeHtml(chip)}</span>`
-      : "";
+    const status = cardStatus(item);
+    const brand = displayBrand(item);
+    const chipHtml = brand ? `<span class="brand-pill">${escapeHtml(brand)}</span>` : "";
 
     const std = item.standard_stock ?? 0;
-    const showStd = std > 0;
-    const under = showStd && item.quantity < std;
-    const stdIcon = under ? "🔽" : "📦";
-    const stdClass = under ? "item-standard item-standard-under" : "item-standard item-standard-ok";
-    const stdTitle = under ? ' title="標準を下回っています"' : "";
-    const stdRow = showStd
-      ? `<span class="${stdClass}"${stdTitle}>${stdIcon} 標準: ${std}${escapeHtml(item.unit || "本")}</span>`
+    const unit = item.unit || "本";
+    const stdHtml = std
+      ? `<span class="stock-std">標準 ${std}${escapeHtml(unit)}</span>`
       : "";
 
-    const qtyClass = item.quantity === 0 ? "item-qty item-qty-zero" : "item-qty";
-    const warn = item.warning_threshold ?? 0;
-    const crit = item.critical_threshold ?? 0;
-
     return `
-      <div class="inventory-item stock-${item.stock_level}">
+      <div class="product-card ${status.card}">
+        <span class="status-badge ${status.badge}">${status.label}</span>
         ${chipHtml}
-        <span class="item-name">${escapeHtml(item.product_name)}</span>
-        <span class="${qtyClass}">在庫 ${item.quantity}${escapeHtml(item.unit || "本")}</span>
-        ${stdRow}
-        <span class="item-thresholds">黄:${warn}　赤:${crit}</span>
+        <p class="product-name">${escapeHtml(item.product_name)}</p>
+        <div class="card-divider"></div>
+        <div class="stock-row">
+          <span class="stock-num">${item.quantity}</span>
+          <span class="stock-unit">${escapeHtml(unit)}</span>
+          ${stdHtml}
+        </div>
       </div>`;
   }
 
@@ -214,10 +220,9 @@
       const items = await Api.get(
         `/api/inventory/store/${storeId}/category/${categoryId}`
       );
-      const order = { red: 0, yellow: 1, green: 2 };
       items.sort(
         (a, b) =>
-          order[a.stock_level] - order[b.stock_level] ||
+          cardStatus(a).sort - cardStatus(b).sort ||
           a.product_name.localeCompare(b.product_name, "ja")
       );
 
