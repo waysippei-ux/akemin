@@ -134,10 +134,27 @@ function formatLogRecordedAt(log) {
     }
   }
 
+  function isSettingsAdmin() {
+    return currentUser?.role === "admin";
+  }
+
   function filterStoresForUser() {
     if (currentUser?.role === "staff" && currentUser.store_id) {
       stores = stores.filter((s) => s.id === currentUser.store_id);
     }
+  }
+
+  function formatSettingDisplay(value) {
+    return value != null && value !== "" ? String(value) : "未設定";
+  }
+
+  function updateReadonlySettings(data) {
+    const std = document.getElementById("reg-ro-standard");
+    const warn = document.getElementById("reg-ro-warning");
+    const crit = document.getElementById("reg-ro-critical");
+    if (std) std.textContent = formatSettingDisplay(data?.standard_stock);
+    if (warn) warn.textContent = formatSettingDisplay(data?.warning_threshold);
+    if (crit) crit.textContent = formatSettingDisplay(data?.critical_threshold);
   }
 
   function setupStoreSelect() {
@@ -581,10 +598,25 @@ function formatLogRecordedAt(log) {
     }
     try {
       const storeId = getStoreId();
-      const [qtyData, settingData] = await Promise.all([
-        Api.get(`/api/stock/quantity?store_id=${storeId}&product_id=${modalProductId}`),
-        StoreProductSettingsApi.fetchSetting(storeId, modalProductId),
-      ]);
+      const qtyData = await Api.get(
+        `/api/stock/quantity?store_id=${storeId}&product_id=${modalProductId}`
+      );
+      let settingData;
+      if (isSettingsAdmin()) {
+        settingData = await StoreProductSettingsApi.fetchSetting(storeId, modalProductId);
+      } else {
+        const inv = products.find((x) => x.product_id === modalProductId);
+        settingData = inv
+          ? {
+              standard_stock: inv.standard_stock,
+              warning_threshold: inv.warning_threshold,
+              critical_threshold: inv.critical_threshold,
+            }
+          : await StoreProductSettingsApi.fetchSetting(storeId, modalProductId).catch(
+              () => ({})
+            );
+        updateReadonlySettings(settingData);
+      }
       modalCurrentQty = qtyData.quantity;
       modalUnit = qtyData.unit || "本";
       modalOnShelf = qtyData.is_on_shelf !== false;
@@ -598,10 +630,14 @@ function formatLogRecordedAt(log) {
       }
 
       if (qtyEl) qtyEl.textContent = `${qtyData.quantity}${modalUnit}`;
-      modalSettingsSnapshot = StoreProductSettingsApi.applyToForm(
-        settingData,
-        REG_SETTING_IDS
-      );
+      if (isSettingsAdmin()) {
+        modalSettingsSnapshot = StoreProductSettingsApi.applyToForm(
+          settingData,
+          REG_SETTING_IDS
+        );
+      } else {
+        modalSettingsSnapshot = null;
+      }
       if (!IS_REPLENISH) {
         applyConsumeQuantityLimits();
         if (errEl) errEl.style.display = "none";
@@ -689,11 +725,12 @@ function formatLogRecordedAt(log) {
       recorded_at,
     };
 
-    const currentSettings = StoreProductSettingsApi.readFromForm(REG_SETTING_IDS);
-    const settingsChanged = StoreProductSettingsApi.changed(
-      modalSettingsSnapshot,
-      currentSettings
-    );
+    const currentSettings = isSettingsAdmin()
+      ? StoreProductSettingsApi.readFromForm(REG_SETTING_IDS)
+      : null;
+    const settingsChanged =
+      isSettingsAdmin() &&
+      StoreProductSettingsApi.changed(modalSettingsSnapshot, currentSettings);
     if (settingsChanged) {
       const settingsError = StoreProductSettingsApi.validate(currentSettings);
       if (settingsError) {

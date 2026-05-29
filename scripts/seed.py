@@ -17,17 +17,17 @@ sys.path.insert(0, str(ROOT))
 
 from app import crud
 from app.database import SessionLocal, init_db
+from app.init_data import STORE_STAFF_ACCOUNTS, sync_store_staff_users
 from app.models import Category, CategorySection, Inventory, Product, UserRole
 
 # ---------------------------------------------------------------------------
 # 店舗名（変更しやすいよう変数で管理）
 # ---------------------------------------------------------------------------
-STORE_NAMES = ["店舗A", "店舗B", "店舗C", "店舗D", "店舗E"]
+STORE_NAMES = ["神宮前本店", "表参道店", "新宿店"]
 
 # ---------------------------------------------------------------------------
 # カテゴリ初期データ（section, 名前）
 # ---------------------------------------------------------------------------
-# セクション① サロンで使う材料在庫
 CATEGORIES_MATERIALS = [
     "カラー剤",
     "シャンプー剤",
@@ -38,7 +38,6 @@ CATEGORIES_MATERIALS = [
     "スタイリング剤",
 ]
 
-# セクション② 店で販売する商品在庫
 CATEGORIES_RETAIL = [
     "シャンプー",
     "トリートメント",
@@ -46,17 +45,6 @@ CATEGORIES_RETAIL = [
     "美容機器",
 ]
 
-# ---------------------------------------------------------------------------
-# ディーラー・メーカー（後で管理画面から追加 — プレースホルダー）
-# ---------------------------------------------------------------------------
-# DEALERS = [
-#     {"name": "ディーラーA", "contact_info": "03-0000-0000"},
-# ]
-# MAKERS = ["メーカーA", "メーカーB"]
-
-# ---------------------------------------------------------------------------
-# サンプル商品（カラー剤 = section① の先頭カテゴリ id=1）
-# ---------------------------------------------------------------------------
 PRODUCTS = [
     ("ミルクティー 8Lv", "4901001000001"),
     ("アッシュ 9Lv", "4901001000002"),
@@ -70,7 +58,7 @@ PRODUCTS = [
     ("オレンジ 10Lv", "4901001000010"),
 ]
 
-COLOR_CATEGORY_ID = 1  # カラー剤
+COLOR_CATEGORY_ID = 1
 INITIAL_QUANTITY = 5
 WARNING_THRESHOLD = 4
 CRITICAL_THRESHOLD = 2
@@ -78,14 +66,18 @@ CRITICAL_THRESHOLD = 2
 
 def _build_users(store_map: dict[str, int]) -> list[dict]:
     users = [
-        {"username": "admin", "password": "admin123", "role": UserRole.ADMIN, "store_name": None},
+        {
+            "username": "admin",
+            "password": "admin123",
+            "role": UserRole.ADMIN,
+            "store_name": None,
+        },
     ]
-    for i, store_name in enumerate(STORE_NAMES):
-        letter = chr(ord("a") + i)
+    for username, password, store_name in STORE_STAFF_ACCOUNTS:
         users.append(
             {
-                "username": f"staff_{letter}",
-                "password": "staff123",
+                "username": username,
+                "password": password,
                 "role": UserRole.STAFF,
                 "store_name": store_name,
             }
@@ -127,7 +119,7 @@ def seed():
     try:
         if crud.get_user_by_username(db, "admin"):
             print("⚠️  既に初期データがあります（admin ユーザーが存在します）。")
-            print("   再投入: rm -f data/inventory.db && python scripts/seed.py")
+            print("   スタッフのみ同期: python -c \"from app.database import SessionLocal, init_db; from app.init_data import sync_store_staff_users; init_db(); db=SessionLocal(); sync_store_staff_users(db); db.close()\"")
             return
 
         print("📦 初期データを投入します...")
@@ -184,12 +176,13 @@ def seed():
             print(f"  在庫: {store_name} — {len(products)} SKU × {INITIAL_QUANTITY}本")
 
         db.commit()
+        sync_store_staff_users(db)
+
         print("\n✅ 初期データの投入が完了しました。")
         print("\nログイン:")
         print("  管理者  admin / admin123")
-        for i, store_name in enumerate(STORE_NAMES):
-            letter = chr(ord("a") + i)
-            print(f"  {store_name}  staff_{letter} / staff123")
+        for username, password, store_name in STORE_STAFF_ACCOUNTS:
+            print(f"  {store_name}  {username} / {password}")
 
     finally:
         db.close()

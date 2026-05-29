@@ -14,10 +14,10 @@
       <a href="/dashboard" class="logo">AKEMIN</a>
       <nav class="main-nav" id="main-nav">
         <a href="/dashboard" class="nav-link">棚を見る</a>
-        <a href="/orders/analytics" class="nav-link">発注データ分析</a>
+        <a href="/orders/analytics" class="nav-link" id="nav-orders-analytics">発注データ分析</a>
         <a href="/stock/replenish" class="nav-link">棚に補充する</a>
         <a href="/stock/consume" class="nav-link">使用済みゴミ箱</a>
-        <a href="/admin/products" class="nav-link nav-admin" id="nav-admin" hidden>マスタ管理 &amp; 設定 ⚙️</a>
+        <a href="/admin/products" class="nav-link nav-admin" id="nav-admin">マスタ管理 &amp; 設定 ⚙️</a>
         <button type="button" class="btn btn-ghost btn-sm" id="btn-logout">ログアウト</button>
       </nav>
       <button type="button" class="nav-toggle" id="nav-toggle" aria-label="メニュー">
@@ -35,8 +35,13 @@
     <p>AKEMIN — サロン在庫管理システム</p>
   </footer>
 
-  <script src="/static/js/api.js?v=5"></script>
+  <script src="/static/js/api.js?v=6"></script>
   <script src="/static/js/ios_form_inputs.js?v=1"></script>
+  <script>
+    function showAdminAlert() {
+      alert("※ 管理者権限が必要です");
+    }
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

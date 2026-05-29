@@ -102,6 +102,11 @@ def get_stores(db: Session, active_only: bool = True) -> list[Store]:
     return q.order_by(Store.id).all()
 
 
+def get_all_stores(db: Session, active_only: bool = True) -> list[Store]:
+    """店舗一覧（管理者用エイリアス）"""
+    return get_stores(db, active_only=active_only)
+
+
 def get_store(db: Session, store_id: int) -> Store | None:
     return db.query(Store).filter(Store.id == store_id).first()
 

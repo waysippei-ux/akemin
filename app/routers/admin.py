@@ -113,7 +113,7 @@ def get_store_product_setting(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """店舗×商品の発注目安を取得（store_product_settings 優先）"""
+    """店舗×商品の発注目安を取得（スタッフは自店舗の閲覧のみ）"""
     check_store_access(current_user, store_id)
     if not crud.get_store(db, store_id):
         raise HTTPException(status_code=404, detail="店舗が見つかりません。")
@@ -127,9 +127,9 @@ def get_store_product_setting(
 def put_store_product_setting(
     body: StoreProductSettingProductPut,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
-    """店舗×商品の発注目安を UPSERT（全画面共通）"""
+    """店舗×商品の発注目安を UPSERT（管理者のみ）"""
     check_store_access(current_user, body.store_id)
     if not crud.get_store(db, body.store_id):
         raise HTTPException(status_code=404, detail="店舗が見つかりません。")

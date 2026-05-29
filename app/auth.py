@@ -88,25 +88,39 @@ def get_current_user_out(
     return UserOut.model_validate(current_user)
 
 
+def is_admin(current_user: User) -> bool:
+    return current_user.role == UserRole.ADMIN
+
+
+def get_allowed_store_ids(current_user: User) -> list[int] | None:
+    """None は全店舗アクセス可（管理者）"""
+    if is_admin(current_user):
+        return None
+    if current_user.store_id is not None:
+        return [current_user.store_id]
+    return []
+
+
 def require_admin(current_user: User = Depends(get_current_user)) -> User:
     """管理者のみ許可"""
-    if current_user.role != UserRole.ADMIN:
+    if not is_admin(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="管理者権限が必要です。",
+            detail="管理者権限が必要です",
         )
     return current_user
 
 
-def check_store_access(user: User, store_id: int) -> None:
+def check_store_access(current_user: User, store_id: int) -> bool:
     """
-    スタッフは自分の店舗のみ、管理者は全店舗OK
-    権限がなければ 403 を投げる
+    スタッフは自分の店舗のみ、管理者は全店舗OK。
+    権限がなければ 403 を投げる。
     """
-    if user.role == UserRole.ADMIN:
-        return
-    if user.store_id != store_id:
+    if is_admin(current_user):
+        return True
+    if current_user.store_id != store_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="この店舗のデータにはアクセスできません。",
+            detail="この店舗の情報にアクセスする権限がありません",
         )
+    return True

@@ -999,6 +999,20 @@ input[type="number"],
   font-size: 0.85rem;
 }
 
+.settings-readonly {
+  background: #f8f8fc;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.settings-readonly p {
+  margin: 0.35rem 0;
+}
+
 .stock-log-row-edited {
   background: #f3f4f6;
 }

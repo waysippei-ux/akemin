@@ -14,7 +14,7 @@ from app import crud, crud_masters, crud_stock
 from app.auth import check_store_access, get_current_user, require_admin
 from app.config import BASE_DIR
 from app.database import get_db
-from app.models import InventoryAction, User
+from app.models import InventoryAction, User, UserRole
 from app.schemas import (
     BrandOut,
     CategoryOut,
@@ -50,13 +50,20 @@ ALLOWED_UPLOAD_TYPES = {
 }
 
 
+def _stores_for_user(db: Session, current_user: User) -> list[StoreOut]:
+    if current_user.role == UserRole.STAFF and current_user.store_id:
+        store = crud.get_store(db, current_user.store_id)
+        rows = [store] if store and store.is_active else []
+    else:
+        rows = crud.get_all_stores(db, active_only=True)
+    return [StoreOut.model_validate(s) for s in rows]
+
+
 def _masters(
     db: Session,
+    current_user: User,
 ) -> tuple[list[dict], list[dict], list[dict], list[dict], list[dict], list[dict]]:
-    stores = [
-        StoreOut.model_validate(s).model_dump(mode="json")
-        for s in crud.get_stores(db, active_only=True)
-    ]
+    stores = [s.model_dump(mode="json") for s in _stores_for_user(db, current_user)]
     sections = [
         SectionOut.model_validate(s).model_dump(mode="json")
         for s in crud_masters.get_sections(db, active_only=True)
@@ -101,10 +108,13 @@ def _products_for_store(
 def _page_context(
     db: Session,
     page: Literal["replenish", "consume"],
+    current_user: User,
     store_id: Optional[int] = None,
 ) -> dict[str, Any]:
-    stores, sections, categories, makers, dealers, brands = _masters(db)
+    stores, sections, categories, makers, dealers, brands = _masters(db, current_user)
     default_store_id = _resolve_default_store_id(stores, store_id)
+    if current_user.role == UserRole.STAFF and current_user.store_id:
+        default_store_id = current_user.store_id
     active_only = page == "consume"
     products: list[dict[str, Any]] = []
     if default_store_id is not None:
@@ -121,6 +131,7 @@ def _page_context(
         "products": products,
         "default_store_id": default_store_id,
     }
+    is_admin = current_user.role == UserRole.ADMIN
     return {
         "stores": stores,
         "sections": sections,
@@ -130,6 +141,7 @@ def _page_context(
         "brands": brands,
         "products": products,
         "default_store_id": default_store_id,
+        "is_admin": is_admin,
         "page_json": json.dumps(page_json, ensure_ascii=False),
     }
 
@@ -139,9 +151,12 @@ def stock_replenish_page(
     request: Request,
     db: Session = Depends(get_db),
     store_id: Optional[int] = Query(None, gt=0),
+    current_user: User = Depends(get_current_user),
 ):
     return templates.TemplateResponse(
-        request, "stock_replenish.html", _page_context(db, "replenish", store_id)
+        request,
+        "stock_replenish.html",
+        _page_context(db, "replenish", current_user, store_id),
     )
 
 
@@ -150,9 +165,12 @@ def stock_consume_page(
     request: Request,
     db: Session = Depends(get_db),
     store_id: Optional[int] = Query(None, gt=0),
+    current_user: User = Depends(get_current_user),
 ):
     return templates.TemplateResponse(
-        request, "stock_consume.html", _page_context(db, "consume", store_id)
+        request,
+        "stock_consume.html",
+        _page_context(db, "consume", current_user, store_id),
     )
 
 

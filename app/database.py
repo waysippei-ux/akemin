@@ -290,6 +290,25 @@ def migrate_schema() -> None:
 
     _ensure_default_sections(engine, insp)
     _ensure_direct_dealer(engine, insp)
+    _ensure_users_store_id(engine, insp)
+
+
+def _ensure_users_store_id(engine, insp) -> None:
+    """users.store_id を既存 DB に追加"""
+    from sqlalchemy import text
+
+    if "users" not in insp.get_table_names():
+        return
+    user_cols = {c["name"] for c in insp.get_columns("users")}
+    if "store_id" in user_cols:
+        return
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN store_id INTEGER "
+                "REFERENCES stores(id)"
+            )
+        )
 
 
 def _ensure_direct_dealer(engine, insp) -> None:
@@ -353,3 +372,12 @@ def init_db():
     ensure_data_directory()
     Base.metadata.create_all(bind=engine)
     migrate_schema()
+    db = SessionLocal()
+    try:
+        from app.init_data import sync_store_staff_users
+
+        sync_store_staff_users(db)
+    except Exception:
+        logger.exception("スタッフアカウントの同期に失敗しました")
+    finally:
+        db.close()

@@ -195,14 +195,21 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.href = "/login";
   }
 
-  // 管理者のみ「マスタ管理 & 設定」リンクを表示
+  // ナビ: 管理者専用リンクはスタッフにはアラート表示
   if (Api.isLoggedIn()) {
     Api.get("/api/auth/me")
       .then((user) => {
-        if (user.role === "admin") {
-          const link = document.getElementById("nav-admin");
-          if (link) link.hidden = false;
-        }
+        const isAdmin = user.role === "admin";
+        ["nav-orders-analytics", "nav-admin"].forEach((id) => {
+          const link = document.getElementById(id);
+          if (!link) return;
+          if (isAdmin) return;
+          link.href = "#";
+          link.addEventListener("click", (e) => {
+            e.preventDefault();
+            showAdminAlert();
+          });
+        });
       })
       .catch(() => {});
   }

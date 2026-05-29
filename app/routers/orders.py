@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app import crud, crud_masters
 from app.config import BASE_DIR
-from app.auth import check_store_access, get_current_user
+from app.auth import check_store_access, get_current_user, require_admin
 from app.models import JST
 from app.crud_inventory_analytics import get_inventory_analytics
 from app.crud_order_analytics import (
@@ -117,7 +117,7 @@ def _filter_dep(
     maker_id: Optional[int] = None,
     brand_id: Optional[int] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ) -> OrderFilter:
     f = _build_filter(
         year=year,
@@ -236,12 +236,9 @@ def export_orders_csv(
 @router.get("/export/all-csv")
 def export_all_orders_csv(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
-    f = None
-    if current_user.role.value == "staff":
-        f = OrderFilter(store_id=current_user.store_id)
-    rows = iter_detail_csv_rows(db, f)
+    rows = iter_detail_csv_rows(db, None)
     filename = "AKEMIN_発注データ_全明細.csv"
     return _csv_response(rows, filename)
 
@@ -257,12 +254,8 @@ def list_orders(
     year: Optional[int] = None,
     month: Optional[int] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
-    if store_id:
-        check_store_access(current_user, store_id)
-    elif current_user.role.value == "staff":
-        store_id = current_user.store_id
     return crud_masters.list_purchase_orders(db, store_id=store_id, year=year, month=month)
 
 
@@ -270,7 +263,7 @@ def list_orders(
 def dealer_stats(
     year: int = Query(...),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     return crud_masters.dealer_monthly_totals(db, year)
 
@@ -279,7 +272,7 @@ def dealer_stats(
 def maker_stats(
     year: int = Query(...),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     return crud_masters.maker_monthly_quantities(db, year)
 
@@ -288,12 +281,11 @@ def maker_stats(
 def get_order(
     order_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     po = crud_masters.get_purchase_order(db, order_id)
     if not po:
         raise HTTPException(404, "発注が見つかりません。")
-    check_store_access(current_user, po.store_id)
     return po
 
 
@@ -348,7 +340,7 @@ def _invoice_parse_result(
 def match_invoice_lines(
     body: InvoiceMatchRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     """ディーラー選択後に納品コードで明細を再照合"""
     lines, unmatched = _invoice_lines_from_rows(db, body.lines, body.dealer_id)
@@ -370,7 +362,7 @@ async def parse_invoice(
     file: UploadFile = File(...),
     dealer_id: Optional[int] = Query(None, description="照合に使うディーラーID"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_admin),
 ):
     media = file.content_type or "image/jpeg"
     if media not in ALLOWED_TYPES:
@@ -389,9 +381,8 @@ async def parse_invoice(
 def confirm_order(
     body: PurchaseOrderConfirmRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ):
-    check_store_access(current_user, body.store_id)
     dealer = crud_masters.get_dealer(db, body.dealer_id)
     if not dealer or not dealer.is_active:
         raise HTTPException(400, "ディーラーが無効です。")
