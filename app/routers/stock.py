@@ -11,7 +11,13 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app import crud, crud_masters, crud_stock
-from app.auth import check_store_access, get_current_user, is_admin, require_admin
+from app.auth import (
+    check_store_access,
+    get_current_user,
+    get_optional_user,
+    is_admin,
+    require_admin,
+)
 from app.config import BASE_DIR
 from app.database import get_db
 from app.models import InventoryAction, User, UserRole
@@ -107,6 +113,66 @@ def _products_for_store(
     ]
 
 
+def _page_context_anonymous(
+    db: Session,
+    page: Literal["replenish", "consume"],
+    store_id: Optional[int] = None,
+) -> dict[str, Any]:
+    """ブラウザ直アクセス時（JWT 未送信）— クライアント側で /api/auth/me 後に店舗を絞る"""
+    stores = [
+        StoreOut.model_validate(s).model_dump(mode="json")
+        for s in crud.get_all_stores(db, active_only=True)
+    ]
+    sections = [
+        SectionOut.model_validate(s).model_dump(mode="json")
+        for s in crud_masters.get_sections(db, active_only=True)
+    ]
+    categories = [
+        CategoryOut.model_validate(c).model_dump(mode="json")
+        for c in crud_masters.get_categories(db, active_only=True)
+    ]
+    makers = [
+        MakerOut.model_validate(m).model_dump(mode="json")
+        for m in crud_masters.get_makers(db, active_only=True)
+    ]
+    dealers = [
+        DealerOut.model_validate(d).model_dump(mode="json")
+        for d in crud_masters.get_dealers(db, active_only=True)
+    ]
+    brands = [
+        BrandOut.model_validate(b).model_dump(mode="json")
+        for b in crud_masters.get_brands(db, active_maker_only=True)
+    ]
+    default_store_id = _resolve_default_store_id(stores, store_id)
+    active_only = page == "consume"
+    products: list[dict[str, Any]] = []
+    if default_store_id is not None:
+        products = _products_for_store(db, default_store_id, active_only=active_only)
+    page_json = {
+        "page": page,
+        "stores": stores,
+        "sections": sections,
+        "categories": categories,
+        "makers": makers,
+        "dealers": dealers,
+        "brands": brands,
+        "products": products,
+        "default_store_id": default_store_id,
+    }
+    return {
+        "stores": stores,
+        "sections": sections,
+        "categories": categories,
+        "makers": makers,
+        "dealers": dealers,
+        "brands": brands,
+        "products": products,
+        "default_store_id": default_store_id,
+        "user_role": "",
+        "page_json": json.dumps(page_json, ensure_ascii=False),
+    }
+
+
 def _page_context(
     db: Session,
     page: Literal["replenish", "consume"],
@@ -152,13 +218,15 @@ def stock_replenish_page(
     request: Request,
     db: Session = Depends(get_db),
     store_id: Optional[int] = Query(None, gt=0),
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
-    return templates.TemplateResponse(
-        request,
-        "stock_replenish.html",
-        _page_context(db, "replenish", current_user, store_id),
+    """HTML 画面 — 認証はクライアント（localStorage）+ API。Cookie があれば SSR で店舗を絞る"""
+    ctx = (
+        _page_context(db, "replenish", current_user, store_id)
+        if current_user
+        else _page_context_anonymous(db, "replenish", store_id)
     )
+    return templates.TemplateResponse(request, "stock_replenish.html", ctx)
 
 
 @pages_router.get("/stock/consume")
@@ -166,13 +234,14 @@ def stock_consume_page(
     request: Request,
     db: Session = Depends(get_db),
     store_id: Optional[int] = Query(None, gt=0),
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_user),
 ):
-    return templates.TemplateResponse(
-        request,
-        "stock_consume.html",
-        _page_context(db, "consume", current_user, store_id),
+    ctx = (
+        _page_context(db, "consume", current_user, store_id)
+        if current_user
+        else _page_context_anonymous(db, "consume", store_id)
     )
+    return templates.TemplateResponse(request, "stock_consume.html", ctx)
 
 
 def _validate_store(db: Session, store_id: int) -> None:

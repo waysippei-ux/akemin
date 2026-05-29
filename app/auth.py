@@ -4,8 +4,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from typing import List, Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -57,28 +58,63 @@ def decode_token(token: str) -> dict | None:
 # 現在のユーザー取得（Depends 用）
 # ---------------------------------------------------------------------------
 
-def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db),
-) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="認証に失敗しました。再度ログインしてください。",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+def extract_access_token(request: Request, bearer: Optional[str] = None) -> Optional[str]:
+    """Authorization ヘッダーまたは access_token Cookie から JWT を取得"""
+    if bearer:
+        return bearer
+    cookie = request.cookies.get("access_token")
+    if cookie:
+        return cookie
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.lower().startswith("bearer "):
+        return auth_header[7:].strip()
+    return None
+
+
+def _user_from_token(db: Session, token: str) -> Optional[User]:
     payload = decode_token(token)
     if payload is None:
-        raise credentials_exception
-
+        return None
     username: str | None = payload.get("sub")
     if username is None:
-        raise credentials_exception
-
+        return None
     from app import crud
 
-    user = crud.get_user_by_username(db, username)
+    return crud.get_user_by_username(db, username)
+
+
+def get_optional_user(
+    request: Request,
+    db: Session = Depends(get_db),
+    bearer: Optional[str] = Depends(oauth2_scheme),
+) -> Optional[User]:
+    """ログイン済みなら User、未認証なら None（HTML 画面用）"""
+    token = extract_access_token(request, bearer)
+    if not token:
+        return None
+    return _user_from_token(db, token)
+
+
+def get_current_user(
+    request: Request,
+    db: Session = Depends(get_db),
+    bearer: Optional[str] = Depends(oauth2_scheme),
+) -> User:
+    """API 用 — Bearer または Cookie 必須"""
+    token = extract_access_token(request, bearer)
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="認証されていません",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user = _user_from_token(db, token)
     if user is None:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="認証に失敗しました。再度ログインしてください。",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
 
 
@@ -92,7 +128,7 @@ def is_admin(current_user: User) -> bool:
     return current_user.role == UserRole.ADMIN
 
 
-def get_allowed_store_ids(current_user: User) -> list[int] | None:
+def get_allowed_store_ids(current_user: User) -> Optional[List[int]]:
     """None は全店舗アクセス可（管理者）"""
     if is_admin(current_user):
         return None
