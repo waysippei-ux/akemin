@@ -1029,7 +1029,7 @@ function toJSTDateTime(dateStr) {
           <div class="form-row">
             <div class="form-group">
               <label>数量</label>
-              <input type="number" class="input-number bulk-qty" data-idx="${idx}" value="${ln.quantity || 1}" min="1"${maxAttr}${disabled}>
+              <input type="number" inputmode="numeric" autocomplete="off" class="input-number bulk-qty" data-idx="${idx}" value="${ln.quantity || 1}" min="1"${maxAttr}${disabled}>
             </div>
             <div class="form-group">
               <label>${dtLabel}</label>
