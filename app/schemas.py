@@ -400,6 +400,7 @@ class StockLogRowOut(BaseModel):
     quantity_change: int
     quantity_after: int
     created_at: datetime
+    recorded_at: str = ""
     is_edited: bool = False
 
 

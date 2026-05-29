@@ -1023,6 +1023,15 @@ def get_recent_logs(db: Session, store_id: int, days: int = 14) -> list[Inventor
     ]
 
 
+def format_log_recorded_at_jst(dt: datetime | None) -> str:
+    """在庫ログの登録日時を JST 表示用文字列で返す（例: 2026/05/29 15:30）"""
+    if not dt:
+        return ""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(JST).strftime("%Y/%m/%d %H:%M")
+
+
 def _jst_today_range_utc_naive() -> tuple[datetime, datetime]:
     """JST の当日 0:00〜23:59:59.999999 を UTC naive に変換（DB フィルタ用）"""
     now_jst = datetime.now(JST)
@@ -1047,6 +1056,7 @@ def _stock_log_row_dict(log: InventoryLog, store_name: str) -> dict:
         "quantity_change": log.quantity_change,
         "quantity_after": log.quantity_after,
         "created_at": log.created_at,
+        "recorded_at": format_log_recorded_at_jst(log.created_at),
         "is_edited": bool(getattr(log, "is_edited", False)),
     }
 

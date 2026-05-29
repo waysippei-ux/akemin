@@ -321,6 +321,7 @@ def edit_stock_log_endpoint(
         quantity_change=log.quantity_change,
         quantity_after=log.quantity_after,
         created_at=log.created_at,
+        recorded_at=crud.format_log_recorded_at_jst(log.created_at),
         is_edited=bool(getattr(log, "is_edited", False)),
     )
 

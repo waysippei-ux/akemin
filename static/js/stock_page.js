@@ -2,16 +2,12 @@
  * 棚補充・使用（/stock/replenish | /stock/consume）
  */
 function toJST(dateStr) {
+  if (!dateStr) return "";
+  if (typeof dateStr === "string" && /^\d{4}\/\d{2}\/\d{2}/.test(dateStr)) {
+    return dateStr;
+  }
   const date = new Date(dateStr);
-  return date.toLocaleTimeString("ja-JP", {
-    timeZone: "Asia/Tokyo",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function toJSTDateTime(dateStr) {
-  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return String(dateStr);
   return date.toLocaleString("ja-JP", {
     timeZone: "Asia/Tokyo",
     year: "numeric",
@@ -20,6 +16,13 @@ function toJSTDateTime(dateStr) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+/** 本日一覧・編集モーダル用（API の recorded_at 優先） */
+function formatLogRecordedAt(log) {
+  if (log?.recorded_at) return toJST(log.recorded_at);
+  if (log?.created_at) return toJST(log.created_at);
+  return "—";
 }
 
 (function () {
@@ -337,11 +340,7 @@ function toJSTDateTime(dateStr) {
         const qtyClass = isUse
           ? "stock-log-qty stock-log-qty-minus"
           : "stock-log-qty stock-log-qty-plus";
-        const timeStr = log.created_at
-          ? toJST(log.created_at)
-          : log.recorded_at
-            ? toJST(log.recorded_at)
-            : "—";
+        const timeStr = formatLogRecordedAt(log);
         const actionCell = canEdit
           ? `<button type="button" class="btn btn-ghost btn-sm" data-edit-log="${log.id}">編集</button>`
           : "";
@@ -378,7 +377,7 @@ function toJSTDateTime(dateStr) {
     const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const header = ["時刻", "商品名", "数量", "修正済み"];
     const rows = todayLogsCache.map((log) => [
-      log.created_at ? toJST(log.created_at) : log.recorded_at ? toJST(log.recorded_at) : "",
+      formatLogRecordedAt(log),
       log.product_name || "",
       signedQuantityPlain(log),
       log.is_edited ? "はい" : "",
@@ -401,9 +400,7 @@ function toJSTDateTime(dateStr) {
   function openLogEditModal(log) {
     document.getElementById("log-edit-id").value = String(log.id);
     document.getElementById("log-edit-product").textContent = log.product_name || "";
-    document.getElementById("log-edit-datetime").textContent = `登録日時：${toJSTDateTime(
-      log.created_at
-    )}`;
+    document.getElementById("log-edit-datetime").textContent = `登録日時：${formatLogRecordedAt(log)}`;
     document.getElementById("log-edit-current").textContent = String(log.quantity_change);
     document.getElementById("log-edit-quantity").value = String(log.quantity_change);
     document.getElementById("log-edit-reason").value = "";
