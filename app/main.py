@@ -4,6 +4,10 @@ FastAPI アプリケーションのエントリーポイント
 起動方法（プロジェクトルートで）:
     uvicorn app.main:app --reload
 """
+import os
+
+os.environ["TZ"] = "Asia/Tokyo"
+
 import logging
 import sys
 from contextlib import asynccontextmanager

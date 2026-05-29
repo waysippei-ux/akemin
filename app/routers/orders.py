@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app import crud, crud_masters
 from app.auth import check_store_access, get_current_user
+from app.models import JST
 from app.crud_inventory_analytics import get_inventory_analytics
 from app.crud_order_analytics import (
     TAB_LABELS,
@@ -67,7 +68,7 @@ def _build_filter(
     maker_id: Optional[int] = None,
     brand_id: Optional[int] = None,
 ) -> OrderFilter:
-    now = datetime.now()
+    now = datetime.now(JST)
     use_month = not date_from and not date_to
     if use_month:
         if year is None:

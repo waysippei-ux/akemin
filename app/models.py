@@ -8,7 +8,9 @@
 from __future__ import annotations
 
 import enum
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
+
+JST = timezone(timedelta(hours=9))
 from typing import Optional
 
 from sqlalchemy import (
@@ -225,7 +227,9 @@ class ProductDeliveryCode(Base):
     delivery_code: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(JST)
+    )
 
     product: Mapped["Product"] = relationship(back_populates="delivery_codes")
     dealer: Mapped["Dealer"] = relationship(back_populates="product_delivery_codes")
@@ -260,8 +264,10 @@ class InventoryLog(Base):
     action: Mapped[InventoryAction] = mapped_column(Enum(InventoryAction), nullable=False)
     quantity_change: Mapped[int] = mapped_column(Integer, nullable=False)
     quantity_after: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    edited_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(JST)
+    )
+    edited_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     edited_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
     original_quantity: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     edit_reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
@@ -287,7 +293,9 @@ class InventoryLogEdit(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     log_id: Mapped[int] = mapped_column(ForeignKey("inventory_logs.id"), nullable=False, index=True)
-    edited_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    edited_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(JST), nullable=False
+    )
     edited_by: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     before_quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     after_quantity: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -311,7 +319,9 @@ class PurchaseOrder(Base):
     dealer_id: Mapped[int] = mapped_column(ForeignKey("dealers.id"), nullable=False, index=True)
     order_date: Mapped[date] = mapped_column(Date, nullable=False)
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(JST)
+    )
 
     store: Mapped["Store"] = relationship(back_populates="purchase_orders")
     dealer: Mapped["Dealer"] = relationship(back_populates="purchase_orders")

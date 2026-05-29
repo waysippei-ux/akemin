@@ -1,6 +1,27 @@
 /**
  * 棚を見る — 2セクション → カテゴリ内一覧
  */
+function toJST(dateStr) {
+  const date = new Date(dateStr);
+  return date.toLocaleTimeString("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function toJSTDateTime(dateStr) {
+  const date = new Date(dateStr);
+  return date.toLocaleString("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 (function () {
   let currentUser = null;
   let currentCategoryId = null;

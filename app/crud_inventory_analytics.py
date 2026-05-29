@@ -10,7 +10,15 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.crud_order_analytics import OrderFilter
-from app.models import Category, Inventory, InventoryAction, InventoryLog, Product, Store
+from app.models import (
+    JST,
+    Category,
+    Inventory,
+    InventoryAction,
+    InventoryLog,
+    Product,
+    Store,
+)
 
 
 def _product_matches_filter(product: Product, f: OrderFilter) -> bool:
@@ -111,7 +119,7 @@ def get_stagnant_products(
     days: int = 30,
 ) -> list[StagnantProductRowOut]:
     """is_active=true だが N 日以上増減ログがない商品"""
-    since = datetime.utcnow() - timedelta(days=days)
+    since = datetime.now(JST) - timedelta(days=days)
     q = (
         db.query(Inventory)
         .options(
@@ -138,7 +146,7 @@ def get_stagnant_products(
         if last_log and last_log >= since:
             continue
         if last_log:
-            delta_days = (datetime.utcnow() - last_log).days
+            delta_days = (datetime.now(JST) - last_log).days
         else:
             delta_days = days + 1
         result.append(

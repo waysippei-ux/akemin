@@ -14,6 +14,7 @@ from app.crud_store_settings import (
     resolve_thresholds,
 )
 from app.models import (
+    JST,
     Brand,
     Category,
     DealerMaker,
@@ -991,7 +992,7 @@ def scan_inventory(
 
 def get_recent_logs(db: Session, store_id: int, days: int = 14) -> list[InventoryLogOut]:
     """AI分析用：直近の在庫変動ログ"""
-    since = datetime.utcnow() - timedelta(days=days)
+    since = datetime.now(JST) - timedelta(days=days)
     logs = (
         db.query(InventoryLog)
         .options(
@@ -1080,7 +1081,7 @@ def list_stock_logs_today(
     else:
         raise ValueError("type は replenish または consume を指定してください。")
 
-    start = _today_start_utc()
+    start = _today_start_jst()
     store = get_store(db, store_id)
     store_name = store.name if store else ""
 
@@ -1159,7 +1160,7 @@ def edit_stock_log(
     log.quantity_change = new_q
     log.quantity_after = next_after
     log.is_edited = True
-    log.edited_at = datetime.utcnow()
+    log.edited_at = datetime.now(JST)
     log.edited_by = editor_user.id
     log.edit_reason = (reason or "").strip() or None
 
