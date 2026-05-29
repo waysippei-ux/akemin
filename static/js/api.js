@@ -193,7 +193,25 @@ document.addEventListener("DOMContentLoaded", () => {
     navToggle.addEventListener("click", () => {
       mainNav.classList.toggle("open");
     });
+    mainNav.querySelectorAll("a.nav-link").forEach((link) => {
+      link.addEventListener("click", () => {
+        if (window.innerWidth <= 768 && link.getAttribute("href") !== "#") {
+          mainNav.classList.remove("open");
+        }
+      });
+    });
   }
+
+  const path = window.location.pathname;
+  document.querySelectorAll("#main-nav a.nav-link[href^='/']").forEach((a) => {
+    const href = a.getAttribute("href");
+    if (!href || href === "#") return;
+    const active =
+      path === href ||
+      (href.length > 1 && path.startsWith(href + "/")) ||
+      (href.length > 1 && path.startsWith(href));
+    a.classList.toggle("active", active);
+  });
 
   // 保護ページ: 未ログインならログインへ
   const protectedPaths = ["/dashboard", "/scan", "/stock", "/admin", "/orders", "/ai-chat"];
