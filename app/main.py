@@ -121,6 +121,7 @@ def orders_analytics_page(request: Request):
 # API ルーター
 # ---------------------------------------------------------------------------
 from app.routers import (
+    ai_chat,
     analysis,
     admin,
     auth,
@@ -149,6 +150,8 @@ app.include_router(products.router, prefix="/api/products", tags=["商品"])
 app.include_router(inventory.router, prefix="/api/inventory", tags=["在庫"])
 app.include_router(stock.pages_router)
 app.include_router(stock.router, prefix="/api/stock", tags=["棚補充・使用"])
+app.include_router(ai_chat.router)
+app.include_router(ai_chat.api_router, prefix="/api")
 app.include_router(analysis.router, prefix="/api/analysis", tags=["AI分析"])
 app.include_router(orders.router, prefix="/api/orders", tags=["発注"])
 app.include_router(admin.router, prefix="/admin", tags=["管理"])

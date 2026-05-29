@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}AKEMIN - サロン在庫管理システム{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=12">
+  <link rel="stylesheet" href="/static/css/style.css?v=13">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -17,6 +17,7 @@
         <a href="/orders/analytics" class="nav-link" id="nav-orders-analytics">発注データ分析</a>
         <a href="/stock/replenish" class="nav-link">棚に補充する</a>
         <a href="/stock/consume" class="nav-link">使用済みゴミ箱</a>
+        <a href="/ai-chat" class="nav-link">アケミンに相談</a>
         <a href="/admin/products" class="nav-link nav-admin" id="nav-admin">マスタ管理 &amp; 設定 ⚙️</a>
         <button type="button" class="btn btn-ghost btn-sm" id="btn-logout">ログアウト</button>
       </nav>

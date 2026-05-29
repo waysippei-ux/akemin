@@ -196,7 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // 保護ページ: 未ログインならログインへ
-  const protectedPaths = ["/dashboard", "/scan", "/stock", "/admin", "/orders"];
+  const protectedPaths = ["/dashboard", "/scan", "/stock", "/admin", "/orders", "/ai-chat"];
   if (
     protectedPaths.some((p) => window.location.pathname.startsWith(p)) &&
     !Api.isLoggedIn()

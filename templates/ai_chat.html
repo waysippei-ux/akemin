@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}アケミンに相談 — AKEMIN{% endblock %}
+
+{% block content %}
+<div class="ai-chat-page">
+  <div class="ai-chat-header">
+    <div class="akemin-avatar">
+      <img src="/static/img/akemin_icon.png"
+           alt="アケミンAI"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+      <div class="akemin-avatar-fallback">AI</div>
+    </div>
+    <div>
+      <h1 class="ai-chat-title">アケミンAI</h1>
+      <p class="ai-chat-sub">補充・使用履歴をもとにアドバイスします</p>
+    </div>
+    <div class="store-selector-wrap">
+      <select id="ai-store-select" class="select"{% if store_select_disabled %} disabled{% endif %}>
+        {% if stores %}
+          {% for store in stores %}
+          <option value="{{ store.id }}"
+            {% if default_store_id and store.id == default_store_id %}selected{% endif %}>
+            {{ store.name }}
+          </option>
+          {% endfor %}
+        {% else %}
+          <option value="">店舗がありません</option>
+        {% endif %}
+      </select>
+    </div>
+  </div>
+
+  <div class="ai-suggest-area">
+    <p class="ai-suggest-label">よく使う質問</p>
+    <div class="ai-suggest-chips">
+      <button type="button" class="ai-chip" data-suggest>標準在庫数を見直して</button>
+      <button type="button" class="ai-chip" data-suggest>発注タイミングは？</button>
+      <button type="button" class="ai-chip" data-suggest>先月の使用傾向を教えて</button>
+      <button type="button" class="ai-chip" data-suggest>在庫切れが多い商品は？</button>
+      <button type="button" class="ai-chip" data-suggest>使用頻度が低い商品は？</button>
+    </div>
+  </div>
+
+  <div class="ai-chat-messages" id="ai-chat-messages">
+    <div class="ai-msg-row">
+      <div class="ai-msg-avatar-wrap">
+        <img src="/static/img/akemin_icon.png"
+             class="ai-msg-icon"
+             alt="アケミンAI"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+        <div class="ai-msg-icon-fallback">AI</div>
+      </div>
+      <div class="ai-bubble">
+        こんにちは！アケミンAIです。補充・使用履歴や現在の在庫状況をもとにアドバイスします。何でも聞いてください！
+      </div>
+    </div>
+  </div>
+
+  <div class="ai-chat-input-area">
+    <textarea
+      id="ai-chat-input"
+      class="ai-chat-textarea"
+      rows="1"
+      placeholder="在庫について質問する..."
+    ></textarea>
+    <button type="button" id="ai-send-btn" class="ai-send-btn">送信</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>const USER_ROLE = "{{ user_role }}";</script>
+<script src="/static/js/ai_chat.js?v=1"></script>
+{% endblock %}
