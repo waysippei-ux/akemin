@@ -113,10 +113,30 @@
     document.querySelectorAll("[data-suggest]").forEach((btn) => {
       btn.addEventListener("click", () => sendSuggest(btn.textContent.trim()));
     });
-    document.getElementById("ai-chat-input")?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
+    const chatInput = document.getElementById("ai-chat-input");
+    chatInput?.addEventListener("focus", function () {
+      setTimeout(() => {
+        const messages = document.getElementById("ai-chat-messages");
+        if (messages) messages.scrollTop = 999999;
+      }, 300);
+    });
+    chatInput?.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) return;
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.shiftKey) return;
+        const val = this.value;
+        if (val.endsWith("\n") || this._enterOnce) {
+          e.preventDefault();
+          this._enterOnce = false;
+          sendMessage();
+        } else {
+          this._enterOnce = true;
+          setTimeout(() => {
+            this._enterOnce = false;
+          }, 1000);
+        }
       }
     });
   });
