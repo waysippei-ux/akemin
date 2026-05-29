@@ -88,44 +88,12 @@ function toJSTDateTime(dateStr) {
 
   const ORDER_PDF_DEFAULT_LABEL = "発注表一覧を作成";
 
-  async function downloadOrderPdf(pdfUrl, shelfName) {
-    const token = Api.getToken();
-    const fullUrl = pdfUrl.startsWith("http")
-      ? pdfUrl
-      : `${window.location.origin}${pdfUrl}`;
-    const res = await fetch(fullUrl, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (!res.ok) throw new Error("ダウンロードに失敗しました");
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = blobUrl;
-    a.download = shelfName ? `発注表_${shelfName}.pdf` : "発注表.pdf";
-    a.click();
-    URL.revokeObjectURL(blobUrl);
-  }
-
   function bindOrderPdfButtons() {
     document.addEventListener("click", async (e) => {
       const btn = e.target.closest(".btn-order-pdf");
-      if (!btn) return;
-
-      if (btn.classList.contains("ready")) {
-        const pdfUrl = btn.dataset.pdfUrl;
-        if (!pdfUrl) return;
-        e.preventDefault();
-        try {
-          await downloadOrderPdf(pdfUrl, btn.dataset.shelfName || "");
-        } catch (err) {
-          console.error(err);
-          alert(err.message || "ダウンロードに失敗しました");
-        }
-        return;
-      }
+      if (!btn || btn.classList.contains("ready")) return;
 
       const shelfId = btn.dataset.shelfId;
-      const shelfName = btn.dataset.shelfName || "";
       const storeId = getStoreId();
       if (!storeId) {
         alert("店舗を選択してください。");
@@ -135,29 +103,27 @@ function toJSTDateTime(dateStr) {
 
       btn.textContent = "作成中...";
       btn.disabled = true;
-      btn.classList.remove("ready");
-      delete btn.dataset.pdfUrl;
 
       try {
-        const data = await Api.post(
-          `/api/orders/create-pdf?store_id=${encodeURIComponent(storeId)}&shelf_id=${encodeURIComponent(shelfId)}`,
-          null
+        const html = await Api.post(
+          `/api/orders/create-pdf?store_id=${encodeURIComponent(storeId)}&shelf_id=${encodeURIComponent(shelfId)}`
         );
-        if (data?.pdf_url) {
-          btn.dataset.pdfUrl = data.pdf_url;
-          btn.textContent = "ダウンロード";
-          btn.disabled = false;
-          btn.classList.add("ready");
-        } else {
-          throw new Error("PDF URL を取得できませんでした");
+        if (typeof html !== "string" || !html.trim()) {
+          throw new Error("発注表の取得に失敗しました");
         }
+        const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        btn.textContent = "ダウンロード";
+        btn.disabled = false;
+        btn.classList.add("ready");
       } catch (err) {
         btn.textContent = "作成失敗";
         setTimeout(() => {
           btn.textContent = ORDER_PDF_DEFAULT_LABEL;
           btn.disabled = false;
           btn.classList.remove("ready");
-          delete btn.dataset.pdfUrl;
         }, 3000);
         console.error(err);
       }

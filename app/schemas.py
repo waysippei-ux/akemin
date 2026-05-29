@@ -404,13 +404,6 @@ class StockLogRowOut(BaseModel):
     is_edited: bool = False
 
 
-class OrderPdfCreateOut(BaseModel):
-    """発注表 PDF 作成結果"""
-
-    pdf_url: str
-    filename: str
-
-
 class StockLogsTodayOut(BaseModel):
     """当日の補充/使用履歴（件数＋全件）"""
 

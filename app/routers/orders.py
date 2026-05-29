@@ -5,11 +5,13 @@ from datetime import date, datetime
 from typing import Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse, Response
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
+from fastapi.responses import Response
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app import crud, crud_masters
+from app.config import BASE_DIR
 from app.auth import check_store_access, get_current_user
 from app.models import JST
 from app.crud_inventory_analytics import get_inventory_analytics
@@ -37,7 +39,6 @@ from app.schemas import (
     InvoiceParseResult,
     InventoryAnalyticsOut,
     OrderAnalyticsListOut,
-    OrderPdfCreateOut,
     OrderSummaryOut,
     PurchaseOrderConfirmRequest,
     PurchaseOrderListItem,
@@ -46,6 +47,7 @@ from app.schemas import (
 from app.services.invoice_parser import parse_invoice_file
 
 router = APIRouter()
+templates = Jinja2Templates(directory=str((BASE_DIR / "templates").resolve()))
 
 ALLOWED_TYPES = {
     "image/jpeg",
@@ -409,58 +411,31 @@ def confirm_order(
     )
 
 
-@router.post("/create-pdf", response_model=OrderPdfCreateOut)
+@router.post("/create-pdf")
 def create_order_pdf(
+    request: Request,
     store_id: int = Query(..., gt=0),
     shelf_id: int = Query(..., gt=0, description="棚（sections.id）"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """指定棚の黄アラート以下商品で発注表 PDF を生成（Claude + WeasyPrint）"""
+    """指定棚の黄アラート以下商品で発注表 HTML を返す（ブラウザ印刷用）"""
     check_store_access(current_user, store_id)
-    store = crud.get_store(db, store_id)
-    if not store:
-        raise HTTPException(status_code=404, detail="店舗が見つかりません。")
-
-    from app.services import order_pdf as order_pdf_service
-
     try:
-        pdf_url, filename = order_pdf_service.generate_order_pdf(db, store_id, shelf_id)
+        store_name, shelf_name, today_jst, order_data = crud.build_order_pdf_hierarchy(
+            db, store_id, shelf_id
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"PDFの作成に失敗しました: {str(e)}"
-        ) from e
 
-    return OrderPdfCreateOut(pdf_url=pdf_url, filename=filename)
-
-
-@router.get("/order-pdf/download/{filename}")
-def download_order_pdf(
-    filename: str,
-    store_id: int = Query(..., gt=0),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """生成済み発注表 PDF をダウンロード"""
-    check_store_access(current_user, store_id)
-    from app.services import order_pdf as order_pdf_service
-
-    if not order_pdf_service._validate_filename_for_store(filename, store_id):
-        raise HTTPException(status_code=404, detail="ファイルが見つかりません。")
-
-    path = order_pdf_service.pdf_path_for_filename(filename)
-    if not path.is_file():
-        raise HTTPException(status_code=404, detail="ファイルが見つかりません。")
-
-    store = crud.get_store(db, store_id)
-    store_name = store.name if store else str(store_id)
-    today = datetime.now(JST).strftime("%Y%m%d")
-    display_name = f"発注表_{store_name}_{today}.pdf"
-
-    return FileResponse(
-        path,
-        media_type="application/pdf",
-        filename=display_name,
+    return templates.TemplateResponse(
+        request,
+        "order_pdf.html",
+        {
+            "store_name": store_name,
+            "shelf_name": shelf_name,
+            "today": today_jst,
+            "order_data": order_data,
+        },
+        media_type="text/html; charset=utf-8",
     )

@@ -869,9 +869,9 @@ def _inventory_item_from_row(
 
 def build_order_pdf_hierarchy(
     db: Session, store_id: int, section_id: int
-) -> tuple[str, str, dict]:
+) -> tuple[str, str, str, dict]:
     """
-    発注表 PDF 用の階層データを構築する（指定棚＝sections.id のカテゴリのみ）。
+    発注表（印刷用HTML）の階層データを構築する（指定棚＝sections.id のカテゴリのみ）。
     黄アラート以下（quantity <= warning）かつ needed = standard_stock - quantity > 0 の商品のみ。
     """
     from app.crud_masters import get_section
@@ -900,11 +900,10 @@ def build_order_pdf_hierarchy(
         if needed <= 0:
             continue
 
-        dealer = (item.dealer_name or "").strip() or "（ディーラー未設定）"
-        category = (item.category_name or "").strip() or "（カテゴリ未設定）"
-        maker = (item.maker_name or "").strip() or "（メーカー未設定）"
+        dealer = (item.dealer_name or "").strip() or "未分類"
+        category = (item.category_name or "").strip() or "未分類"
+        maker = (item.maker_name or "").strip() or "未分類"
         brand = (item.brand_name or "").strip() or ""
-        unit = (item.unit or "本") or "本"
 
         hierarchy.setdefault(dealer, {}).setdefault(category, {}).setdefault(maker, []).append(
             {
@@ -912,13 +911,11 @@ def build_order_pdf_hierarchy(
                 "brand_name": brand,
                 "needed": needed,
                 "is_critical": qty <= critical,
-                "unit": unit,
             }
         )
 
     today_jst = datetime.now(JST).strftime("%Y/%m/%d")
-    store_label = f"{store.name}（{section.name}）"
-    return store_label, today_jst, hierarchy
+    return store.name, section.name, today_jst, hierarchy
 
 
 def get_inventory_list(

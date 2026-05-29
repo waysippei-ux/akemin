@@ -20,6 +20,3 @@ python-dotenv==1.0.1
 # Anthropic Claude API（httpx 0.28 以上と互換性のある版）
 anthropic>=0.45.0
 psycopg2-binary==2.9.9
-
-# 発注表 PDF
-weasyprint>=62.0
