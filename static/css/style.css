@@ -378,15 +378,15 @@ input[type="number"],
 .inventory-item {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  padding: 0.5rem 0.35rem;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  padding: 0.65rem 0.55rem;
   border-radius: var(--radius);
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   font-weight: 500;
-  text-align: center;
-  min-height: 4.5rem;
+  text-align: left;
+  min-height: 5.5rem;
 }
 
 .inventory-item.stock-green {
@@ -407,27 +407,48 @@ input[type="number"],
   color: var(--stock-red-text);
 }
 
-.inventory-item .item-name {
+.inventory-item .item-chip {
+  display: inline-block;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  background: #eae9fd;
+  color: #4a3fc7;
+  font-size: 11px;
   font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inventory-item .item-name {
+  font-weight: 700;
   flex: none;
-  font-size: 0.72rem;
-  line-height: 1.25;
-  word-break: break-word;
+  font-size: 16px;
+  line-height: 1.35;
   width: 100%;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .inventory-item .item-qty {
-  font-size: 0.8rem;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.inventory-item .item-qty-zero {
+  color: #b91c1c;
   font-weight: 700;
-  white-space: nowrap;
 }
 
 .inventory-item .item-badge {
-  font-size: 0.65rem;
-  padding: 0.1rem 0.35rem;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.08);
-  order: -1;
+  display: none;
 }
 
 /* Advice */
@@ -871,21 +892,30 @@ input[type="number"],
   color: #4b5563;
 }
 
-/* ダッシュボード: 標準在庫数表示 */
+/* ダッシュボード: 標準在庫数・アラート閾値 */
 .inventory-item .item-standard {
   display: block;
-  margin-top: 0.2rem;
-  font-size: 0.9rem;
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .inventory-item .item-standard-ok {
-  color: #047857; /* green */
-  font-weight: 700;
+  color: inherit;
+  font-weight: 600;
+  opacity: 0.92;
 }
 
 .inventory-item .item-standard-under {
-  color: #b91c1c; /* red */
-  font-weight: 800;
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.inventory-item .item-thresholds {
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+  opacity: 0.88;
+  letter-spacing: 0.02em;
 }
 
 .reg-readonly {
@@ -1125,17 +1155,17 @@ input[type="number"],
   }
 
   .inventory-list {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.4rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
   }
 
   .inventory-item {
-    min-height: 4rem;
-    padding: 0.4rem 0.25rem;
+    min-height: 5.25rem;
+    padding: 0.55rem 0.45rem;
   }
 
   .inventory-item .item-name {
-    font-size: 0.65rem;
+    font-size: 15px;
   }
 }
 
@@ -1709,15 +1739,6 @@ input[type="number"],
 
   .main-nav.open {
     display: flex;
-  }
-
-  .inventory-item {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .inventory-item .item-qty {
-    font-size: 1.25rem;
   }
 
   .data-table thead {

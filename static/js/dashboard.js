@@ -10,9 +10,45 @@
   const viewDetail = $("view-detail");
   const storeSelect = $("store-select");
 
-  const LEVEL_LABEL = { green: "十分", yellow: "要発注", red: "至急" };
-
   document.addEventListener("DOMContentLoaded", init);
+
+  function vendorChipLabel(item) {
+    const brand = (item.brand_name || "").trim();
+    if (brand) return brand;
+    const maker = (item.maker_name || "").trim();
+    if (maker) return maker;
+    return "";
+  }
+
+  function renderInventoryCard(item) {
+    const chip = vendorChipLabel(item);
+    const chipHtml = chip
+      ? `<span class="item-chip">${escapeHtml(chip)}</span>`
+      : "";
+
+    const std = item.standard_stock ?? 0;
+    const showStd = std > 0;
+    const under = showStd && item.quantity < std;
+    const stdIcon = under ? "🔽" : "📦";
+    const stdClass = under ? "item-standard item-standard-under" : "item-standard item-standard-ok";
+    const stdTitle = under ? ' title="標準を下回っています"' : "";
+    const stdRow = showStd
+      ? `<span class="${stdClass}"${stdTitle}>${stdIcon} 標準: ${std}${escapeHtml(item.unit || "本")}</span>`
+      : "";
+
+    const qtyClass = item.quantity === 0 ? "item-qty item-qty-zero" : "item-qty";
+    const warn = item.warning_threshold ?? 0;
+    const crit = item.critical_threshold ?? 0;
+
+    return `
+      <div class="inventory-item stock-${item.stock_level}">
+        ${chipHtml}
+        <span class="item-name">${escapeHtml(item.product_name)}</span>
+        <span class="${qtyClass}">在庫 ${item.quantity}${escapeHtml(item.unit || "本")}</span>
+        ${stdRow}
+        <span class="item-thresholds">黄:${warn}　赤:${crit}</span>
+      </div>`;
+  }
 
   function setHidden(el, hidden) {
     if (el) el.hidden = hidden;
@@ -186,29 +222,7 @@
       );
 
       list.innerHTML = items.length
-        ? items
-            .map(
-              (item) => {
-                const std = item.standard_stock ?? 0;
-                const showStd = std > 0;
-                const under = showStd && item.quantity < std;
-                const stdIcon = under ? "🔽" : "📦";
-                const stdClass = under ? "item-standard item-standard-under" : "item-standard item-standard-ok";
-                const stdTitle = under ? ' title="標準を下回っています"' : "";
-                const stdRow = showStd
-                  ? `<span class="${stdClass}"${stdTitle}>標準: ${stdIcon} ${std} ${escapeHtml(item.unit)}</span>`
-                  : "";
-                return `
-          <div class="inventory-item stock-${item.stock_level}">
-            <span class="item-name">${escapeHtml(item.product_name)}</span>
-            <span class="item-badge">${LEVEL_LABEL[item.stock_level]}</span>
-            <span class="item-qty">${item.quantity} ${escapeHtml(item.unit)}</span>
-            ${stdRow}
-          </div>
-        `
-              }
-            )
-            .join("")
+        ? items.map((item) => renderInventoryCard(item)).join("")
         : '<p class="empty-msg">このカテゴリに商品はありません</p>';
 
       setHidden(loading, true);
