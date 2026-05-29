@@ -19,7 +19,13 @@ from app.schemas import UserOut
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+# auto_error=False: HTML 直アクセス時に Bearer 未送信でも 401 にしない
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/api/auth/login",
+    auto_error=False,
+)
+
+ACCESS_TOKEN_COOKIE = "access_token"
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +60,10 @@ def decode_token(token: str) -> dict | None:
         return None
 
 
+def cookie_max_age_seconds() -> int:
+    return int(settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
+
+
 # ---------------------------------------------------------------------------
 # 現在のユーザー取得（Depends 用）
 # ---------------------------------------------------------------------------
@@ -62,7 +72,7 @@ def extract_access_token(request: Request, bearer: Optional[str] = None) -> Opti
     """Authorization ヘッダーまたは access_token Cookie から JWT を取得"""
     if bearer:
         return bearer
-    cookie = request.cookies.get("access_token")
+    cookie = request.cookies.get(ACCESS_TOKEN_COOKIE)
     if cookie:
         return cookie
     auth_header = request.headers.get("Authorization")
@@ -83,16 +93,20 @@ def _user_from_token(db: Session, token: str) -> Optional[User]:
     return crud.get_user_by_username(db, username)
 
 
-def get_optional_user(
-    request: Request,
-    db: Session = Depends(get_db),
-    bearer: Optional[str] = Depends(oauth2_scheme),
-) -> Optional[User]:
-    """ログイン済みなら User、未認証なら None（HTML 画面用）"""
-    token = extract_access_token(request, bearer)
+def resolve_user_from_request(request: Request, db: Session) -> Optional[User]:
+    """HTML 画面用 — トークンがなければ None（401 にしない）"""
+    token = extract_access_token(request, None)
     if not token:
         return None
     return _user_from_token(db, token)
+
+
+def get_optional_user(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """Depends 用ラッパー（oauth2_scheme は使わない）"""
+    return resolve_user_from_request(request, db)
 
 
 def get_current_user(
@@ -100,7 +114,7 @@ def get_current_user(
     db: Session = Depends(get_db),
     bearer: Optional[str] = Depends(oauth2_scheme),
 ) -> User:
-    """API 用 — Bearer または Cookie 必須"""
+    """API 用 — Bearer または Cookie 必須。無い場合は 401「認証されていません」"""
     token = extract_access_token(request, bearer)
     if not token:
         raise HTTPException(

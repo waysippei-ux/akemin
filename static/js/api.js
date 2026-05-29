@@ -10,10 +10,14 @@ const Api = {
 
   setToken(token) {
     localStorage.setItem(this.TOKEN_KEY, token);
+    // HTML ページ遷移用（サーバも HttpOnly Cookie を付与 — ログイン API）
+    const maxAge = 60 * 60 * 24 * 7;
+    document.cookie = `access_token=${encodeURIComponent(token)}; path=/; max-age=${maxAge}; SameSite=Lax`;
   },
 
   clearToken() {
     localStorage.removeItem(this.TOKEN_KEY);
+    document.cookie = "access_token=; path=/; max-age=0; SameSite=Lax";
   },
 
   isLoggedIn() {
@@ -165,8 +169,13 @@ const Api = {
     return data;
   },
 
-  logout() {
+  async logout() {
     this.clearToken();
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      /* ignore */
+    }
     window.location.href = "/login";
   },
 };

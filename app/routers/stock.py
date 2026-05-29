@@ -11,13 +11,8 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app import crud, crud_masters, crud_stock
-from app.auth import (
-    check_store_access,
-    get_current_user,
-    get_optional_user,
-    is_admin,
-    require_admin,
-)
+from app.auth import check_store_access, get_current_user, is_admin, require_admin
+from app.dependencies import resolve_user_from_request
 from app.config import BASE_DIR
 from app.database import get_db
 from app.models import InventoryAction, User, UserRole
@@ -218,9 +213,12 @@ def stock_replenish_page(
     request: Request,
     db: Session = Depends(get_db),
     store_id: Optional[int] = Query(None, gt=0),
-    current_user: Optional[User] = Depends(get_optional_user),
 ):
-    """HTML 画面 — 認証はクライアント（localStorage）+ API。Cookie があれば SSR で店舗を絞る"""
+    """
+    HTML 画面 — Depends で OAuth2 を走らせない（未認証でも HTML を返す）。
+    認証は Cookie / Authorization / localStorage(API)。未ログイン時は JS が /login へ誘導。
+    """
+    current_user = resolve_user_from_request(request, db)
     ctx = (
         _page_context(db, "replenish", current_user, store_id)
         if current_user
@@ -234,8 +232,8 @@ def stock_consume_page(
     request: Request,
     db: Session = Depends(get_db),
     store_id: Optional[int] = Query(None, gt=0),
-    current_user: Optional[User] = Depends(get_optional_user),
 ):
+    current_user = resolve_user_from_request(request, db)
     ctx = (
         _page_context(db, "consume", current_user, store_id)
         if current_user
