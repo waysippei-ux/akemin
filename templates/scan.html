@@ -24,7 +24,7 @@
   </div>
   <div class="form-group">
     <label for="quantity">数量</label>
-    <input type="number" inputmode="numeric" autocomplete="off" id="quantity" class="input-number" value="1" min="1" max="99">
+    <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="quantity" class="input-number" value="1" min="1" max="99">
   </div>
 </div>
 
@@ -38,7 +38,7 @@
   <h2 class="section-title">手入力</h2>
   <div class="manual-row">
     <input type="text" id="barcode-input" class="input-text" placeholder="JANコード / バーコード"
-           inputmode="numeric" autocomplete="off">
+           inputmode="text" autocomplete="off">
     <button type="button" class="btn btn-primary" id="btn-manual-submit">送信</button>
   </div>
 </section>

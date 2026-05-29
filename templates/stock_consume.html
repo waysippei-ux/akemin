@@ -83,7 +83,7 @@
       <div class="form-row">
         <div class="form-group">
           <label for="reg-quantity">数量 *</label>
-          <input type="number" inputmode="numeric" autocomplete="off" id="reg-quantity" class="input-number" value="1" min="1" required>
+          <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="reg-quantity" class="input-number" value="1" min="1" required>
         </div>
         <div class="form-group">
           <label for="reg-datetime">使用日時</label>
@@ -93,16 +93,16 @@
       <p class="register-modal-divider" role="presentation">──── この店舗の発注目安 ────</p>
       <div class="form-group">
         <label for="reg-standard-stock">標準在庫数</label>
-        <input type="number" inputmode="numeric" autocomplete="off" id="reg-standard-stock" class="input-number" min="0" placeholder="">
+        <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="reg-standard-stock" class="input-number" min="0" placeholder="">
       </div>
       <div class="form-row">
         <div class="form-group">
           <label for="reg-warning-threshold">黄アラート ≤</label>
-          <input type="number" inputmode="numeric" autocomplete="off" id="reg-warning-threshold" class="input-number" min="0">
+          <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="reg-warning-threshold" class="input-number" min="0">
         </div>
         <div class="form-group">
           <label for="reg-critical-threshold">赤アラート ≤</label>
-          <input type="number" inputmode="numeric" autocomplete="off" id="reg-critical-threshold" class="input-number" min="0">
+          <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="reg-critical-threshold" class="input-number" min="0">
         </div>
       </div>
       <p class="help-text register-modal-settings-note">※ 変更すると店舗別設定に保存されます</p>
@@ -129,7 +129,7 @@
       <div class="form-row">
         <div class="form-group">
           <label for="log-edit-quantity">数量（現在: <span id="log-edit-current">—</span>）</label>
-          <input type="number" inputmode="numeric" autocomplete="off" id="log-edit-quantity" class="input-number" min="0" required>
+          <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="log-edit-quantity" class="input-number" min="0" required>
         </div>
       </div>
       <div class="form-group">
@@ -164,5 +164,5 @@
 <script>window.STOCK_PAGE = {{ page_json | safe }};</script>
 <script src="/static/js/filter_helpers.js?v=3"></script>
 <script src="/static/js/store_product_settings_api.js?v=1"></script>
-<script src="/static/js/stock_page.js?v=10"></script>
+<script src="/static/js/stock_page.js?v=11"></script>
 {% endblock %}

@@ -208,10 +208,13 @@ input[type="number"],
 
 .input-number {
   width: 5rem;
-  padding: 0.65rem 0.75rem;
+  min-height: 48px;
+  padding: 12px 0.75rem;
   font-size: 1rem;
   border: 1px solid var(--color-border);
   border-radius: 8px;
+  box-sizing: border-box;
+  touch-action: manipulation;
 }
 
 /* Buttons */
@@ -2547,6 +2550,24 @@ input[type="number"],
   select,
   textarea {
     font-size: 16px !important;
+  }
+
+  /* スマホでの input 操作改善（数値欄は appearance:none を付けない — iOS でキーボードが出ないことがある） */
+  input[type="number"],
+  input[type="text"],
+  input[type="datetime-local"],
+  .input-number {
+    font-size: 16px;
+    touch-action: manipulation;
+    min-height: 48px;
+    padding: 12px;
+    box-sizing: border-box;
+  }
+
+  input[type="text"],
+  input[type="datetime-local"] {
+    -webkit-appearance: none;
+    appearance: none;
   }
 
   .modal-overlay .modal input,

@@ -97,17 +97,17 @@
       <p class="help-text" id="setting-edit-store-name"></p>
       <div class="form-group">
         <label for="setting-edit-standard-stock">標準在庫数</label>
-        <input type="number" inputmode="numeric" autocomplete="off" id="setting-edit-standard-stock" class="input-number" min="0" placeholder="">
+        <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="setting-edit-standard-stock" class="input-number" min="0" placeholder="">
         <p class="help-text" id="setting-edit-standard-hint"></p>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label for="setting-edit-warning">黄アラート ≤</label>
-          <input type="number" inputmode="numeric" autocomplete="off" id="setting-edit-warning" class="input-number" min="0" required>
+          <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="setting-edit-warning" class="input-number" min="0" required>
         </div>
         <div class="form-group">
           <label for="setting-edit-critical">赤アラート ≤</label>
-          <input type="number" inputmode="numeric" autocomplete="off" id="setting-edit-critical" class="input-number" min="0" required>
+          <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="setting-edit-critical" class="input-number" min="0" required>
         </div>
       </div>
       <p id="setting-edit-error" class="error-msg" style="display:none"></p>

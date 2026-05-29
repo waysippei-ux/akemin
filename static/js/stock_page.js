@@ -78,6 +78,7 @@ function toJSTDateTime(dateStr) {
     renderProducts();
     refreshTodayLogs();
     switchTab("search");
+    if (typeof applyIosFormInputs === "function") applyIosFormInputs();
 
     Api.get("/api/auth/me")
       .then((user) => {
@@ -1029,7 +1030,7 @@ function toJSTDateTime(dateStr) {
           <div class="form-row">
             <div class="form-group">
               <label>数量</label>
-              <input type="number" inputmode="numeric" autocomplete="off" class="input-number bulk-qty" data-idx="${idx}" value="${ln.quantity || 1}" min="1"${maxAttr}${disabled}>
+              <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="input-number bulk-qty" data-idx="${idx}" value="${ln.quantity || 1}" min="1"${maxAttr}${disabled}>
             </div>
             <div class="form-group">
               <label>${dtLabel}</label>
@@ -1039,6 +1040,8 @@ function toJSTDateTime(dateStr) {
         </li>`;
       })
       .join("");
+
+    if (typeof applyIosFormInputs === "function") applyIosFormInputs(list);
 
     list.querySelectorAll(".bulk-qty").forEach((inp) => {
       inp.addEventListener("input", (e) => {

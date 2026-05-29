@@ -467,7 +467,7 @@
       </div>
       <div class="form-group product-barcode-field">
         <label for="modal-barcode">バーコード（推奨）</label>
-        <input type="text" id="modal-barcode" class="input-text" placeholder="手入力またはスキャナーで入力" inputmode="numeric" autocomplete="off">
+        <input type="text" id="modal-barcode" class="input-text" placeholder="手入力またはスキャナーで入力" inputmode="text" autocomplete="off">
         <p id="modal-barcode-dup-warning" class="barcode-dup-warning" hidden></p>
       </div>
       <div class="form-row">
@@ -479,16 +479,16 @@
       <div class="form-row">
         <div class="form-group">
           <label for="modal-standard_stock">標準在庫数</label>
-          <input type="number" inputmode="numeric" autocomplete="off" id="modal-standard_stock" value="0" min="0">
+          <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="modal-standard_stock" class="input-number" value="0" min="0">
           <p class="help-text">通常時に維持したい在庫数</p>
         </div>
         <div class="form-group">
           <label for="modal-warning_threshold">黄アラート ≤</label>
-          <input type="number" inputmode="numeric" autocomplete="off" id="modal-warning_threshold" value="4" min="0">
+          <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="modal-warning_threshold" class="input-number" value="4" min="0">
         </div>
         <div class="form-group">
           <label for="modal-critical_threshold">赤アラート ≤</label>
-          <input type="number" inputmode="numeric" autocomplete="off" id="modal-critical_threshold" value="2" min="0">
+          <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="modal-critical_threshold" class="input-number" value="2" min="0">
         </div>
       </div>
       <section class="deployment-section card">
