@@ -10,7 +10,6 @@ from datetime import datetime
 from pathlib import Path
 
 import anthropic
-from weasyprint import HTML
 
 from app import crud
 from app.config import BASE_DIR, _get_settings
@@ -157,6 +156,15 @@ def generate_order_pdf(db, store_id: int) -> tuple[str, str]:
     now = datetime.now(JST)
     filename = f"order_{store_id}_{now.strftime('%Y%m%d')}_{now.strftime('%H%M%S')}.pdf"
     pdf_path = pdf_path_for_filename(filename)
+
+    try:
+        from weasyprint import HTML
+    except OSError as e:
+        raise RuntimeError(
+            "WeasyPrint のシステムライブラリが不足しています。"
+            " https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation "
+            "を参照してインストールしてください。"
+        ) from e
 
     HTML(string=html_content, base_url=str(BASE_DIR)).write_pdf(str(pdf_path))
 
