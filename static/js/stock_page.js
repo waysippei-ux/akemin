@@ -1105,6 +1105,9 @@ function toJSTDateTime(dateStr) {
 
   /* ---------- UI ヘルパー ---------- */
   function showOverlay(id) {
+    if (bulkCameraOn) {
+      stopBulkCamera();
+    }
     const el = document.getElementById(id);
     if (el) {
       el.style.display = "flex";
