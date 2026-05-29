@@ -86,9 +86,78 @@ function toJSTDateTime(dateStr) {
     return viewDetail && !viewDetail.hidden;
   }
 
+  function bindOrderPdfButton() {
+    const btn = $("create-order-pdf-btn");
+    if (!btn) return;
+
+    const defaultLabel = "発注表一覧を作成";
+    let pdfUrl = null;
+
+    btn.addEventListener("click", async () => {
+      if (btn.classList.contains("ready") && pdfUrl) {
+        try {
+          const token = Api.getToken();
+          const fullUrl = pdfUrl.startsWith("http")
+            ? pdfUrl
+            : `${window.location.origin}${pdfUrl}`;
+          const res = await fetch(fullUrl, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (!res.ok) throw new Error("ダウンロードに失敗しました");
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = blobUrl;
+          a.download = "発注表.pdf";
+          a.click();
+          URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+          console.error(err);
+          alert(err.message || "ダウンロードに失敗しました");
+        }
+        return;
+      }
+
+      const storeId = getStoreId();
+      if (!storeId) {
+        alert("店舗を選択してください。");
+        return;
+      }
+
+      btn.textContent = "作成中...";
+      btn.disabled = true;
+      btn.classList.remove("ready");
+      pdfUrl = null;
+
+      try {
+        const data = await Api.post(
+          `/api/orders/create-pdf?store_id=${encodeURIComponent(storeId)}`,
+          null
+        );
+        if (data?.pdf_url) {
+          pdfUrl = data.pdf_url;
+          btn.textContent = "ダウンロード";
+          btn.disabled = false;
+          btn.classList.add("ready");
+        } else {
+          throw new Error("PDF URL を取得できませんでした");
+        }
+      } catch (e) {
+        btn.textContent = "作成失敗";
+        setTimeout(() => {
+          btn.textContent = defaultLabel;
+          btn.disabled = false;
+          btn.classList.remove("ready");
+        }, 3000);
+        console.error(e);
+      }
+    });
+  }
+
   async function init() {
     $("btn-refresh")?.addEventListener("click", onRefresh);
     $("btn-back-categories")?.addEventListener("click", showCategories);
+    bindOrderPdfButton();
     storeSelect?.addEventListener("change", () => {
       if (isDetailView()) loadCategoryDetail();
       else loadCategoryCards();

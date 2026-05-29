@@ -6,7 +6,7 @@ from typing import Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 
 from app import crud, crud_masters
@@ -37,6 +37,7 @@ from app.schemas import (
     InvoiceParseResult,
     InventoryAnalyticsOut,
     OrderAnalyticsListOut,
+    OrderPdfCreateOut,
     OrderSummaryOut,
     PurchaseOrderConfirmRequest,
     PurchaseOrderListItem,
@@ -405,4 +406,60 @@ def confirm_order(
         body.order_date,
         valid_lines,
         body.note,
+    )
+
+
+@router.post("/create-pdf", response_model=OrderPdfCreateOut)
+def create_order_pdf(
+    store_id: int = Query(..., gt=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """黄アラート以下の商品で発注表 PDF を生成（Claude + WeasyPrint）"""
+    check_store_access(current_user, store_id)
+    store = crud.get_store(db, store_id)
+    if not store:
+        raise HTTPException(status_code=404, detail="店舗が見つかりません。")
+
+    from app.services import order_pdf as order_pdf_service
+
+    try:
+        pdf_url, filename = order_pdf_service.generate_order_pdf(db, store_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"PDFの作成に失敗しました: {str(e)}"
+        ) from e
+
+    return OrderPdfCreateOut(pdf_url=pdf_url, filename=filename)
+
+
+@router.get("/order-pdf/download/{filename}")
+def download_order_pdf(
+    filename: str,
+    store_id: int = Query(..., gt=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """生成済み発注表 PDF をダウンロード"""
+    check_store_access(current_user, store_id)
+    from app.services import order_pdf as order_pdf_service
+
+    if not order_pdf_service._validate_filename_for_store(filename, store_id):
+        raise HTTPException(status_code=404, detail="ファイルが見つかりません。")
+
+    path = order_pdf_service.pdf_path_for_filename(filename)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="ファイルが見つかりません。")
+
+    store = crud.get_store(db, store_id)
+    store_name = store.name if store else str(store_id)
+    today = datetime.now(JST).strftime("%Y%m%d")
+    display_name = f"発注表_{store_name}_{today}.pdf"
+
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        filename=display_name,
     )

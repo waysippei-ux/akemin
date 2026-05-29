@@ -141,6 +141,35 @@ a {
   font-size: 0.9rem;
 }
 
+.dashboard-title-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.btn-order-pdf {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  background: #4a3fc7;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-order-pdf:disabled {
+  background: #aaa;
+  cursor: not-allowed;
+}
+
+.btn-order-pdf.ready {
+  background: #1d9e75;
+}
+
 /* 管理画面トースト（保存/削除の成功通知） */
 .admin-success-toast {
   position: fixed;

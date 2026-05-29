@@ -867,6 +867,53 @@ def _inventory_item_from_row(
     )
 
 
+def build_order_pdf_hierarchy(
+    db: Session, store_id: int
+) -> tuple[str, str, dict]:
+    """
+    発注表 PDF 用の階層データを構築する。
+    黄アラート以下（quantity <= warning）かつ needed = standard_stock - quantity > 0 の商品のみ。
+    """
+    store = get_store(db, store_id)
+    if not store:
+        raise ValueError("店舗が見つかりません。")
+
+    items = get_inventory_list(db, store_id, active_only=True)
+    hierarchy: dict = {}
+
+    for item in items:
+        qty = int(item.quantity or 0)
+        warning = int(item.warning_threshold or 0)
+        critical = int(item.critical_threshold or 0)
+        std = int(item.standard_stock or 0)
+
+        if qty > warning:
+            continue
+
+        needed = std - qty
+        if needed <= 0:
+            continue
+
+        dealer = (item.dealer_name or "").strip() or "（ディーラー未設定）"
+        category = (item.category_name or "").strip() or "（カテゴリ未設定）"
+        maker = (item.maker_name or "").strip() or "（メーカー未設定）"
+        brand = (item.brand_name or "").strip() or ""
+        unit = (item.unit or "本") or "本"
+
+        hierarchy.setdefault(dealer, {}).setdefault(category, {}).setdefault(maker, []).append(
+            {
+                "product_name": item.product_name,
+                "brand_name": brand,
+                "needed": needed,
+                "is_critical": qty <= critical,
+                "unit": unit,
+            }
+        )
+
+    today_jst = datetime.now(JST).strftime("%Y/%m/%d")
+    return store.name, today_jst, hierarchy
+
+
 def get_inventory_list(
     db: Session,
     store_id: int,

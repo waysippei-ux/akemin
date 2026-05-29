@@ -4,7 +4,12 @@
 
 {% block content %}
 <section class="page-header">
-  <h1 id="page-title">棚を見る</h1>
+  <div class="dashboard-title-row">
+    <h1 id="page-title">棚を見る</h1>
+    <button type="button" id="create-order-pdf-btn" class="btn btn-primary btn-order-pdf">
+      発注表一覧を作成
+    </button>
+  </div>
   <p class="page-desc" id="user-greeting">読み込み中…</p>
 </section>
 
@@ -47,5 +52,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/dashboard.js?v=11"></script>
+<script src="/static/js/dashboard.js?v=12"></script>
 {% endblock %}
