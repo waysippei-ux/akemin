@@ -81,14 +81,33 @@ a {
 .main-nav {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+nav a,
+.nav-link {
+  white-space: nowrap;
+  font-size: 13px;
 }
 
 .nav-link {
   color: var(--color-text);
-  font-size: 0.9rem;
-  padding: 0.35rem 0.5rem;
+  padding: 0.35rem 0.4rem;
   border-radius: 6px;
+}
+
+@media (min-width: 769px) {
+  nav a,
+  .nav-link {
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  header nav,
+  .main-nav {
+    gap: 4px;
+  }
 }
 
 .nav-link:hover {
