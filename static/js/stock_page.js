@@ -279,25 +279,38 @@ function toJSTDateTime(dateStr) {
       return;
     }
     try {
-      const data = await Api.get(`/api/stock/logs/today?store_id=${storeId}&type=${LOG_TYPE}`);
-      todayLogsCache = data.items || [];
+      const data = await Api.get(
+        `/api/stock/logs/today?store_id=${encodeURIComponent(storeId)}&type=${encodeURIComponent(LOG_TYPE)}`
+      );
+      todayLogsCache = Array.isArray(data.items) ? data.items : [];
       todayStoreName = data.store_name || "";
-      const n = data.count ?? todayLogsCache.length;
+      const n = typeof data.count === "number" ? data.count : todayLogsCache.length;
       if (countEl) countEl.textContent = String(n);
       if (isTodayLogsModalOpen()) renderTodayLogs();
-    } catch {
-      if (countEl) countEl.textContent = "—";
+    } catch (err) {
+      todayLogsCache = [];
+      todayStoreName = "";
+      if (countEl) countEl.textContent = "0";
+      if (isTodayLogsModalOpen()) renderTodayLogs();
+      console.error("本日の登録履歴の取得に失敗:", err);
     }
   }
 
+  function logActionKind(log) {
+    const a = String(log?.action ?? "").toLowerCase();
+    return a === "use" ? "use" : "restock";
+  }
+
   function signedQuantityText(log) {
-    const sign = log.action === "use" ? "-" : "+";
-    return `${sign}${log.quantity_change}${escapeHtml(log.unit || "本")}`;
+    const sign = logActionKind(log) === "use" ? "-" : "+";
+    const qty = log.quantity_change ?? log.quantity ?? 0;
+    return `${sign}${qty}${escapeHtml(log.unit || "本")}`;
   }
 
   function signedQuantityPlain(log) {
-    const sign = log.action === "use" ? "-" : "+";
-    return `${sign}${log.quantity_change}${log.unit || "本"}`;
+    const sign = logActionKind(log) === "use" ? "-" : "+";
+    const qty = log.quantity_change ?? log.quantity ?? 0;
+    return `${sign}${qty}${log.unit || "本"}`;
   }
 
   function renderTodayLogs() {
@@ -310,7 +323,8 @@ function toJSTDateTime(dateStr) {
         : TODAY_LIST_LABEL;
     }
     if (!todayLogsCache.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">本日の登録はありません</td></tr>';
+      tbody.innerHTML =
+        '<tr><td colspan="4" class="empty-msg">本日の記録はありません</td></tr>';
       return;
     }
     const canEdit = currentUser?.role === "admin";
@@ -319,16 +333,21 @@ function toJSTDateTime(dateStr) {
         const edited = !!log.is_edited;
         const editBadge = edited ? '<span class="log-edited-badge">✏️修正済</span>' : "";
         const rowClass = edited ? " stock-log-row-edited" : "";
-        const qtyClass =
-          log.action === "use"
-            ? "stock-log-qty stock-log-qty-minus"
-            : "stock-log-qty stock-log-qty-plus";
+        const isUse = logActionKind(log) === "use";
+        const qtyClass = isUse
+          ? "stock-log-qty stock-log-qty-minus"
+          : "stock-log-qty stock-log-qty-plus";
+        const timeStr = log.created_at
+          ? toJST(log.created_at)
+          : log.recorded_at
+            ? toJST(log.recorded_at)
+            : "—";
         const actionCell = canEdit
           ? `<button type="button" class="btn btn-ghost btn-sm" data-edit-log="${log.id}">編集</button>`
           : "";
         return `<tr class="stock-log-row${rowClass}" data-log-id="${log.id}">
-          <td data-label="時刻">${toJST(log.created_at)}${editBadge}</td>
-          <td data-label="商品名">${escapeHtml(log.product_name)}</td>
+          <td data-label="時刻">${timeStr}${editBadge}</td>
+          <td data-label="商品名">${escapeHtml(log.product_name || "")}</td>
           <td data-label="数量"><span class="${qtyClass}">${signedQuantityText(log)}</span></td>
           <td data-label="操作">${actionCell}</td>
         </tr>`;
@@ -359,7 +378,7 @@ function toJSTDateTime(dateStr) {
     const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const header = ["時刻", "商品名", "数量", "修正済み"];
     const rows = todayLogsCache.map((log) => [
-      toJST(log.created_at),
+      log.created_at ? toJST(log.created_at) : log.recorded_at ? toJST(log.recorded_at) : "",
       log.product_name || "",
       signedQuantityPlain(log),
       log.is_edited ? "はい" : "",

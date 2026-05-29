@@ -3,7 +3,7 @@
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -1023,14 +1023,16 @@ def get_recent_logs(db: Session, store_id: int, days: int = 14) -> list[Inventor
     ]
 
 
-def _today_start_utc() -> datetime:
-    """当日 0:00（JST）を UTC naive で返す"""
-    from datetime import timedelta, timezone
-
-    jst = timezone(timedelta(hours=9))
-    now_jst = datetime.now(jst)
-    start_jst = now_jst.replace(hour=0, minute=0, second=0, microsecond=0)
-    return start_jst.astimezone(timezone.utc).replace(tzinfo=None)
+def _jst_today_range_utc_naive() -> tuple[datetime, datetime]:
+    """JST の当日 0:00〜23:59:59.999999 を UTC naive に変換（DB フィルタ用）"""
+    now_jst = datetime.now(JST)
+    today_start = now_jst.replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ).astimezone(timezone.utc)
+    today_end = now_jst.replace(
+        hour=23, minute=59, second=59, microsecond=999999
+    ).astimezone(timezone.utc)
+    return today_start.replace(tzinfo=None), today_end.replace(tzinfo=None)
 
 
 def _stock_log_row_dict(log: InventoryLog, store_name: str) -> dict:
@@ -1081,7 +1083,7 @@ def list_stock_logs_today(
     else:
         raise ValueError("type は replenish または consume を指定してください。")
 
-    start = _today_start_jst()
+    today_start, today_end = _jst_today_range_utc_naive()
     store = get_store(db, store_id)
     store_name = store.name if store else ""
 
@@ -1094,7 +1096,8 @@ def list_stock_logs_today(
         .filter(
             InventoryLog.store_id == store_id,
             InventoryLog.action == action,
-            InventoryLog.created_at >= start,
+            InventoryLog.created_at >= today_start,
+            InventoryLog.created_at <= today_end,
         )
         .order_by(InventoryLog.created_at.desc(), InventoryLog.id.desc())
         .all()

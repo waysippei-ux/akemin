@@ -276,9 +276,11 @@ def list_stock_logs_today_endpoint(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """当日の補充/使用履歴（全件＋件数）"""
+    """当日（JST）の補充/使用履歴（全件＋件数）— crud で JST→UTC 日付範囲フィルタ"""
     check_store_access(current_user, store_id)
     _validate_store(db, store_id)
+    if type not in ("replenish", "consume"):
+        raise HTTPException(status_code=400, detail="type は replenish または consume を指定してください。")
     try:
         data = crud.list_stock_logs_today(db, store_id=store_id, log_type=type)
     except ValueError as e:
