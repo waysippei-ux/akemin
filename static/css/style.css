@@ -101,10 +101,36 @@ a {
   border-color: #ddd !important;
 }
 
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.nav-toggle span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--color-text);
+}
+
 /* PC — 角丸ボタン風ナビ */
 @media (min-width: 769px) {
-  .nav-toggle {
-    display: none;
+  .hamburger-btn,
+  .menu-btn,
+  .nav-toggle,
+  [class*="hamburger"],
+  [class*="menu-toggle"] {
+    display: none !important;
   }
 
   .main-nav {
@@ -162,33 +188,44 @@ a {
 
 /* スマホ — 2カラムカードメニュー */
 @media (max-width: 768px) {
-  .nav-toggle {
-    display: flex;
+  .hamburger-btn,
+  .menu-btn,
+  .nav-toggle,
+  [class*="hamburger"],
+  [class*="menu-toggle"] {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    z-index: 300;
+    margin-left: auto;
   }
 
-  .main-nav {
+  .main-nav.mobile-nav-menu {
     display: none;
     position: absolute;
     top: var(--header-h);
     left: 0;
     right: 0;
-    z-index: 99;
+    z-index: 200;
     width: 100%;
     background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
     box-shadow: var(--shadow);
-  }
-
-  .main-nav.open,
-  .mobile-nav-menu.open {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex-wrap: unset;
     gap: 10px;
     padding: 16px;
   }
 
-  .mobile-nav-menu a,
-  .mobile-nav-menu .nav-link {
+  .main-nav.mobile-nav-menu.open {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .main-nav.mobile-nav-menu.open > a,
+  .main-nav.mobile-nav-menu.open > .nav-link {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -206,21 +243,23 @@ a {
     min-height: 64px;
   }
 
-  .mobile-nav-menu a:hover,
-  .mobile-nav-menu .nav-link:hover {
+  .main-nav.mobile-nav-menu.open > a:hover,
+  .main-nav.mobile-nav-menu.open > .nav-link:hover {
     background: #cecbf6;
   }
 
-  .mobile-nav-menu a.active,
-  .mobile-nav-menu .nav-link.active {
+  .main-nav.mobile-nav-menu.open > a.active,
+  .main-nav.mobile-nav-menu.open > .nav-link.active {
     background: #4a3fc7;
     color: #fff;
     border-color: #4a3fc7;
   }
 
-  .mobile-nav-menu .nav-logout,
-  .mobile-nav-menu .nav-logout-btn {
+  .main-nav.mobile-nav-menu.open > .nav-logout,
+  .main-nav.mobile-nav-menu.open > .nav-logout-btn {
     grid-column: span 2;
+    display: flex;
+    flex-direction: row;
     background: #fff !important;
     color: #888 !important;
     border-color: #ddd !important;
@@ -229,28 +268,11 @@ a {
     width: 100%;
   }
 
-  .mobile-nav-menu .nav-logout:hover,
-  .mobile-nav-menu .nav-logout-btn:hover {
+  .main-nav.mobile-nav-menu.open > .nav-logout:hover,
+  .main-nav.mobile-nav-menu.open > .nav-logout-btn:hover {
     background: #f4f4f8 !important;
     color: #555 !important;
   }
-}
-
-.nav-toggle {
-  display: none;
-  flex-direction: column;
-  gap: 5px;
-  background: none;
-  border: none;
-  padding: 8px;
-  cursor: pointer;
-}
-
-.nav-toggle span {
-  display: block;
-  width: 22px;
-  height: 2px;
-  background: var(--color-text);
 }
 
 /* Main */

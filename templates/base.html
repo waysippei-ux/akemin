@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}AKEMIN - サロン在庫管理システム{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=15">
+  <link rel="stylesheet" href="/static/css/style.css?v=16">
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -12,6 +12,9 @@
   <header class="site-header">
     <div class="header-inner">
       <a href="/dashboard" class="logo">AKEMIN</a>
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-label="メニューを開く">
+        <span></span><span></span><span></span>
+      </button>
       <nav class="main-nav mobile-nav-menu" id="main-nav">
         <a href="/dashboard" class="nav-link">棚を見る👓</a>
         <a href="/orders/analytics" class="nav-link" id="nav-orders-analytics">データ分析📊</a>
@@ -21,9 +24,6 @@
         <a href="/admin/products" class="nav-link nav-admin" id="nav-admin">マスタ管理設定⚙️</a>
         <button type="button" class="btn btn-ghost btn-sm nav-logout-btn nav-logout" id="btn-logout">ログアウト</button>
       </nav>
-      <button type="button" class="nav-toggle" id="nav-toggle" aria-label="メニュー">
-        <span></span><span></span><span></span>
-      </button>
     </div>
   </header>
   {% endblock %}
