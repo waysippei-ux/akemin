@@ -458,6 +458,57 @@ function formatLogRecordedAt(log) {
     });
   }
 
+  function productBrandLabel(item) {
+    const brand = (item.brand_name || "").trim();
+    if (brand) return brand;
+    return (item.maker_name || "").trim();
+  }
+
+  function standardStockQtyPart(item) {
+    const std = item.standard_stock;
+    const unit = item.unit || "本";
+    if (std != null && std !== undefined && std !== 0) {
+      return `<span class="qty-std">標準 ${std}${escapeHtml(unit)}</span>`;
+    }
+    return `<span class="qty-std qty-std-unset">未設定</span>`;
+  }
+
+  function renderProductCard(p) {
+    const unit = p.unit || "本";
+    const category = (p.category_name || "").trim();
+    const brand = productBrandLabel(p);
+    const badgeParts = [];
+    if (category) {
+      badgeParts.push(
+        `<span class="stock-badge-category">${escapeHtml(category)}</span>`
+      );
+    }
+    if (brand) {
+      badgeParts.push(`<span class="stock-badge-brand">${escapeHtml(brand)}</span>`);
+    }
+    const badgesHtml = badgeParts.length
+      ? `<div class="stock-card-badges">${badgeParts.join("")}</div>`
+      : "";
+    const shelfNote =
+      IS_REPLENISH && !p.is_on_shelf
+        ? '<span class="stock-card-shelf-note"> · 未配置</span>'
+        : "";
+
+    return `
+      <button type="button" class="product-card stock-${p.stock_level}" data-product-id="${p.product_id}">
+        <div class="stock-product-card">
+          ${badgesHtml}
+          <p class="stock-card-name">${escapeHtml(p.product_name)}</p>
+          <p class="stock-card-qty">
+            <span class="qty-num">${p.quantity}${escapeHtml(unit)}</span>
+            <span class="qty-sep"> / </span>
+            ${standardStockQtyPart(p)}
+            ${shelfNote}
+          </p>
+        </div>
+      </button>`;
+  }
+
   function renderProducts() {
     const empty = document.getElementById("product-empty");
     if (!productGrid) return;
@@ -468,16 +519,7 @@ function formatLogRecordedAt(log) {
       return;
     }
     if (empty) empty.style.display = "none";
-    productGrid.innerHTML = items
-      .map(
-        (p) => `
-      <button type="button" class="product-card stock-${p.stock_level}" data-product-id="${p.product_id}">
-        <span class="product-card-name">${escapeHtml(p.product_name)}</span>
-        <span class="product-card-meta">${escapeHtml(p.category_name || "—")}</span>
-        <span class="product-card-qty">在庫 ${p.quantity}${escapeHtml(p.unit)}${IS_REPLENISH && !p.is_on_shelf ? " · 未配置" : ""}</span>
-      </button>`
-      )
-      .join("");
+    productGrid.innerHTML = items.map((p) => renderProductCard(p)).join("");
 
     productGrid.querySelectorAll(".product-card").forEach((btn) => {
       btn.addEventListener("click", () => {
