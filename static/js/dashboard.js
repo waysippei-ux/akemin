@@ -86,31 +86,37 @@ function toJSTDateTime(dateStr) {
     return viewDetail && !viewDetail.hidden;
   }
 
-  function bindOrderPdfButton() {
-    const btn = $("create-order-pdf-btn");
-    if (!btn) return;
+  const ORDER_PDF_DEFAULT_LABEL = "発注表一覧を作成";
 
-    const defaultLabel = "発注表一覧を作成";
-    let pdfUrl = null;
+  async function downloadOrderPdf(pdfUrl, shelfName) {
+    const token = Api.getToken();
+    const fullUrl = pdfUrl.startsWith("http")
+      ? pdfUrl
+      : `${window.location.origin}${pdfUrl}`;
+    const res = await fetch(fullUrl, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error("ダウンロードに失敗しました");
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = shelfName ? `発注表_${shelfName}.pdf` : "発注表.pdf";
+    a.click();
+    URL.revokeObjectURL(blobUrl);
+  }
 
-    btn.addEventListener("click", async () => {
-      if (btn.classList.contains("ready") && pdfUrl) {
+  function bindOrderPdfButtons() {
+    document.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".btn-order-pdf");
+      if (!btn) return;
+
+      if (btn.classList.contains("ready")) {
+        const pdfUrl = btn.dataset.pdfUrl;
+        if (!pdfUrl) return;
+        e.preventDefault();
         try {
-          const token = Api.getToken();
-          const fullUrl = pdfUrl.startsWith("http")
-            ? pdfUrl
-            : `${window.location.origin}${pdfUrl}`;
-          const res = await fetch(fullUrl, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          });
-          if (!res.ok) throw new Error("ダウンロードに失敗しました");
-          const blob = await res.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = blobUrl;
-          a.download = "発注表.pdf";
-          a.click();
-          URL.revokeObjectURL(blobUrl);
+          await downloadOrderPdf(pdfUrl, btn.dataset.shelfName || "");
         } catch (err) {
           console.error(err);
           alert(err.message || "ダウンロードに失敗しました");
@@ -118,38 +124,42 @@ function toJSTDateTime(dateStr) {
         return;
       }
 
+      const shelfId = btn.dataset.shelfId;
+      const shelfName = btn.dataset.shelfName || "";
       const storeId = getStoreId();
       if (!storeId) {
         alert("店舗を選択してください。");
         return;
       }
+      if (!shelfId) return;
 
       btn.textContent = "作成中...";
       btn.disabled = true;
       btn.classList.remove("ready");
-      pdfUrl = null;
+      delete btn.dataset.pdfUrl;
 
       try {
         const data = await Api.post(
-          `/api/orders/create-pdf?store_id=${encodeURIComponent(storeId)}`,
+          `/api/orders/create-pdf?store_id=${encodeURIComponent(storeId)}&shelf_id=${encodeURIComponent(shelfId)}`,
           null
         );
         if (data?.pdf_url) {
-          pdfUrl = data.pdf_url;
+          btn.dataset.pdfUrl = data.pdf_url;
           btn.textContent = "ダウンロード";
           btn.disabled = false;
           btn.classList.add("ready");
         } else {
           throw new Error("PDF URL を取得できませんでした");
         }
-      } catch (e) {
+      } catch (err) {
         btn.textContent = "作成失敗";
         setTimeout(() => {
-          btn.textContent = defaultLabel;
+          btn.textContent = ORDER_PDF_DEFAULT_LABEL;
           btn.disabled = false;
           btn.classList.remove("ready");
+          delete btn.dataset.pdfUrl;
         }, 3000);
-        console.error(e);
+        console.error(err);
       }
     });
   }
@@ -157,7 +167,7 @@ function toJSTDateTime(dateStr) {
   async function init() {
     $("btn-refresh")?.addEventListener("click", onRefresh);
     $("btn-back-categories")?.addEventListener("click", showCategories);
-    bindOrderPdfButton();
+    bindOrderPdfButtons();
     storeSelect?.addEventListener("change", () => {
       if (isDetailView()) loadCategoryDetail();
       else loadCategoryCards();
@@ -260,7 +270,16 @@ function toJSTDateTime(dateStr) {
             : '<p class="empty-msg">カテゴリがありません</p>';
           return `
         <section class="dashboard-section" style="background:${escapeHtml(sec.color)}">
-          <h2 class="section-heading">${escapeHtml(sec.section_name)}</h2>
+          <div class="shelf-title-row">
+            <h2 class="shelf-title">${escapeHtml(sec.section_name)}</h2>
+            <button
+              type="button"
+              class="btn-order-pdf"
+              data-shelf-id="${sec.section_id}"
+              data-shelf-name="${escapeHtml(sec.section_name)}">
+              発注表一覧を作成
+            </button>
+          </div>
           <div class="category-cards" data-section-id="${sec.section_id}">${cards}</div>
         </section>`;
         })

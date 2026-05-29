@@ -868,17 +868,23 @@ def _inventory_item_from_row(
 
 
 def build_order_pdf_hierarchy(
-    db: Session, store_id: int
+    db: Session, store_id: int, section_id: int
 ) -> tuple[str, str, dict]:
     """
-    発注表 PDF 用の階層データを構築する。
+    発注表 PDF 用の階層データを構築する（指定棚＝sections.id のカテゴリのみ）。
     黄アラート以下（quantity <= warning）かつ needed = standard_stock - quantity > 0 の商品のみ。
     """
+    from app.crud_masters import get_section
+
     store = get_store(db, store_id)
     if not store:
         raise ValueError("店舗が見つかりません。")
 
-    items = get_inventory_list(db, store_id, active_only=True)
+    section = get_section(db, section_id)
+    if not section or not section.is_active:
+        raise ValueError("棚が見つかりません。")
+
+    items = get_inventory_list(db, store_id, active_only=True, section=section_id)
     hierarchy: dict = {}
 
     for item in items:
@@ -911,7 +917,8 @@ def build_order_pdf_hierarchy(
         )
 
     today_jst = datetime.now(JST).strftime("%Y/%m/%d")
-    return store.name, today_jst, hierarchy
+    store_label = f"{store.name}（{section.name}）"
+    return store_label, today_jst, hierarchy
 
 
 def get_inventory_list(

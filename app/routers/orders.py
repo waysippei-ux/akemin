@@ -412,10 +412,11 @@ def confirm_order(
 @router.post("/create-pdf", response_model=OrderPdfCreateOut)
 def create_order_pdf(
     store_id: int = Query(..., gt=0),
+    shelf_id: int = Query(..., gt=0, description="棚（sections.id）"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """黄アラート以下の商品で発注表 PDF を生成（Claude + WeasyPrint）"""
+    """指定棚の黄アラート以下商品で発注表 PDF を生成（Claude + WeasyPrint）"""
     check_store_access(current_user, store_id)
     store = crud.get_store(db, store_id)
     if not store:
@@ -424,7 +425,7 @@ def create_order_pdf(
     from app.services import order_pdf as order_pdf_service
 
     try:
-        pdf_url, filename = order_pdf_service.generate_order_pdf(db, store_id)
+        pdf_url, filename = order_pdf_service.generate_order_pdf(db, store_id, shelf_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:

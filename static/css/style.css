@@ -141,18 +141,26 @@ a {
   font-size: 0.9rem;
 }
 
-.dashboard-title-row {
+.shelf-title-row {
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 0.25rem;
+  margin-bottom: 1rem;
   flex-wrap: wrap;
 }
 
+.shelf-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  flex: 1;
+  min-width: 0;
+}
+
 .btn-order-pdf {
-  padding: 8px 20px;
+  padding: 6px 16px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   background: #4a3fc7;
   color: #fff;
@@ -1212,6 +1220,16 @@ input[type="number"],
   color: var(--color-primary);
   padding-bottom: 0.5rem;
   border-bottom: 2px solid var(--color-border);
+}
+
+.dashboard-section .shelf-title-row {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.dashboard-section .shelf-title {
+  color: var(--color-primary);
 }
 
 /* カテゴリカード（ダッシュボード TOP） */

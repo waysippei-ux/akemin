@@ -18,7 +18,7 @@ from app.models import JST
 logger = logging.getLogger(__name__)
 
 PDF_DIR = (BASE_DIR / "data" / "order_pdfs").resolve()
-FILENAME_RE = re.compile(r"^order_(\d+)_(\d{8})_(\d{6})\.pdf$")
+FILENAME_RE = re.compile(r"^order_(\d+)_s(\d+)_(\d{8})_(\d{6})\.pdf$")
 
 ORDER_PDF_SYSTEM = """あなたはサロン向け発注表を作成するアシスタントです。
 与えられたデータをもとに、印刷に適した日本語のHTMLを生成してください。
@@ -142,19 +142,23 @@ def _generate_html_with_claude(store_name: str, today_jst: str, order_data: dict
     return text
 
 
-def generate_order_pdf(db, store_id: int) -> tuple[str, str]:
+def generate_order_pdf(db, store_id: int, section_id: int) -> tuple[str, str]:
     """
     発注表 PDF を生成し (pdf_url, filename) を返す。
     pdf_url は認証付きダウンロード API へのパス。
     """
-    store_name, today_jst, order_data = crud.build_order_pdf_hierarchy(db, store_id)
+    store_name, today_jst, order_data = crud.build_order_pdf_hierarchy(
+        db, store_id, section_id
+    )
     order_data = _sort_hierarchy(order_data)
 
     html_content = _generate_html_with_claude(store_name, today_jst, order_data)
 
     PDF_DIR.mkdir(parents=True, exist_ok=True)
     now = datetime.now(JST)
-    filename = f"order_{store_id}_{now.strftime('%Y%m%d')}_{now.strftime('%H%M%S')}.pdf"
+    filename = (
+        f"order_{store_id}_s{section_id}_{now.strftime('%Y%m%d')}_{now.strftime('%H%M%S')}.pdf"
+    )
     pdf_path = pdf_path_for_filename(filename)
 
     try:
