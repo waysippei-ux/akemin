@@ -134,8 +134,13 @@ function formatLogRecordedAt(log) {
     }
   }
 
+  function getUserRole() {
+    if (typeof USER_ROLE !== "undefined" && USER_ROLE) return USER_ROLE;
+    return currentUser?.role || "";
+  }
+
   function isSettingsAdmin() {
-    return currentUser?.role === "admin";
+    return getUserRole() === "admin";
   }
 
   function filterStoresForUser() {
@@ -144,17 +149,34 @@ function formatLogRecordedAt(log) {
     }
   }
 
-  function formatSettingDisplay(value) {
-    return value != null && value !== "" ? String(value) : "未設定";
+  function resetRegisterModalSettingsAccess() {
+    ["reg-standard-stock", "reg-warning-threshold", "reg-critical-threshold"].forEach(
+      (id) => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = false;
+      }
+    );
+    document.querySelectorAll(".settings-admin-lock-note").forEach((n) => n.remove());
   }
 
-  function updateReadonlySettings(data) {
-    const std = document.getElementById("reg-ro-standard");
-    const warn = document.getElementById("reg-ro-warning");
-    const crit = document.getElementById("reg-ro-critical");
-    if (std) std.textContent = formatSettingDisplay(data?.standard_stock);
-    if (warn) warn.textContent = formatSettingDisplay(data?.warning_threshold);
-    if (crit) crit.textContent = formatSettingDisplay(data?.critical_threshold);
+  function applyRegisterModalSettingsAccess() {
+    if (isSettingsAdmin()) return;
+
+    const std = document.getElementById("reg-standard-stock");
+    const warn = document.getElementById("reg-warning-threshold");
+    const crit = document.getElementById("reg-critical-threshold");
+    [std, warn, crit].forEach((el) => {
+      if (el) el.disabled = true;
+    });
+
+    const stdGroup = std?.closest(".form-group");
+    if (stdGroup && !stdGroup.querySelector(".settings-admin-lock-note")) {
+      const note = document.createElement("p");
+      note.className = "help-text settings-admin-lock-note";
+      note.style.color = "#c0392b";
+      note.textContent = "🔒 発注目安の編集は管理者権限が必要です";
+      stdGroup.appendChild(note);
+    }
   }
 
   function setupStoreSelect() {
@@ -577,12 +599,15 @@ function formatLogRecordedAt(log) {
     document.getElementById("reg-datetime").value = nowLocalDatetime();
     const errEl = document.getElementById("register-form-error");
     if (errEl) errEl.style.display = "none";
+    resetRegisterModalSettingsAccess();
     showOverlay("register-modal");
     await refreshModalQty();
+    applyRegisterModalSettingsAccess();
   }
 
   function closeRegisterModal() {
     hideOverlay("register-modal");
+    resetRegisterModalSettingsAccess();
     modalProductId = null;
     modalCurrentQty = 0;
     modalSettingsSnapshot = null;
@@ -601,22 +626,10 @@ function formatLogRecordedAt(log) {
       const qtyData = await Api.get(
         `/api/stock/quantity?store_id=${storeId}&product_id=${modalProductId}`
       );
-      let settingData;
-      if (isSettingsAdmin()) {
-        settingData = await StoreProductSettingsApi.fetchSetting(storeId, modalProductId);
-      } else {
-        const inv = products.find((x) => x.product_id === modalProductId);
-        settingData = inv
-          ? {
-              standard_stock: inv.standard_stock,
-              warning_threshold: inv.warning_threshold,
-              critical_threshold: inv.critical_threshold,
-            }
-          : await StoreProductSettingsApi.fetchSetting(storeId, modalProductId).catch(
-              () => ({})
-            );
-        updateReadonlySettings(settingData);
-      }
+      const settingData = await StoreProductSettingsApi.fetchSetting(
+        storeId,
+        modalProductId
+      );
       modalCurrentQty = qtyData.quantity;
       modalUnit = qtyData.unit || "本";
       modalOnShelf = qtyData.is_on_shelf !== false;
@@ -630,14 +643,11 @@ function formatLogRecordedAt(log) {
       }
 
       if (qtyEl) qtyEl.textContent = `${qtyData.quantity}${modalUnit}`;
-      if (isSettingsAdmin()) {
-        modalSettingsSnapshot = StoreProductSettingsApi.applyToForm(
-          settingData,
-          REG_SETTING_IDS
-        );
-      } else {
-        modalSettingsSnapshot = null;
-      }
+      modalSettingsSnapshot = StoreProductSettingsApi.applyToForm(
+        settingData,
+        REG_SETTING_IDS
+      );
+      applyRegisterModalSettingsAccess();
       if (!IS_REPLENISH) {
         applyConsumeQuantityLimits();
         if (errEl) errEl.style.display = "none";

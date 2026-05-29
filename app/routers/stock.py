@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app import crud, crud_masters, crud_stock
-from app.auth import check_store_access, get_current_user, require_admin
+from app.auth import check_store_access, get_current_user, is_admin, require_admin
 from app.config import BASE_DIR
 from app.database import get_db
 from app.models import InventoryAction, User, UserRole
@@ -34,6 +34,8 @@ from app.schemas import (
     StockRegisterWithProductRequest,
     StockReplenishRequest,
     StoreOut,
+    StoreProductSettingProductOut,
+    StoreProductSettingProductPut,
 )
 from app.services.invoice_parser import parse_invoice_file
 
@@ -131,7 +133,6 @@ def _page_context(
         "products": products,
         "default_store_id": default_store_id,
     }
-    is_admin = current_user.role == UserRole.ADMIN
     return {
         "stores": stores,
         "sections": sections,
@@ -141,7 +142,7 @@ def _page_context(
         "brands": brands,
         "products": products,
         "default_store_id": default_store_id,
-        "is_admin": is_admin,
+        "user_role": current_user.role.value,
         "page_json": json.dumps(page_json, ensure_ascii=False),
     }
 
@@ -397,3 +398,66 @@ async def bulk_parse(
         raise HTTPException(400, str(e))
 
     return crud_stock.build_stock_bulk_parse_result(db, store_id, parsed, dealer_id)
+
+
+@router.get("/store-settings/product", response_model=StoreProductSettingProductOut)
+def get_stock_product_setting(
+    store_id: int = Query(..., gt=0),
+    product_id: int = Query(..., gt=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """店舗×商品の発注目安を取得（ログイン済み・スタッフは自店舗のみ）"""
+    check_store_access(current_user, store_id)
+    if not crud.get_store(db, store_id):
+        raise HTTPException(status_code=404, detail="店舗が見つかりません。")
+    try:
+        return crud.get_store_product_setting(db, store_id, product_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/store-settings/product", response_model=StoreProductSettingProductOut)
+def put_stock_product_setting(
+    body: StoreProductSettingProductPut,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """店舗×商品の発注目安を UPSERT（管理者のみ）"""
+    if not is_admin(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="発注目安の編集は管理者権限が必要です",
+        )
+    check_store_access(current_user, body.store_id)
+    if not crud.get_store(db, body.store_id):
+        raise HTTPException(status_code=404, detail="店舗が見つかりません。")
+
+    product = crud.get_product_by_id(db, body.product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="商品が見つかりません。")
+
+    warning = (
+        body.warning_threshold
+        if body.warning_threshold is not None
+        else product.warning_threshold
+    )
+    critical = (
+        body.critical_threshold
+        if body.critical_threshold is not None
+        else product.critical_threshold
+    )
+
+    try:
+        crud.upsert_store_product_setting_product(
+            db,
+            body.store_id,
+            body.product_id,
+            standard_stock=body.standard_stock,
+            warning_threshold=warning,
+            critical_threshold=critical,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return crud.get_store_product_setting(db, body.store_id, body.product_id)

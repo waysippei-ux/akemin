@@ -91,32 +91,21 @@
         </div>
       </div>
       <p class="register-modal-divider" role="presentation">──── この店舗の発注目安 ────</p>
-      {% if is_admin %}
-      <div id="reg-settings-admin">
+      <div class="form-group">
+        <label for="reg-standard-stock">標準在庫数</label>
+        <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="reg-standard-stock" class="input-number" min="0" placeholder="">
+      </div>
+      <div class="form-row">
         <div class="form-group">
-          <label for="reg-standard-stock">標準在庫数</label>
-          <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="reg-standard-stock" class="input-number" min="0" placeholder="">
+          <label for="reg-warning-threshold">黄アラート ≤</label>
+          <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="reg-warning-threshold" class="input-number" min="0">
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="reg-warning-threshold">黄アラート ≤</label>
-            <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="reg-warning-threshold" class="input-number" min="0">
-          </div>
-          <div class="form-group">
-            <label for="reg-critical-threshold">赤アラート ≤</label>
-            <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="reg-critical-threshold" class="input-number" min="0">
-          </div>
+        <div class="form-group">
+          <label for="reg-critical-threshold">赤アラート ≤</label>
+          <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="reg-critical-threshold" class="input-number" min="0">
         </div>
-        <p class="help-text register-modal-settings-note">※ 変更すると店舗別設定に保存されます</p>
       </div>
-      {% else %}
-      <p class="help-text">🔒 発注目安の変更は管理者権限が必要です</p>
-      <div class="settings-readonly">
-        <p>標準在庫数：<span id="reg-ro-standard">—</span></p>
-        <p>黄アラート：<span id="reg-ro-warning">—</span></p>
-        <p>赤アラート：<span id="reg-ro-critical">—</span></p>
-      </div>
-      {% endif %}
+      <p class="help-text register-modal-settings-note">※ 変更すると店舗別設定に保存されます</p>
       <p id="register-form-error" class="error-msg" style="display:none"></p>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="register-modal-cancel">キャンセル</button>
@@ -222,8 +211,9 @@
 {% endblock %}
 
 {% block scripts %}
+<script>const USER_ROLE = "{{ user_role }}";</script>
 <script>window.STOCK_PAGE = {{ page_json | safe }};</script>
 <script src="/static/js/filter_helpers.js?v=3"></script>
-<script src="/static/js/store_product_settings_api.js?v=1"></script>
-<script src="/static/js/stock_page.js?v=14"></script>
+<script src="/static/js/store_product_settings_api.js?v=2"></script>
+<script src="/static/js/stock_page.js?v=15"></script>
 {% endblock %}

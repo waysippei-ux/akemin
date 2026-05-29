@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app import crud
-from app.auth import check_store_access, get_current_user, require_admin
+from app.auth import check_store_access, get_current_user, is_admin, require_admin
 from app.database import get_db
 from app.models import User
 from app.schemas import (
@@ -127,9 +127,14 @@ def get_store_product_setting(
 def put_store_product_setting(
     body: StoreProductSettingProductPut,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ):
-    """店舗×商品の発注目安を UPSERT（管理者のみ）"""
+    """店舗×商品の発注目安を UPSERT（管理者のみ・後方互換）"""
+    if not is_admin(current_user):
+        raise HTTPException(
+            status_code=403,
+            detail="発注目安の編集は管理者権限が必要です",
+        )
     check_store_access(current_user, body.store_id)
     if not crud.get_store(db, body.store_id):
         raise HTTPException(status_code=404, detail="店舗が見つかりません。")

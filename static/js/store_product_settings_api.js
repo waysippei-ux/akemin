@@ -2,7 +2,7 @@
  * 店舗別発注目安 — 全画面共通 API（/admin/store-settings/product）
  */
 (function (global) {
-  const URL = "/admin/store-settings/product";
+  const URL = "/api/stock/store-settings/product";
 
   function normalizeStandardSnapshot(value) {
     if (value == null || value === "") return null;
