@@ -489,9 +489,16 @@ input[type="number"],
 }
 
 .inventory-section .stock-std {
-  font-size: 11px;
+  font-size: 13px;
   color: #aaa;
   margin-left: auto;
+}
+
+.inventory-section .stock-std-unset {
+  font-size: 13px;
+  color: #ccc;
+  margin-left: auto;
+  font-style: italic;
 }
 
 @media (max-width: 767px) {

@@ -57,11 +57,12 @@ function toJSTDateTime(dateStr) {
     const brand = displayBrand(item);
     const chipHtml = brand ? `<span class="brand-pill">${escapeHtml(brand)}</span>` : "";
 
-    const std = item.standard_stock ?? 0;
     const unit = item.unit || "本";
-    const stdHtml = std
-      ? `<span class="stock-std">標準 ${std}${escapeHtml(unit)}</span>`
-      : "";
+    const std = item.standard_stock;
+    const stdHtml =
+      std != null && std !== undefined && std !== 0
+        ? `<span class="stock-std">標準 ${std}本</span>`
+        : `<span class="stock-std stock-std-unset">未設定</span>`;
 
     return `
       <div class="product-card ${status.card}">
