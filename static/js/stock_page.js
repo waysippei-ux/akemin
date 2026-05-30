@@ -664,14 +664,14 @@ function formatLogRecordedAt(log) {
     if (!input) return;
     const maxQ = Math.max(0, modalCurrentQty);
     input.max = maxQ;
-    input.min = maxQ > 0 ? 1 : 0;
+    input.min = 0;
     if (maxQ < 1) {
       input.value = "0";
       input.disabled = true;
     } else {
       input.disabled = false;
-      const v = parseInt(input.value, 10) || 1;
-      if (v > maxQ) input.value = String(maxQ);
+      const v = parseInt(input.value, 10);
+      if (!Number.isNaN(v) && v > maxQ) input.value = String(maxQ);
     }
   }
 
@@ -682,8 +682,7 @@ function formatLogRecordedAt(log) {
     btn.disabled = !(
       getStoreId() &&
       modalOnShelf &&
-      modalCurrentQty > 0 &&
-      q >= 1 &&
+      q >= 0 &&
       q <= modalCurrentQty
     );
   }
@@ -705,25 +704,32 @@ function formatLogRecordedAt(log) {
     const productId = parseInt(document.getElementById("reg-product-id").value, 10);
     const quantity = parseInt(document.getElementById("reg-quantity").value, 10) || 0;
 
+    if (quantity === 0) {
+      closeRegisterModal();
+      return;
+    }
+
+    if (quantity < 0) {
+      if (errEl) {
+        errEl.textContent = "数量は0以上を指定してください。";
+        errEl.style.display = "block";
+      }
+      return;
+    }
+
     if (!IS_REPLENISH) {
       if (!modalOnShelf) {
         closeRegisterModal();
         openNotOnShelfModal();
         return;
       }
-      if (quantity < 1 || quantity > modalCurrentQty) {
+      if (quantity > modalCurrentQty) {
         if (errEl) {
           errEl.textContent = `在庫が不足しています。使用できる最大数：${modalCurrentQty}${modalUnit}。`;
           errEl.style.display = "block";
         }
         return;
       }
-    } else if (quantity < 1) {
-      if (errEl) {
-        errEl.textContent = "数量は1以上を指定してください。";
-        errEl.style.display = "block";
-      }
-      return;
     }
 
     const recorded_at = datetimeToIso(document.getElementById("reg-datetime").value);

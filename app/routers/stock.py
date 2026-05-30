@@ -7,6 +7,7 @@ import json
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -308,6 +309,10 @@ def replenish_stock(
     """棚補充（在庫+・is_active=true）"""
     check_store_access(current_user, body.store_id)
     _validate_store(db, body.store_id)
+    if body.quantity == 0:
+        return JSONResponse(
+            content={"message": "数量が0のため記録をスキップしました"},
+        )
     try:
         return crud_stock.replenish_stock(db, current_user, body)
     except ValueError as e:
@@ -323,6 +328,10 @@ def consume_stock(
     """使用済み（在庫-・0未満不可）"""
     check_store_access(current_user, body.store_id)
     _validate_store(db, body.store_id)
+    if body.quantity == 0:
+        return JSONResponse(
+            content={"message": "数量が0のため記録をスキップしました"},
+        )
     try:
         return crud_stock.consume_stock(db, current_user, body)
     except ValueError as e:
