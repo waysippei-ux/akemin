@@ -632,9 +632,6 @@
       jan_code: modalJanCode,
       category_id: parseInt(categoryId, 10),
       unit: document.getElementById("modal-unit").value.trim() || "本",
-      standard_stock: parseInt(document.getElementById("modal-standard_stock").value, 10) || 0,
-      warning_threshold: parseInt(document.getElementById("modal-warning_threshold").value, 10),
-      critical_threshold: parseInt(document.getElementById("modal-critical_threshold").value, 10),
       maker_id: maker ? parseInt(maker, 10) : null,
       brand_id: brand ? parseInt(brand, 10) : null,
       dealer_id: dealer ? parseInt(dealer, 10) : null,
@@ -663,9 +660,6 @@
     document.getElementById("modal-barcode").value = "";
     clearBarcodeDupWarning();
     document.getElementById("modal-unit").value = "本";
-    document.getElementById("modal-standard_stock").value = "0";
-    document.getElementById("modal-warning_threshold").value = "4";
-    document.getElementById("modal-critical_threshold").value = "2";
     document.getElementById("modal-section").value = "";
     document.getElementById("modal-maker_id").value = "";
     document.getElementById("modal-dealer_id").value = "";
@@ -711,9 +705,6 @@
     document.getElementById("modal-brand_id").value = p.brand_id || "";
     document.getElementById("modal-dealer_id").value = p.dealer_id || "";
     document.getElementById("modal-unit").value = p.unit;
-    document.getElementById("modal-standard_stock").value = String(p.standard_stock ?? 0);
-    document.getElementById("modal-warning_threshold").value = p.warning_threshold;
-    document.getElementById("modal-critical_threshold").value = p.critical_threshold;
     const expandAll = document.getElementById("modal-expand-all-stores");
     if (expandAll) {
       expandAll.checked = p.expand_all_stores !== false;
@@ -780,11 +771,6 @@
       data = getModalFormData();
     } catch (ex) {
       err.textContent = ex.message;
-      err.hidden = false;
-      return;
-    }
-    if (data.critical_threshold > data.warning_threshold) {
-      err.textContent = "赤アラートは黄アラート以下にしてください。";
       err.hidden = false;
       return;
     }

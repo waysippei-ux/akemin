@@ -476,21 +476,6 @@
           <input type="text" id="modal-unit" value="本">
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label for="modal-standard_stock">標準在庫数</label>
-          <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="modal-standard_stock" class="input-number" value="0" min="0">
-          <p class="help-text">通常時に維持したい在庫数</p>
-        </div>
-        <div class="form-group">
-          <label for="modal-warning_threshold">黄アラート ≤</label>
-          <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="modal-warning_threshold" class="input-number" value="4" min="0">
-        </div>
-        <div class="form-group">
-          <label for="modal-critical_threshold">赤アラート ≤</label>
-          <input type="number" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="modal-critical_threshold" class="input-number" value="2" min="0">
-        </div>
-      </div>
       <section class="deployment-section card">
         <h4 class="section-title">展開店舗</h4>
         <label class="checkbox-label">
@@ -512,6 +497,6 @@
 
 {% block scripts %}
 <script src="/static/js/filter_helpers.js?v=3"></script>
-<script src="/static/js/admin_products.js?v=12"></script>
+<script src="/static/js/admin_products.js?v=13"></script>
 <script src="/static/js/admin_masters.js?v=8"></script>
 {% endblock %}
