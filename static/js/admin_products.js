@@ -10,6 +10,8 @@
   let dealers = [];
   let adminStores = [];
   let editingId = null;
+  let editingProductSnapshot = null;
+  let suppressStoreCheckboxEvents = false;
   let modalJanCode = null;
   let currentPage = 1;
   const mobileMedia = window.matchMedia("(max-width: 768px)");
