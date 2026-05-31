@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app import crud, crud_masters, crud_stock
 from app.auth import check_store_access, get_current_user, is_admin, require_admin
 from app.dependencies import resolve_user_from_request
+from app.routers.admin import validate_barcode_length
 from app.config import BASE_DIR
 from app.database import get_db
 from app.models import InventoryAction, User, UserRole
@@ -348,6 +349,7 @@ def lookup_product(
     """バーコードで商品照合"""
     check_store_access(current_user, store_id)
     _validate_store(db, store_id)
+    validate_barcode_length(code.strip())
     return crud_stock.lookup_stock_product(db, store_id, code)
 
 
@@ -430,6 +432,7 @@ def register_with_new_product(
     """未登録商品を新規登録してから棚に反映（補充用）"""
     check_store_access(current_user, body.store_id)
     _validate_store(db, body.store_id)
+    validate_barcode_length((body.product.barcode or "").strip() or None)
     try:
         return crud_stock.register_stock_with_new_product(db, current_user, body)
     except ValueError as e:

@@ -22,6 +22,17 @@ from app.schemas import (
 
 router = APIRouter()
 
+BARCODE_MAX_LENGTH = 13
+
+
+def validate_barcode_length(barcode: str | None) -> None:
+    """バーコードは13文字まで（14文字以上はエラー）"""
+    if barcode and len(barcode) > BARCODE_MAX_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail="バーコードは13文字以内で入力してください",
+        )
+
 
 class DealerMakerLinkBody(BaseModel):
     maker_id: int = Field(gt=0)

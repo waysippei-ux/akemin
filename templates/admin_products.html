@@ -467,7 +467,7 @@
       </div>
       <div class="form-group product-barcode-field">
         <label for="modal-barcode">バーコード（推奨）</label>
-        <input type="text" id="modal-barcode" class="input-text" placeholder="手入力またはスキャナーで入力" inputmode="text" autocomplete="off">
+        <input type="text" id="modal-barcode" class="input-text" placeholder="手入力またはスキャナーで入力" inputmode="text" autocomplete="off" maxlength="13">
         <p id="modal-barcode-dup-warning" class="barcode-dup-warning" hidden></p>
       </div>
       <div class="form-row">
@@ -497,6 +497,6 @@
 
 {% block scripts %}
 <script src="/static/js/filter_helpers.js?v=3"></script>
-<script src="/static/js/admin_products.js?v=13"></script>
+<script src="/static/js/admin_products.js?v=14"></script>
 <script src="/static/js/admin_masters.js?v=8"></script>
 {% endblock %}

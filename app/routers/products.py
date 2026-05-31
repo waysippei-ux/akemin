@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app import crud, crud_masters
 from app.auth import get_current_user, require_admin
+from app.routers.admin import validate_barcode_length
 from app.database import get_db
 from app.models import User
 from app.schemas import (
@@ -157,6 +158,7 @@ def create_product_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="危険閾値は警告閾値以下にしてください。",
         )
+    validate_barcode_length((body.barcode or "").strip() or None)
     barcode = crud.coerce_product_barcode(body.barcode)
     if barcode and crud.get_product_by_barcode(db, barcode):
         raise HTTPException(
@@ -183,6 +185,7 @@ def update_product_endpoint(
     if not product:
         raise HTTPException(status_code=404, detail="商品が見つかりません。")
 
+    validate_barcode_length((body.barcode or "").strip() or None)
     barcode = crud.coerce_product_barcode(body.barcode)
     if barcode:
         other = crud.get_product_by_barcode(db, barcode)

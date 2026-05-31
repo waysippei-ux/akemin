@@ -18,6 +18,8 @@
     if (!el || el.type !== "text") return;
     el.setAttribute("inputmode", "text");
     el.setAttribute("autocomplete", "off");
+    el.setAttribute("maxlength", "13");
+    el.maxLength = 13;
   }
 
   function applyIosFormInputs(root) {

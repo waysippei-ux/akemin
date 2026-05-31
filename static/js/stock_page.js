@@ -39,6 +39,11 @@ function formatLogRecordedAt(log) {
     warning: "reg-warning-threshold",
     critical: "reg-critical-threshold",
   };
+  const BARCODE_MAX_LENGTH = 13;
+
+  function applyBarcodeMaxLength(el) {
+    if (el) el.maxLength = BARCODE_MAX_LENGTH;
+  }
 
   let stores = [];
   let sections = [];
@@ -81,6 +86,8 @@ function formatLogRecordedAt(log) {
     renderProducts();
     refreshTodayLogs();
     switchTab("search");
+    applyBarcodeMaxLength(document.getElementById("scanner-input"));
+    applyBarcodeMaxLength(document.getElementById("new-barcode"));
     if (typeof applyIosFormInputs === "function") applyIosFormInputs();
 
     Api.get("/api/auth/me")
@@ -790,11 +797,16 @@ function formatLogRecordedAt(log) {
   function bindScanTab() {
     const input = document.getElementById("scanner-input");
     const btn = document.getElementById("btn-scan-search");
+    applyBarcodeMaxLength(input);
 
     const runSearch = async () => {
       if (!input) return;
       const code = input.value.trim();
       if (!code) return;
+      if (code.length > BARCODE_MAX_LENGTH) {
+        showError("バーコードは13文字以内で入力してください");
+        return;
+      }
       await handleScanCode(code);
     };
 
@@ -858,6 +870,7 @@ function formatLogRecordedAt(log) {
 
   /* ---------- 補充: 新規商品モーダル ---------- */
   function bindNewProductModal() {
+    applyBarcodeMaxLength(document.getElementById("new-barcode"));
     document.getElementById("new-product-no")?.addEventListener("click", closeNewProductModal);
     document.getElementById("new-product-modal-close")?.addEventListener("click", closeNewProductModal);
     document.getElementById("new-product-modal")?.addEventListener("click", (e) => {
@@ -879,9 +892,18 @@ function formatLogRecordedAt(log) {
 
       const maker = document.getElementById("new-maker_id").value;
       const dealer = document.getElementById("new-dealer_id").value;
+      const barcode = document.getElementById("new-barcode").value.trim();
+      if (barcode.length > BARCODE_MAX_LENGTH) {
+        if (errEl) {
+          errEl.textContent = "バーコードは13文字以内で入力してください";
+          errEl.style.display = "block";
+        }
+        return;
+      }
+
       const product = {
         name: document.getElementById("new-name").value.trim(),
-        barcode: document.getElementById("new-barcode").value.trim(),
+        barcode,
         jan_code: pendingScanCode || null,
         category_id: parseInt(document.getElementById("new-category_id").value, 10),
         unit: document.getElementById("new-unit").value.trim() || "本",

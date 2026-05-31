@@ -58,8 +58,11 @@
     return false;
   }
 
+  const BARCODE_MAX_LENGTH = 13;
+
   function bindBarcodeField() {
     const barcodeEl = document.getElementById("modal-barcode");
+    if (barcodeEl) barcodeEl.maxLength = BARCODE_MAX_LENGTH;
     barcodeEl?.addEventListener("keydown", (e) => {
       if (e.key !== "Enter") return;
       e.preventDefault();
@@ -771,6 +774,11 @@
       data = getModalFormData();
     } catch (ex) {
       err.textContent = ex.message;
+      err.hidden = false;
+      return;
+    }
+    if (data.barcode && data.barcode.length > BARCODE_MAX_LENGTH) {
+      err.textContent = "バーコードは13文字以内で入力してください";
       err.hidden = false;
       return;
     }
