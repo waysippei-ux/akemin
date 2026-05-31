@@ -401,16 +401,23 @@ def get_product_by_id(db: Session, product_id: int) -> Product | None:
 
 def create_product(db: Session, data: ProductCreate) -> Product:
     _validate_product_brand(db, data.maker_id, data.brand_id)
-    dump = data.model_dump(exclude={"deployment"})
+    dump = data.model_dump(exclude={"deployment", "store_settings"})
     jan = dump.get("jan_code")
     dump["jan_code"] = (jan or "").strip() or None
     dump["barcode"] = resolve_product_barcode(db, dump.get("barcode"))
     product = Product(**dump)
     db.add(product)
     db.flush()
-    apply_product_store_deployment(
-        db, product.id, data.deployment.expand_all_stores, data.deployment.store_ids
-    )
+    if data.store_settings:
+        apply_product_store_settings(db, product.id, data.store_settings, commit=False)
+    else:
+        apply_product_store_deployment(
+            db,
+            product.id,
+            data.deployment.expand_all_stores,
+            data.deployment.store_ids,
+            commit=False,
+        )
     db.commit()
     db.refresh(product)
     return product
@@ -431,9 +438,16 @@ def update_product(db: Session, product: Product, data: ProductUpdate) -> Produc
     product.maker_id = data.maker_id
     product.brand_id = data.brand_id
     product.dealer_id = data.dealer_id
-    apply_product_store_deployment(
-        db, product.id, data.deployment.expand_all_stores, data.deployment.store_ids
-    )
+    if data.store_settings:
+        apply_product_store_settings(db, product.id, data.store_settings, commit=False)
+    else:
+        apply_product_store_deployment(
+            db,
+            product.id,
+            data.deployment.expand_all_stores,
+            data.deployment.store_ids,
+            commit=False,
+        )
     db.commit()
     db.refresh(product)
     return product
@@ -507,14 +521,45 @@ def get_product_delivery_code(db: Session, code_id: int) -> ProductDeliveryCode 
 
 def delete_product(db: Session, product: Product) -> None:
     """商品と関連する在庫・ログ・発注明細を削除"""
-    from app.models import PurchaseOrderItem
+    from app.models import InventoryLogEdit, PurchaseOrderItem, StoreProductSetting
 
-    db.query(ProductDeliveryCode).filter(ProductDeliveryCode.product_id == product.id).delete()
-    db.query(PurchaseOrderItem).filter(PurchaseOrderItem.product_id == product.id).delete()
-    db.query(InventoryLog).filter(InventoryLog.product_id == product.id).delete()
-    db.query(Inventory).filter(Inventory.product_id == product.id).delete()
+    log_ids = [
+        row[0]
+        for row in db.query(InventoryLog.id)
+        .filter(InventoryLog.product_id == product.id)
+        .all()
+    ]
+    if log_ids:
+        db.query(InventoryLogEdit).filter(
+            InventoryLogEdit.log_id.in_(log_ids)
+        ).delete(synchronize_session=False)
+
+    db.query(StoreProductSetting).filter(
+        StoreProductSetting.product_id == product.id
+    ).delete(synchronize_session=False)
+    db.query(ProductDeliveryCode).filter(
+        ProductDeliveryCode.product_id == product.id
+    ).delete(synchronize_session=False)
+    db.query(PurchaseOrderItem).filter(
+        PurchaseOrderItem.product_id == product.id
+    ).delete(synchronize_session=False)
+    db.query(InventoryLog).filter(InventoryLog.product_id == product.id).delete(
+        synchronize_session=False
+    )
+    db.query(Inventory).filter(Inventory.product_id == product.id).delete(
+        synchronize_session=False
+    )
     db.delete(product)
     db.commit()
+
+
+def delete_product_by_id(db: Session, product_id: int) -> bool:
+    """商品IDで削除（存在しなければ False）"""
+    product = get_product_by_id(db, product_id)
+    if not product:
+        return False
+    delete_product(db, product)
+    return True
 
 
 def _parse_csv_row_dict(row: dict, row_num: int) -> dict | None:
@@ -765,6 +810,8 @@ def apply_product_store_deployment(
     product_id: int,
     expand_all_stores: bool,
     store_ids: list[int],
+    *,
+    commit: bool = True,
 ) -> None:
     """選択店舗の inventories.is_active = true、それ以外は false"""
     stores = get_stores(db, active_only=True)
@@ -780,7 +827,46 @@ def apply_product_store_deployment(
     for sid in all_ids:
         inv = get_or_create_inventory(db, store_id=sid, product_id=product_id, commit=False)
         inv.is_active = sid in active_ids
-    db.commit()
+    if commit:
+        db.commit()
+
+
+def apply_product_store_settings(
+    db: Session,
+    product_id: int,
+    settings: list,
+    *,
+    commit: bool = True,
+) -> None:
+    """店舗ごとに inventories.is_active を更新（未作成かつ active の場合は quantity=0 で作成）"""
+    stores = get_stores(db, active_only=True)
+    valid_ids = {s.id for s in stores}
+    seen: set[int] = set()
+
+    for setting in settings:
+        store_id = int(setting.store_id)
+        if store_id in seen:
+            continue
+        seen.add(store_id)
+        if store_id not in valid_ids:
+            raise ValueError(f"無効な店舗ID: {store_id}")
+
+        is_active = bool(setting.is_active)
+        inv = get_inventory_row(db, store_id, product_id)
+        if inv:
+            inv.is_active = is_active
+        elif is_active:
+            db.add(
+                Inventory(
+                    product_id=product_id,
+                    store_id=store_id,
+                    quantity=0,
+                    is_active=True,
+                )
+            )
+
+    if commit:
+        db.commit()
 
 
 def get_inventory_row(

@@ -209,14 +209,13 @@ def update_product_endpoint(
     return crud_masters.product_to_out(db, product)
 
 
-@router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{product_id}")
 def delete_product_endpoint(
     product_id: int,
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
     """商品を削除（管理者のみ）— 関連在庫・ログも削除"""
-    product = crud.get_product_by_id(db, product_id)
-    if not product:
+    if not crud.delete_product_by_id(db, product_id):
         raise HTTPException(status_code=404, detail="商品が見つかりません。")
-    crud.delete_product(db, product)
+    return {"message": "削除しました"}

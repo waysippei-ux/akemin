@@ -150,6 +150,12 @@ class ProductDeploymentIn(BaseModel):
     store_ids: list[int] = Field(default_factory=list)
 
 
+class ProductStoreSettingIn(BaseModel):
+    """店舗ごとの棚展開（inventories.is_active）"""
+    store_id: int = Field(gt=0)
+    is_active: bool
+
+
 class ProductOut(BaseModel):
     id: int
     name: str
@@ -191,6 +197,7 @@ class ProductCreate(BaseModel):
     brand_id: Optional[int] = None
     dealer_id: Optional[int] = None
     deployment: ProductDeploymentIn = Field(default_factory=ProductDeploymentIn)
+    store_settings: Optional[list[ProductStoreSettingIn]] = None
 
 
 class ProductUpdate(BaseModel):
@@ -206,6 +213,7 @@ class ProductUpdate(BaseModel):
     brand_id: Optional[int] = None
     dealer_id: Optional[int] = None
     deployment: ProductDeploymentIn = Field(default_factory=ProductDeploymentIn)
+    store_settings: Optional[list[ProductStoreSettingIn]] = None
 
 
 class ProductImportResult(BaseModel):

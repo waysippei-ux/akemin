@@ -482,8 +482,8 @@
           <input type="checkbox" id="modal-expand-all-stores" checked>
           全店舗に展開する
         </label>
-        <div id="modal-store-pick-list" class="store-pick-list" hidden></div>
-        <p class="help-text">OFF にすると店舗を個別選択できます。選択店舗のみ棚に並びます（inventories.is_active）。</p>
+        <div id="modal-store-pick-list" class="store-pick-list"></div>
+        <p class="help-text">チェックを外した店舗は棚から非表示になります（在庫数は保持されます）。「全店舗に展開する」で一括ONにできます。</p>
       </section>
       <p id="modal-form-error" class="error-msg" hidden></p>
       <div class="form-actions">
@@ -497,6 +497,6 @@
 
 {% block scripts %}
 <script src="/static/js/filter_helpers.js?v=3"></script>
-<script src="/static/js/admin_products.js?v=14"></script>
+<script src="/static/js/admin_products.js?v=15"></script>
 <script src="/static/js/admin_masters.js?v=8"></script>
 {% endblock %}

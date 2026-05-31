@@ -15,9 +15,11 @@ from app.schemas import (
     BrandOut,
     InventoryLogEditOut,
     MakerOut,
+    ProductUpdate,
     StoreProductSettingProductOut,
     StoreProductSettingProductPut,
 )
+from app import crud_masters
 
 
 router = APIRouter()
@@ -105,6 +107,59 @@ def admin_remove_maker_brand(
 ):
     if not crud.unlink_brand_from_maker(db, maker_id=maker_id, brand_id=brand_id):
         raise HTTPException(status_code=404, detail="紐付けが見つかりません。")
+
+
+@router.delete("/products/{product_id}")
+def admin_delete_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """商品削除（管理者のみ）— /api/products と同等"""
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    if not crud.delete_product_by_id(db, product_id):
+        raise HTTPException(status_code=404, detail="商品が見つかりません")
+    return {"message": "削除しました"}
+
+
+@router.put("/products/{product_id}")
+def admin_update_product(
+    product_id: int,
+    body: ProductUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """商品更新（店舗展開 store_settings 対応）— 管理者のみ"""
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    product = crud.get_product_by_id(db, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="商品が見つかりません")
+
+    validate_barcode_length((body.barcode or "").strip() or None)
+    barcode = crud.coerce_product_barcode(body.barcode)
+    if barcode:
+        other = crud.get_product_by_barcode(db, barcode)
+        if other and other.id != product_id:
+            raise HTTPException(
+                status_code=400,
+                detail="このバーコードは別の商品で使用されています。",
+            )
+
+    if body.critical_threshold > body.warning_threshold:
+        raise HTTPException(
+            status_code=400,
+            detail="危険閾値は警告閾値以下にしてください。",
+        )
+
+    try:
+        crud.update_product(db, product, body)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    product = crud.get_product_by_id(db, product_id)
+    return crud_masters.product_to_out(db, product)
 
 
 @router.get("/inventory-log-edits", response_model=list[InventoryLogEditOut])

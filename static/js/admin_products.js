@@ -532,9 +532,10 @@
   }
 
   function onExpandAllChange() {
-    const expandAll = document.getElementById("modal-expand-all-stores").checked;
-    const list = document.getElementById("modal-store-pick-list");
-    if (list) list.hidden = expandAll;
+    const expandAll = document.getElementById("modal-expand-all-stores")?.checked;
+    document.querySelectorAll(".store-checkbox").forEach((cb) => {
+      cb.checked = !!expandAll;
+    });
   }
 
   function renderStorePickList(selectedIds) {
@@ -545,26 +546,42 @@
       .map(
         (s) => `
       <label class="store-pick-item">
-        <input type="checkbox" class="modal-store-cb" value="${s.id}" ${
+        <input type="checkbox" class="store-checkbox modal-store-cb" value="${s.id}" ${
           selected.has(s.id) ? "checked" : ""
         }>
         ${esc(s.name)}
       </label>`
       )
       .join("");
+    list.querySelectorAll(".store-checkbox").forEach((cb) => {
+      cb.addEventListener("change", syncExpandAllCheckbox);
+    });
   }
 
-  function getDeployment() {
-    const expandAll = document.getElementById("modal-expand-all-stores").checked;
-    const storeIds = expandAll
-      ? []
-      : [...document.querySelectorAll(".modal-store-cb:checked")].map((cb) =>
-          parseInt(cb.value, 10)
-        );
-    if (!expandAll && !storeIds.length) {
-      throw new Error("展開する店舗を1つ以上選択してください。");
+  function syncExpandAllCheckbox() {
+    const expandAllEl = document.getElementById("modal-expand-all-stores");
+    if (!expandAllEl || !adminStores.length) return;
+    const boxes = [...document.querySelectorAll(".store-checkbox")];
+    expandAllEl.checked =
+      boxes.length > 0 && boxes.every((cb) => cb.checked);
+  }
+
+  function getStoreSettings() {
+    const expandAll = document.getElementById("modal-expand-all-stores")?.checked;
+    if (expandAll) {
+      return adminStores.map((s) => ({
+        store_id: s.id,
+        is_active: true,
+      }));
     }
-    return { expand_all_stores: expandAll, store_ids: storeIds };
+    const storeSettings = [];
+    document.querySelectorAll(".store-checkbox").forEach((cb) => {
+      storeSettings.push({
+        store_id: parseInt(cb.value, 10),
+        is_active: cb.checked,
+      });
+    });
+    return storeSettings;
   }
 
   function bindProductEvents() {
@@ -638,7 +655,7 @@
       maker_id: maker ? parseInt(maker, 10) : null,
       brand_id: brand ? parseInt(brand, 10) : null,
       dealer_id: dealer ? parseInt(dealer, 10) : null,
-      deployment: getDeployment(),
+      store_settings: getStoreSettings(),
     };
   }
 
@@ -672,9 +689,9 @@
     const expandAll = document.getElementById("modal-expand-all-stores");
     if (expandAll) {
       expandAll.checked = true;
-      onExpandAllChange();
     }
     renderStorePickList(adminStores.map((s) => s.id));
+    onExpandAllChange();
   }
 
   function openAddModal() {
@@ -708,12 +725,14 @@
     document.getElementById("modal-brand_id").value = p.brand_id || "";
     document.getElementById("modal-dealer_id").value = p.dealer_id || "";
     document.getElementById("modal-unit").value = p.unit;
+    const activeIds = p.active_store_ids || [];
+    renderStorePickList(activeIds);
     const expandAll = document.getElementById("modal-expand-all-stores");
     if (expandAll) {
-      expandAll.checked = p.expand_all_stores !== false;
-      onExpandAllChange();
+      expandAll.checked =
+        adminStores.length > 0 &&
+        adminStores.every((s) => activeIds.includes(s.id));
     }
-    renderStorePickList(p.active_store_ids || []);
     openModal();
   }
 
@@ -761,7 +780,7 @@
       b.addEventListener("click", () => openEditModal(+b.dataset.edit))
     );
     tbody.querySelectorAll("[data-del]").forEach((b) =>
-      b.addEventListener("click", () => onDelete(+b.dataset.del))
+      b.addEventListener("click", () => deleteProduct(+b.dataset.del))
     );
   }
 
@@ -797,13 +816,44 @@
     }
   }
 
-  async function onDelete(id) {
-    const p = products.find((x) => x.id === id);
-    if (!p || !confirm(`「${p.name}」を削除しますか？`)) return;
-    await Api.delete(`/api/products/${id}`);
-    if (editingId === id) closeModal();
-    await loadProducts({ resetPage: false });
-    showSuccessToast("削除しました ✓");
+  async function deleteProduct(productId) {
+    if (
+      !confirm("この商品を削除しますか？\nこの操作は元に戻せません。")
+    ) {
+      return;
+    }
+
+    try {
+      const token = Api.getToken();
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await fetch(`/api/products/${productId}`, {
+        method: "DELETE",
+        headers,
+      });
+
+      if (res.ok) {
+        if (editingId === productId) closeModal();
+        await loadProducts({ resetPage: false });
+        showSuccessToast("商品を削除しました");
+        return;
+      }
+
+      let detail = "不明なエラー";
+      try {
+        const data = await res.json();
+        detail = data.detail || detail;
+        if (Array.isArray(detail)) {
+          detail = detail.map((e) => e.msg || e).join(", ");
+        }
+      } catch {
+        /* ignore */
+      }
+      alert(`削除に失敗しました: ${detail}`);
+    } catch {
+      alert("削除中にエラーが発生しました");
+    }
   }
 
   async function onImportCsv() {
