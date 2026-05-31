@@ -533,9 +533,55 @@
 
   function onExpandAllChange() {
     const expandAll = document.getElementById("modal-expand-all-stores")?.checked;
+    suppressStoreCheckboxEvents = true;
     document.querySelectorAll(".store-checkbox").forEach((cb) => {
       cb.checked = !!expandAll;
     });
+    suppressStoreCheckboxEvents = false;
+    syncExpandAllCheckbox();
+  }
+
+  async function onStoreCheckboxChange(cb) {
+    if (suppressStoreCheckboxEvents) {
+      syncExpandAllCheckbox();
+      return;
+    }
+    if (cb.checked) {
+      syncExpandAllCheckbox();
+      return;
+    }
+    if (!editingId) {
+      syncExpandAllCheckbox();
+      return;
+    }
+
+    const storeId = parseInt(cb.value, 10);
+    const storeName = cb.dataset.storeName || "この店舗";
+
+    try {
+      const data = await Api.get(
+        `/admin/inventory/quantity?product_id=${editingId}&store_id=${storeId}`
+      );
+      const quantity = data.quantity || 0;
+      if (quantity > 0) {
+        const confirmed = confirm(
+          `${storeName}にこの商品の在庫が${quantity}個残っています。\n` +
+            `この店舗からこの商品の取り扱いを削除しますか？\n` +
+            `（在庫データは削除されます）`
+        );
+        if (!confirmed) {
+          cb.checked = true;
+          syncExpandAllCheckbox();
+          return;
+        }
+      }
+    } catch (ex) {
+      alert(ex.message || "在庫数の取得に失敗しました");
+      cb.checked = true;
+      syncExpandAllCheckbox();
+      return;
+    }
+    syncExpandAllCheckbox();
   }
 
   function renderStorePickList(selectedIds) {
@@ -546,15 +592,15 @@
       .map(
         (s) => `
       <label class="store-pick-item">
-        <input type="checkbox" class="store-checkbox modal-store-cb" value="${s.id}" ${
-          selected.has(s.id) ? "checked" : ""
-        }>
+        <input type="checkbox" class="store-checkbox modal-store-cb" value="${s.id}" data-store-name="${esc(
+          s.name
+        )}" ${selected.has(s.id) ? "checked" : ""}>
         ${esc(s.name)}
       </label>`
       )
       .join("");
     list.querySelectorAll(".store-checkbox").forEach((cb) => {
-      cb.addEventListener("change", syncExpandAllCheckbox);
+      cb.addEventListener("change", () => onStoreCheckboxChange(cb));
     });
   }
 
@@ -646,7 +692,7 @@
     const maker = document.getElementById("modal-maker_id").value;
     const brand = document.getElementById("modal-brand_id").value;
     const dealer = document.getElementById("modal-dealer_id").value;
-    return {
+    const body = {
       name: document.getElementById("modal-name").value.trim(),
       barcode: document.getElementById("modal-barcode").value.trim() || null,
       jan_code: modalJanCode,
@@ -657,6 +703,14 @@
       dealer_id: dealer ? parseInt(dealer, 10) : null,
       store_settings: getStoreSettings(),
     };
+    if (editingProductSnapshot) {
+      body.warning_threshold = editingProductSnapshot.warning_threshold;
+      body.critical_threshold = editingProductSnapshot.critical_threshold;
+    } else {
+      body.warning_threshold = 5;
+      body.critical_threshold = 2;
+    }
+    return body;
   }
 
   function openModal() {
@@ -669,6 +723,7 @@
     document.getElementById("product-modal").hidden = true;
     document.body.style.overflow = "";
     editingId = null;
+    editingProductSnapshot = null;
     modalJanCode = null;
     document.getElementById("modal-form-error").hidden = true;
     clearBarcodeDupWarning();
@@ -696,6 +751,7 @@
 
   function openAddModal() {
     editingId = null;
+    editingProductSnapshot = null;
     modalJanCode = null;
     document.getElementById("product-modal-title").textContent = "商品を追加";
     resetModalDefaults();
@@ -708,6 +764,10 @@
       products.find((x) => x.id === id) ||
       (await Api.get(`/api/products/${id}`));
     editingId = id;
+    editingProductSnapshot = {
+      warning_threshold: p.warning_threshold,
+      critical_threshold: p.critical_threshold,
+    };
     modalJanCode = p.jan_code || null;
     document.getElementById("product-modal-title").textContent = "商品を編集";
     document.getElementById("modal-product-id").value = id;

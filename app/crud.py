@@ -424,23 +424,41 @@ def create_product(db: Session, data: ProductCreate) -> Product:
 
 
 def update_product(db: Session, product: Product, data: ProductUpdate) -> Product:
-    _validate_product_brand(db, data.maker_id, data.brand_id)
-    product.name = data.name
-    product.barcode = resolve_product_barcode(
-        db, data.barcode, existing=product.barcode
-    )
-    product.jan_code = (data.jan_code or "").strip() or None
-    product.unit = data.unit
-    product.standard_stock = data.standard_stock
-    product.warning_threshold = data.warning_threshold
-    product.critical_threshold = data.critical_threshold
-    product.category_id = data.category_id
-    product.maker_id = data.maker_id
-    product.brand_id = data.brand_id
-    product.dealer_id = data.dealer_id
+    maker_id = data.maker_id if data.maker_id is not None else product.maker_id
+    brand_id = data.brand_id if data.brand_id is not None else product.brand_id
+    _validate_product_brand(db, maker_id, brand_id)
+
+    if data.name is not None:
+        product.name = data.name
+    if data.barcode is not None:
+        product.barcode = resolve_product_barcode(
+            db, data.barcode, existing=product.barcode
+        )
+    if data.jan_code is not None:
+        product.jan_code = (data.jan_code or "").strip() or None
+    if data.unit is not None:
+        product.unit = data.unit
+    if data.standard_stock is not None:
+        product.standard_stock = data.standard_stock
+    if data.warning_threshold is not None:
+        product.warning_threshold = data.warning_threshold
+    if data.critical_threshold is not None:
+        product.critical_threshold = data.critical_threshold
+    if data.category_id is not None:
+        product.category_id = data.category_id
+    if data.maker_id is not None:
+        product.maker_id = data.maker_id
+    if data.brand_id is not None:
+        product.brand_id = data.brand_id
+    if data.dealer_id is not None:
+        product.dealer_id = data.dealer_id
+
+    if product.critical_threshold > product.warning_threshold:
+        raise ValueError("危険閾値は警告閾値以下にしてください。")
+
     if data.store_settings:
         apply_product_store_settings(db, product.id, data.store_settings, commit=False)
-    else:
+    elif data.deployment is not None:
         apply_product_store_deployment(
             db,
             product.id,
@@ -855,6 +873,8 @@ def apply_product_store_settings(
         inv = get_inventory_row(db, store_id, product_id)
         if inv:
             inv.is_active = is_active
+            if not is_active:
+                inv.quantity = 0
         elif is_active:
             db.add(
                 Inventory(

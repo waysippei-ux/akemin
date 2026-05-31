@@ -201,18 +201,19 @@ class ProductCreate(BaseModel):
 
 
 class ProductUpdate(BaseModel):
-    name: str
+    """商品更新（未指定フィールドは既存値を維持）"""
+    name: Optional[str] = None
     barcode: Optional[str] = None
-    category_id: int
+    category_id: Optional[int] = None
     jan_code: Optional[str] = None
-    unit: str = "本"
-    standard_stock: int = Field(default=0, ge=0)
-    warning_threshold: int = Field(ge=0)
-    critical_threshold: int = Field(ge=0)
+    unit: Optional[str] = None
+    standard_stock: Optional[int] = Field(default=None, ge=0)
+    warning_threshold: Optional[int] = Field(default=None, ge=0)
+    critical_threshold: Optional[int] = Field(default=None, ge=0)
     maker_id: Optional[int] = None
     brand_id: Optional[int] = None
     dealer_id: Optional[int] = None
-    deployment: ProductDeploymentIn = Field(default_factory=ProductDeploymentIn)
+    deployment: Optional[ProductDeploymentIn] = None
     store_settings: Optional[list[ProductStoreSettingIn]] = None
 
 

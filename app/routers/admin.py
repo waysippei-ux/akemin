@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app import crud
 from app.auth import check_store_access, get_current_user, is_admin, require_admin
 from app.database import get_db
-from app.models import User
+from app.models import Inventory, User
 from app.schemas import (
     BrandOut,
     InventoryLogEditOut,
@@ -147,7 +147,17 @@ def admin_update_product(
                 detail="このバーコードは別の商品で使用されています。",
             )
 
-    if body.critical_threshold > body.warning_threshold:
+    warn = (
+        body.warning_threshold
+        if body.warning_threshold is not None
+        else product.warning_threshold
+    )
+    crit = (
+        body.critical_threshold
+        if body.critical_threshold is not None
+        else product.critical_threshold
+    )
+    if crit > warn:
         raise HTTPException(
             status_code=400,
             detail="危険閾値は警告閾値以下にしてください。",
@@ -160,6 +170,28 @@ def admin_update_product(
 
     product = crud.get_product_by_id(db, product_id)
     return crud_masters.product_to_out(db, product)
+
+
+@router.get("/inventory/quantity")
+def admin_get_inventory_quantity(
+    product_id: int = Query(..., gt=0),
+    store_id: int = Query(..., gt=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """店舗×商品の在庫数（展開店舗チェック解除時の警告用）"""
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="管理者権限が必要です")
+    check_store_access(current_user, store_id)
+    inv = (
+        db.query(Inventory)
+        .filter(
+            Inventory.product_id == product_id,
+            Inventory.store_id == store_id,
+        )
+        .first()
+    )
+    return {"quantity": inv.quantity if inv else 0}
 
 
 @router.get("/inventory-log-edits", response_model=list[InventoryLogEditOut])

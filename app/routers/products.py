@@ -195,7 +195,17 @@ def update_product_endpoint(
                 detail="このバーコードは別の商品で使用されています。",
             )
 
-    if body.critical_threshold > body.warning_threshold:
+    warn = (
+        body.warning_threshold
+        if body.warning_threshold is not None
+        else product.warning_threshold
+    )
+    crit = (
+        body.critical_threshold
+        if body.critical_threshold is not None
+        else product.critical_threshold
+    )
+    if crit > warn:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="危険閾値は警告閾値以下にしてください。",
