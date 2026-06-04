@@ -953,9 +953,11 @@ def _inventory_item_from_row(
     product: Product,
     inv: Inventory,
     settings_map: dict,
+    ordering_map: dict[int, int] | None = None,
 ) -> InventoryItemOut:
     warning, critical = resolve_thresholds(product, settings_map.get(product.id))
     level = calc_stock_level(inv.quantity, warning, critical)
+    ordered_qty = (ordering_map or {}).get(product.id, 0)
     return InventoryItemOut(
         product_id=product.id,
         product_name=product.name,
@@ -975,7 +977,171 @@ def _inventory_item_from_row(
         dealer_id=product.dealer_id,
         dealer_name=product.dealer.name if product.dealer else None,
         is_on_shelf=inv.is_active,
+        ordered_quantity=ordered_qty,
     )
+
+
+def get_ordering_quantity_map(db: Session, store_id: int) -> dict[int, int]:
+    """店舗の発注中数量（product_id → ordered_quantity）"""
+    from app.models import OrderingItem
+
+    rows = (
+        db.query(OrderingItem.product_id, OrderingItem.ordered_quantity)
+        .filter(OrderingItem.store_id == store_id)
+        .all()
+    )
+    return {pid: int(qty or 0) for pid, qty in rows}
+
+
+def get_ordering_candidates_for_shelf(
+    db: Session, store_id: int, section_id: int
+) -> list[dict]:
+    """発注表と同条件：黄アラート以下かつ必要発注数 > 0"""
+    items = get_inventory_list(db, store_id, active_only=True, section=section_id)
+    result: list[dict] = []
+    for item in items:
+        qty = int(item.quantity or 0)
+        warning = int(item.warning_threshold or 0)
+        std = int(item.standard_stock or 0)
+        if qty > warning:
+            continue
+        needed = std - qty
+        if needed <= 0:
+            continue
+        result.append(
+            {
+                "product_id": item.product_id,
+                "product_name": item.product_name,
+                "brand_name": item.brand_name,
+                "needed": needed,
+            }
+        )
+    result.sort(key=lambda x: x["product_name"])
+    return result
+
+
+def list_ordering_items(db: Session, store_id: int) -> list:
+    """発注中一覧"""
+    from app.models import OrderingItem
+
+    rows = (
+        db.query(OrderingItem)
+        .options(
+            joinedload(OrderingItem.product).joinedload(Product.brand),
+        )
+        .filter(OrderingItem.store_id == store_id)
+        .order_by(OrderingItem.updated_at.desc(), OrderingItem.id.desc())
+        .all()
+    )
+    return rows
+
+
+def save_ordering_items(
+    db: Session, store_id: int, items: list
+) -> None:
+    """発注中を登録・更新（数量0は削除）"""
+    from app.models import OrderingItem
+
+    if not get_store(db, store_id):
+        raise ValueError("店舗が見つかりません。")
+
+    now = datetime.now(JST)
+    for row in items:
+        product_id = int(row["product_id"])
+        quantity = int(row["ordered_quantity"])
+        product = get_product_by_id(db, product_id)
+        if not product:
+            raise ValueError(f"商品ID {product_id} が見つかりません。")
+
+        existing = (
+            db.query(OrderingItem)
+            .filter(
+                OrderingItem.store_id == store_id,
+                OrderingItem.product_id == product_id,
+            )
+            .first()
+        )
+        if quantity <= 0:
+            if existing:
+                db.delete(existing)
+            continue
+        if existing:
+            existing.ordered_quantity = quantity
+            existing.updated_at = now
+        else:
+            db.add(
+                OrderingItem(
+                    store_id=store_id,
+                    product_id=product_id,
+                    ordered_quantity=quantity,
+                )
+            )
+    db.commit()
+
+
+def delete_ordering_item(db: Session, item_id: int) -> bool:
+    from app.models import OrderingItem
+
+    item = db.query(OrderingItem).filter(OrderingItem.id == item_id).first()
+    if not item:
+        return False
+    db.delete(item)
+    db.commit()
+    return True
+
+
+def deliver_ordering_items(
+    db: Session,
+    user: User,
+    store_id: int,
+    item_ids: list[int],
+) -> int:
+    """発注中を納品登録（在庫加算・ログ記録・発注中削除）"""
+    from app.models import InventoryLog, OrderingItem
+
+    require_store_id_for_stock(store_id)
+    if not get_store(db, store_id):
+        raise ValueError("店舗が見つかりません。")
+
+    delivered = 0
+    for item_id in item_ids:
+        ordering = (
+            db.query(OrderingItem)
+            .filter(
+                OrderingItem.id == item_id,
+                OrderingItem.store_id == store_id,
+            )
+            .first()
+        )
+        if not ordering or ordering.ordered_quantity <= 0:
+            continue
+
+        product = get_product_by_id(db, ordering.product_id)
+        if not product:
+            continue
+
+        qty = int(ordering.ordered_quantity)
+        inv = activate_inventory_at_store(
+            db, store_id, ordering.product_id, commit=False
+        )
+        inv.quantity += qty
+
+        db.add(
+            InventoryLog(
+                store_id=store_id,
+                product_id=ordering.product_id,
+                user_id=user.id,
+                action=InventoryAction.RESTOCK,
+                quantity_change=qty,
+                quantity_after=inv.quantity,
+            )
+        )
+        db.delete(ordering)
+        delivered += 1
+
+    if delivered:
+        db.commit()
+    return delivered
 
 
 def build_order_pdf_hierarchy(
@@ -1045,6 +1211,7 @@ def get_inventory_list(
     active_only=False（補充画面の検索）: マスタ全商品＋在庫数。
     """
     settings_map = get_settings_map(db, store_id)
+    ordering_map = get_ordering_quantity_map(db, store_id)
     result: list[InventoryItemOut] = []
 
     if active_only:
@@ -1075,7 +1242,9 @@ def get_inventory_list(
             if brand_id and product.brand_id != brand_id:
                 continue
             result.append(
-                _inventory_item_from_row(db, store_id, product, inv, settings_map)
+                _inventory_item_from_row(
+                    db, store_id, product, inv, settings_map, ordering_map
+                )
             )
         result.sort(key=lambda x: x.product_name)
         return result
@@ -1097,7 +1266,9 @@ def get_inventory_list(
                 is_active=False,
             )
         result.append(
-            _inventory_item_from_row(db, store_id, product, inv, settings_map)
+            _inventory_item_from_row(
+                db, store_id, product, inv, settings_map, ordering_map
+            )
         )
     return result
 

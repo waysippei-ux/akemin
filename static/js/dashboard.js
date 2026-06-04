@@ -64,6 +64,12 @@ function toJSTDateTime(dateStr) {
         ? `<span class="stock-std">標準 ${std}本</span>`
         : `<span class="stock-std stock-std-unset">未設定</span>`;
 
+    const orderedQty = item.ordered_quantity ?? 0;
+    const orderingBadge =
+      orderedQty > 0
+        ? `<span class="ordering-badge">発注中 ${orderedQty}${escapeHtml(unit)}</span>`
+        : "";
+
     return `
       <div class="product-card ${status.card}">
         <span class="status-badge ${status.badge}">${status.label}</span>
@@ -75,6 +81,7 @@ function toJSTDateTime(dateStr) {
           <span class="stock-unit">${escapeHtml(unit)}</span>
           ${stdHtml}
         </div>
+        ${orderingBadge}
       </div>`;
   }
 
@@ -87,6 +94,125 @@ function toJSTDateTime(dateStr) {
   }
 
   const ORDER_PDF_DEFAULT_LABEL = "発注表一覧を作成";
+  let orderingShelfId = null;
+
+  function renderOrderingItems(items) {
+    return items
+      .map(
+        (item) => `
+    <div class="ordering-item-row" data-product-id="${item.product_id}">
+      <label class="ordering-item-label">
+        <input type="checkbox" class="ordering-check" value="${item.product_id}" checked>
+        <span class="ordering-item-name">
+          ${escapeHtml(item.product_name)}
+          ${
+            item.brand_name
+              ? `<span class="brand-pill ordering-brand-pill">${escapeHtml(item.brand_name)}</span>`
+              : ""
+          }
+        </span>
+        <span class="ordering-item-needed">必要: ${item.needed}本</span>
+        <input type="number" class="ordering-qty input-number" value="${item.needed}" min="0" max="999" inputmode="numeric">
+      </label>
+    </div>`
+      )
+      .join("");
+  }
+
+  function openOrderingModal() {
+    const modal = $("ordering-modal");
+    if (modal) {
+      modal.hidden = false;
+      document.body.style.overflow = "hidden";
+    }
+  }
+
+  function closeOrderingModal() {
+    const modal = $("ordering-modal");
+    if (modal) {
+      modal.hidden = true;
+      document.body.style.overflow = "";
+    }
+    orderingShelfId = null;
+    const body = $("ordering-modal-body");
+    if (body) body.innerHTML = "";
+  }
+
+  async function showOrderingModal(shelfId, shelfName) {
+    const storeId = getStoreId();
+    if (!storeId) {
+      alert("店舗を選択してください。");
+      return;
+    }
+    orderingShelfId = shelfId;
+    const title = $("ordering-modal-title");
+    if (title) title.textContent = `発注中に登録 — ${shelfName}`;
+    const body = $("ordering-modal-body");
+    if (body) body.innerHTML = '<p class="loading">読み込み中…</p>';
+    openOrderingModal();
+
+    try {
+      const items = await Api.get(
+        `/api/ordering-items/candidates?store_id=${encodeURIComponent(storeId)}&shelf_id=${encodeURIComponent(shelfId)}`
+      );
+      if (!body) return;
+      if (!items.length) {
+        body.innerHTML =
+          '<p class="empty-msg">黄アラート以下で発注が必要な商品はありません</p>';
+        return;
+      }
+      body.innerHTML = renderOrderingItems(items);
+    } catch (err) {
+      if (body) body.innerHTML = `<p class="error-msg">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  async function saveOrderingItems() {
+    const storeId = getStoreId();
+    if (!storeId) {
+      alert("店舗を選択してください。");
+      return;
+    }
+    const rows = [...document.querySelectorAll(".ordering-item-row")];
+    const items = [];
+    rows.forEach((row) => {
+      const cb = row.querySelector(".ordering-check");
+      if (!cb?.checked) return;
+      const qty = parseInt(row.querySelector(".ordering-qty")?.value, 10) || 0;
+      if (qty <= 0) return;
+      items.push({
+        product_id: parseInt(row.dataset.productId, 10),
+        ordered_quantity: qty,
+      });
+    });
+    if (!items.length) {
+      alert("発注数を入力した商品を1つ以上選択してください。");
+      return;
+    }
+    try {
+      await Api.post("/api/ordering-items", { store_id: storeId, items });
+      closeOrderingModal();
+      if (isDetailView()) await loadCategoryDetail();
+      else await loadCategoryCards();
+      alert("発注中を登録しました");
+    } catch (err) {
+      alert(err.message || "登録に失敗しました");
+    }
+  }
+
+  function bindOrderingButtons() {
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(".btn-ordering");
+      if (!btn) return;
+      showOrderingModal(btn.dataset.shelfId, btn.dataset.shelfName || "棚");
+    });
+    $("ordering-modal-close")?.addEventListener("click", closeOrderingModal);
+    $("ordering-modal-cancel")?.addEventListener("click", closeOrderingModal);
+    $("ordering-modal-save")?.addEventListener("click", saveOrderingItems);
+    $("ordering-modal")?.addEventListener("click", (e) => {
+      if (e.target.id === "ordering-modal") closeOrderingModal();
+    });
+  }
 
   function bindOrderPdfButtons() {
     document.addEventListener("click", async (e) => {
@@ -134,6 +260,7 @@ function toJSTDateTime(dateStr) {
     $("btn-refresh")?.addEventListener("click", onRefresh);
     $("btn-back-categories")?.addEventListener("click", showCategories);
     bindOrderPdfButtons();
+    bindOrderingButtons();
     storeSelect?.addEventListener("change", () => {
       if (isDetailView()) loadCategoryDetail();
       else loadCategoryCards();
@@ -238,13 +365,22 @@ function toJSTDateTime(dateStr) {
         <section class="dashboard-section" style="background:${escapeHtml(sec.color)}">
           <div class="shelf-title-row">
             <h2 class="shelf-title">${escapeHtml(sec.section_name)}</h2>
-            <button
-              type="button"
-              class="btn-order-pdf"
-              data-shelf-id="${sec.section_id}"
-              data-shelf-name="${escapeHtml(sec.section_name)}">
-              発注表一覧を作成
-            </button>
+            <div class="shelf-actions">
+              <button
+                type="button"
+                class="btn-order-pdf"
+                data-shelf-id="${sec.section_id}"
+                data-shelf-name="${escapeHtml(sec.section_name)}">
+                発注表一覧を作成
+              </button>
+              <button
+                type="button"
+                class="btn-ordering"
+                data-shelf-id="${sec.section_id}"
+                data-shelf-name="${escapeHtml(sec.section_name)}">
+                発注中に登録
+              </button>
+            </div>
           </div>
           <div class="category-cards" data-section-id="${sec.section_id}">${cards}</div>
         </section>`;

@@ -33,10 +33,22 @@
   <button type="button" class="tab-btn active" data-tab="search">商品検索</button>
   <button type="button" class="tab-btn" data-tab="scan">バーコードスキャン</button>
   <button type="button" class="tab-btn" data-tab="bulk">一括</button>
+  <button type="button" class="tab-btn" data-tab="delivery" id="tab-delivery">発注中を納品登録</button>
 </div>
 
 {% include "_stock_tabs_search.html" %}
 {% include "_stock_tabs_scan_bulk.html" %}
+
+<div id="tab-delivery" class="stock-tab-content" style="display:none">
+  <div class="card delivery-tab-card">
+    <div id="delivery-list" class="delivery-list"></div>
+    <div class="modal-actions delivery-tab-actions">
+      <button type="button" class="btn btn-primary" id="delivery-submit-btn">
+        選択した商品を納品登録する
+      </button>
+    </div>
+  </div>
+</div>
 
 <p id="page-toast" class="scan-result" style="display:none"></p>
 <p id="page-error" class="error-msg" style="display:none"></p>
@@ -215,5 +227,5 @@
 <script>window.STOCK_PAGE = {{ page_json | safe }};</script>
 <script src="/static/js/filter_helpers.js?v=3"></script>
 <script src="/static/js/store_product_settings_api.js?v=2"></script>
-<script src="/static/js/stock_page.js?v=18"></script>
+<script src="/static/js/stock_page.js?v=19"></script>
 {% endblock %}

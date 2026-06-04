@@ -248,6 +248,37 @@ class InventoryItemOut(BaseModel):
     dealer_id: Optional[int] = None
     dealer_name: Optional[str] = None
     is_on_shelf: bool = False
+    ordered_quantity: int = 0
+
+
+class OrderingItemOut(BaseModel):
+    id: int
+    product_id: int
+    product_name: str
+    brand_name: Optional[str] = None
+    ordered_quantity: int
+
+
+class OrderingCandidateOut(BaseModel):
+    product_id: int
+    product_name: str
+    brand_name: Optional[str] = None
+    needed: int
+
+
+class OrderingItemSaveIn(BaseModel):
+    product_id: int = Field(gt=0)
+    ordered_quantity: int = Field(ge=0)
+
+
+class OrderingItemsSaveBody(BaseModel):
+    store_id: int = Field(gt=0)
+    items: list[OrderingItemSaveIn] = Field(default_factory=list)
+
+
+class OrderingDeliverBody(BaseModel):
+    store_id: int = Field(gt=0)
+    item_ids: list[int] = Field(default_factory=list)
 
 
 class InventoryScanRequest(BaseModel):

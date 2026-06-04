@@ -60,6 +60,7 @@ class Store(Base):
     users: Mapped[list["User"]] = relationship(back_populates="store")
     inventories: Mapped[list["Inventory"]] = relationship(back_populates="store")
     purchase_orders: Mapped[list["PurchaseOrder"]] = relationship(back_populates="store")
+    ordering_items: Mapped[list["OrderingItem"]] = relationship(back_populates="store")
     product_settings: Mapped[list["StoreProductSetting"]] = relationship(back_populates="store")
 
 
@@ -207,6 +208,7 @@ class Product(Base):
     inventories: Mapped[list["Inventory"]] = relationship(back_populates="product")
     inventory_logs: Mapped[list["InventoryLog"]] = relationship(back_populates="product")
     purchase_order_items: Mapped[list["PurchaseOrderItem"]] = relationship(back_populates="product")
+    ordering_items: Mapped[list["OrderingItem"]] = relationship(back_populates="product")
     delivery_codes: Mapped[list["ProductDeliveryCode"]] = relationship(
         back_populates="product",
         cascade="all, delete-orphan",
@@ -345,6 +347,30 @@ class PurchaseOrderItem(Base):
 
     purchase_order: Mapped["PurchaseOrder"] = relationship(back_populates="items")
     product: Mapped["Product"] = relationship(back_populates="purchase_order_items")
+
+
+class OrderingItem(Base):
+    """発注中管理（店舗×商品ごとの発注数量）"""
+    __tablename__ = "ordering_items"
+    __table_args__ = (
+        UniqueConstraint("store_id", "product_id", name="uq_ordering_store_product"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    store_id: Mapped[int] = mapped_column(ForeignKey("stores.id"), nullable=False, index=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False, index=True)
+    ordered_quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(JST)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(JST),
+        onupdate=lambda: datetime.now(JST),
+    )
+
+    store: Mapped["Store"] = relationship(back_populates="ordering_items")
+    product: Mapped["Product"] = relationship(back_populates="ordering_items")
 
 
 # -----------------------------------------------------------------------

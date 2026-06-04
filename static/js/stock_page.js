@@ -79,8 +79,10 @@ function formatLogRecordedAt(log) {
     bindScanTab();
     bindLogHistory();
     bindBulkTab();
-    if (IS_REPLENISH) bindNewProductModal();
-    else bindNotOnShelfModal();
+    if (IS_REPLENISH) {
+      bindNewProductModal();
+      bindDeliveryTab();
+    } else bindNotOnShelfModal();
 
     setupStoreSelect();
     renderProducts();
@@ -122,6 +124,9 @@ function formatLogRecordedAt(log) {
     if (tab !== "bulk" && bulkCameraOn) stopBulkCamera();
     if (tab === "scan") {
       document.getElementById("scanner-input")?.focus();
+    }
+    if (tab === "delivery" && IS_REPLENISH) {
+      loadDeliveryList();
     }
   }
 
@@ -219,6 +224,9 @@ function formatLogRecordedAt(log) {
       bulkPending = [];
       renderBulkLines();
       await reloadProducts();
+      if (IS_REPLENISH && activeTab === "delivery") {
+        loadDeliveryList();
+      }
     });
   }
 
@@ -793,6 +801,81 @@ function formatLogRecordedAt(log) {
         errEl.textContent = err.message;
         errEl.style.display = "block";
       }
+    }
+  }
+
+  /* ---------- 発注中納品タブ（補充のみ） ---------- */
+  function bindDeliveryTab() {
+    document.getElementById("delivery-submit-btn")?.addEventListener("click", submitDelivery);
+  }
+
+  async function loadDeliveryList() {
+    const list = document.getElementById("delivery-list");
+    if (!list) return;
+    const storeId = getStoreId();
+    if (!storeId) {
+      list.innerHTML = '<p class="empty-msg">店舗を選択してください</p>';
+      return;
+    }
+    list.innerHTML = '<p class="loading">読み込み中…</p>';
+    try {
+      const items = await Api.get(
+        `/api/ordering-items?store_id=${encodeURIComponent(storeId)}`
+      );
+      if (!items.length) {
+        list.innerHTML =
+          '<p class="empty-msg" style="color:#aaa;padding:1rem;">発注中の商品はありません</p>';
+        return;
+      }
+      list.innerHTML = items
+        .map(
+          (item) => `
+        <div class="delivery-row">
+          <input type="checkbox" class="delivery-check" value="${item.id}" checked>
+          <span class="delivery-row-name">${escapeHtml(item.product_name)}${
+            item.brand_name
+              ? ` <span class="brand-pill">${escapeHtml(item.brand_name)}</span>`
+              : ""
+          }</span>
+          <span class="delivery-row-qty">発注中 ${item.ordered_quantity}本</span>
+        </div>`
+        )
+        .join("");
+    } catch (err) {
+      list.innerHTML = `<p class="error-msg">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  async function submitDelivery() {
+    const checked = [...document.querySelectorAll(".delivery-check:checked")].map((cb) =>
+      parseInt(cb.value, 10)
+    );
+    if (!checked.length) {
+      alert("納品登録する商品を選択してください");
+      return;
+    }
+    if (
+      !confirm(
+        `${checked.length}件の商品を納品登録しますか？\n在庫数に発注中の本数が加算されます。`
+      )
+    ) {
+      return;
+    }
+    const storeId = getStoreId();
+    if (!storeId) {
+      alert("店舗を選択してください。");
+      return;
+    }
+    try {
+      await Api.post("/api/ordering-items/deliver", {
+        store_id: storeId,
+        item_ids: checked,
+      });
+      showToast("✓ 納品登録しました", 2000);
+      await loadDeliveryList();
+      await reloadProducts();
+    } catch (err) {
+      alert(err.message || "エラーが発生しました");
     }
   }
 

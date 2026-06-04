@@ -318,7 +318,7 @@ def list_stock_products(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """店舗切り替え時の商品一覧（category_name / brand_name / maker_name / standard_stock 含む）"""
+    """店舗切り替え時の商品一覧（発注中数量 ordered_quantity 含む）"""
     check_store_access(current_user, store_id)
     _validate_store(db, store_id)
     active_only = page == "consume"

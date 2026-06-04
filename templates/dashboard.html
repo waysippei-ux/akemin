@@ -44,8 +44,22 @@
     <div id="inventory-list" class="card-grid" hidden></div>
   </section>
 </div>
+
+<div id="ordering-modal" class="modal-overlay" hidden>
+  <div class="modal card ordering-modal" role="dialog" aria-labelledby="ordering-modal-title">
+    <div class="modal-header">
+      <h3 id="ordering-modal-title">発注中に登録</h3>
+      <button type="button" class="btn-icon" id="ordering-modal-close" aria-label="閉じる">×</button>
+    </div>
+    <div id="ordering-modal-body" class="ordering-modal-body"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="ordering-modal-cancel">キャンセル</button>
+      <button type="button" class="btn btn-primary" id="ordering-modal-save">登録する</button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/dashboard.js?v=14"></script>
+<script src="/static/js/dashboard.js?v=15"></script>
 {% endblock %}

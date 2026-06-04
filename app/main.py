@@ -141,6 +141,7 @@ from app.routers import (
 app.include_router(auth.router, prefix="/api/auth", tags=["認証"])
 app.include_router(stores.router, prefix="/api/stores", tags=["店舗"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["ダッシュボード"])
+app.include_router(dashboard.ordering_router, prefix="/api", tags=["発注中"])
 app.include_router(sections.router, prefix="/api/sections", tags=["棚"])
 app.include_router(categories.router, prefix="/api/categories", tags=["カテゴリ"])
 app.include_router(dealers.router, prefix="/api/dealers", tags=["ディーラー"])

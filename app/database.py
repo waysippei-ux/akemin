@@ -278,6 +278,9 @@ def migrate_schema() -> None:
     if "inventory_log_edits" not in insp.get_table_names():
         models.InventoryLogEdit.__table__.create(bind=engine, checkfirst=True)
 
+    if "ordering_items" not in insp.get_table_names():
+        models.OrderingItem.__table__.create(bind=engine, checkfirst=True)
+
     if "categories" in insp.get_table_names():
         cat_cols = {c["name"] for c in insp.get_columns("categories")}
         if "sort_order" not in cat_cols:
