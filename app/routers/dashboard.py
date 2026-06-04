@@ -16,7 +16,7 @@ from app.schemas import (
 )
 
 router = APIRouter()
-ordering_router = APIRouter()
+ordering_router = APIRouter(tags=["発注中"])
 
 
 @router.get("/sections", response_model=DashboardSectionsOut)
@@ -47,7 +47,7 @@ def get_ordering_items(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """発注中一覧"""
+    """発注中一覧（ordering_items テーブル）— GET /api/ordering-items?store_id="""
     check_store_access(current_user, store_id)
     rows = crud.list_ordering_items(db, store_id)
     return [

@@ -107,6 +107,20 @@ function formatLogRecordedAt(log) {
     document.querySelectorAll("#stock-tabs [data-tab]").forEach((btn) => {
       btn.addEventListener("click", () => switchTab(btn.dataset.tab));
     });
+    if (IS_REPLENISH) {
+      document
+        .querySelector('#stock-tabs [data-tab="delivery"]')
+        ?.addEventListener("click", () => {
+          loadDeliveryList();
+        });
+    }
+  }
+
+  function getTabPanel(tab) {
+    if (tab === "delivery") {
+      return document.getElementById("delivery-tab-content");
+    }
+    return document.getElementById(`tab-${tab}`);
   }
 
   function switchTab(tab) {
@@ -114,7 +128,7 @@ function formatLogRecordedAt(log) {
     document.querySelectorAll(".stock-tab-content").forEach((el) => {
       el.style.display = "none";
     });
-    const panel = document.getElementById(`tab-${tab}`);
+    const panel = getTabPanel(tab);
     if (panel) panel.style.display = "block";
 
     document.querySelectorAll("#stock-tabs [data-tab]").forEach((btn) => {
@@ -806,7 +820,10 @@ function formatLogRecordedAt(log) {
 
   /* ---------- 発注中納品タブ（補充のみ） ---------- */
   function bindDeliveryTab() {
-    document.getElementById("delivery-submit-btn")?.addEventListener("click", submitDelivery);
+    document.addEventListener("click", async (e) => {
+      if (!e.target.closest("#delivery-submit-btn")) return;
+      await submitDelivery();
+    });
   }
 
   async function loadDeliveryList() {
@@ -814,17 +831,19 @@ function formatLogRecordedAt(log) {
     if (!list) return;
     const storeId = getStoreId();
     if (!storeId) {
-      list.innerHTML = '<p class="empty-msg">店舗を選択してください</p>';
+      list.innerHTML =
+        '<p style="color:#aaa; text-align:center; padding:2rem;">店舗を選択してください</p>';
       return;
     }
-    list.innerHTML = '<p class="loading">読み込み中…</p>';
+    list.innerHTML =
+      '<p style="color:#aaa; text-align:center; padding:2rem;">読み込み中...</p>';
     try {
       const items = await Api.get(
         `/api/ordering-items?store_id=${encodeURIComponent(storeId)}`
       );
-      if (!items.length) {
+      if (!items || !items.length) {
         list.innerHTML =
-          '<p class="empty-msg" style="color:#aaa;padding:1rem;">発注中の商品はありません</p>';
+          '<p style="color:#aaa; text-align:center; padding:2rem;">発注中の商品はありません</p>';
         return;
       }
       list.innerHTML = items
@@ -834,7 +853,7 @@ function formatLogRecordedAt(log) {
           <input type="checkbox" class="delivery-check" value="${item.id}" checked>
           <span class="delivery-row-name">${escapeHtml(item.product_name)}${
             item.brand_name
-              ? ` <span class="brand-pill">${escapeHtml(item.brand_name)}</span>`
+              ? ` <span class="brand-pill delivery-brand-pill">${escapeHtml(item.brand_name)}</span>`
               : ""
           }</span>
           <span class="delivery-row-qty">発注中 ${item.ordered_quantity}本</span>
@@ -871,7 +890,7 @@ function formatLogRecordedAt(log) {
         store_id: storeId,
         item_ids: checked,
       });
-      showToast("✓ 納品登録しました", 2000);
+      alert("納品登録が完了しました！在庫数に反映されました。");
       await loadDeliveryList();
       await reloadProducts();
     } catch (err) {

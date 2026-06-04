@@ -33,15 +33,17 @@
   <button type="button" class="tab-btn active" data-tab="search">商品検索</button>
   <button type="button" class="tab-btn" data-tab="scan">バーコードスキャン</button>
   <button type="button" class="tab-btn" data-tab="bulk">一括</button>
-  <button type="button" class="tab-btn" data-tab="delivery" id="tab-delivery">発注中を納品登録</button>
+  <button type="button" class="tab-btn" data-tab="delivery">発注中を納品登録</button>
 </div>
 
 {% include "_stock_tabs_search.html" %}
 {% include "_stock_tabs_scan_bulk.html" %}
 
-<div id="tab-delivery" class="stock-tab-content" style="display:none">
+<div id="delivery-tab-content" class="stock-tab-content" style="display:none; padding:1rem 0;">
   <div class="card delivery-tab-card">
-    <div id="delivery-list" class="delivery-list"></div>
+    <div id="delivery-list" class="delivery-list">
+      <p class="delivery-loading" style="color:#aaa; text-align:center; padding:2rem;">読み込み中...</p>
+    </div>
     <div class="modal-actions delivery-tab-actions">
       <button type="button" class="btn btn-primary" id="delivery-submit-btn">
         選択した商品を納品登録する
@@ -227,5 +229,5 @@
 <script>window.STOCK_PAGE = {{ page_json | safe }};</script>
 <script src="/static/js/filter_helpers.js?v=3"></script>
 <script src="/static/js/store_product_settings_api.js?v=2"></script>
-<script src="/static/js/stock_page.js?v=19"></script>
+<script src="/static/js/stock_page.js?v=20"></script>
 {% endblock %}

@@ -447,6 +447,16 @@ a {
   margin-top: 1rem;
 }
 
+.delivery-brand-pill {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: #eeedfe;
+  color: #3c3489;
+  border: 0.5px solid #afa9ec;
+  margin-left: 6px;
+}
+
 /* 管理画面トースト（保存/削除の成功通知） */
 .admin-success-toast {
   position: fixed;
