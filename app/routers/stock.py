@@ -47,6 +47,63 @@ templates = Jinja2Templates(directory=str((BASE_DIR / "templates").resolve()))
 pages_router = APIRouter(tags=["棚補充・使用 画面"])
 router = APIRouter()
 
+
+def _stock_body_has_settings(body: StockReplenishRequest | StockConsumeRequest) -> bool:
+    return any(
+        [
+            body.standard_stock is not None,
+            body.warning_threshold is not None,
+            body.critical_threshold is not None,
+        ]
+    )
+
+
+def _apply_stock_modal_settings(
+    db: Session,
+    current_user: User,
+    body: StockReplenishRequest | StockConsumeRequest,
+) -> bool:
+    """管理者がモーダルから送った発注目安を store_product_settings に反映"""
+    if not is_admin(current_user) or not _stock_body_has_settings(body):
+        return False
+
+    product = crud.get_product_by_id(db, body.product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="商品が見つかりません。")
+
+    warning = (
+        body.warning_threshold
+        if body.warning_threshold is not None
+        else product.warning_threshold
+    )
+    critical = (
+        body.critical_threshold
+        if body.critical_threshold is not None
+        else product.critical_threshold
+    )
+
+    try:
+        crud.upsert_store_product_setting_product(
+            db,
+            body.store_id,
+            body.product_id,
+            standard_stock=body.standard_stock,
+            warning_threshold=warning,
+            critical_threshold=critical,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return True
+
+
+def _zero_quantity_response(settings_applied: bool) -> JSONResponse:
+    message = (
+        "発注目安を更新しました"
+        if settings_applied
+        else "数量が0のため記録をスキップしました"
+    )
+    return JSONResponse(content={"message": message})
+
 ALLOWED_UPLOAD_TYPES = {
     "image/jpeg",
     "image/png",
@@ -311,13 +368,14 @@ def replenish_stock(
     check_store_access(current_user, body.store_id)
     _validate_store(db, body.store_id)
     if body.quantity == 0:
-        return JSONResponse(
-            content={"message": "数量が0のため記録をスキップしました"},
-        )
+        settings_applied = _apply_stock_modal_settings(db, current_user, body)
+        return _zero_quantity_response(settings_applied)
     try:
-        return crud_stock.replenish_stock(db, current_user, body)
+        result = crud_stock.replenish_stock(db, current_user, body)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    _apply_stock_modal_settings(db, current_user, body)
+    return result
 
 
 @router.post("/consume", response_model=InventoryScanResponse)
@@ -330,13 +388,14 @@ def consume_stock(
     check_store_access(current_user, body.store_id)
     _validate_store(db, body.store_id)
     if body.quantity == 0:
-        return JSONResponse(
-            content={"message": "数量が0のため記録をスキップしました"},
-        )
+        settings_applied = _apply_stock_modal_settings(db, current_user, body)
+        return _zero_quantity_response(settings_applied)
     try:
-        return crud_stock.consume_stock(db, current_user, body)
+        result = crud_stock.consume_stock(db, current_user, body)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    _apply_stock_modal_settings(db, current_user, body)
+    return result
 
 
 @router.get("/lookup", response_model=StockLookupOut)

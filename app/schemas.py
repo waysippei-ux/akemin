@@ -268,7 +268,14 @@ class StockRegisterRequest(BaseModel):
     recorded_at: Optional[datetime] = None
 
 
-class StockReplenishRequest(BaseModel):
+class StockModalSettingsIn(BaseModel):
+    """補充・使用モーダルからの店舗別発注目安（任意）"""
+    standard_stock: Optional[int] = Field(default=None, ge=0)
+    warning_threshold: Optional[int] = Field(default=None, ge=0)
+    critical_threshold: Optional[int] = Field(default=None, ge=0)
+
+
+class StockReplenishRequest(StockModalSettingsIn):
     """棚補充登録"""
     store_id: int = Field(gt=0, description="店舗ID（必須）")
     product_id: int = Field(gt=0)
@@ -276,7 +283,7 @@ class StockReplenishRequest(BaseModel):
     recorded_at: Optional[datetime] = None
 
 
-class StockConsumeRequest(BaseModel):
+class StockConsumeRequest(StockModalSettingsIn):
     """使用済み登録（在庫減）"""
     store_id: int = Field(gt=0, description="店舗ID（必須）")
     product_id: int = Field(gt=0)

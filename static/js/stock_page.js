@@ -711,7 +711,14 @@ function formatLogRecordedAt(log) {
     const productId = parseInt(document.getElementById("reg-product-id").value, 10);
     const quantity = parseInt(document.getElementById("reg-quantity").value, 10) || 0;
 
-    if (quantity === 0) {
+    const currentSettings = isSettingsAdmin()
+      ? StoreProductSettingsApi.readFromForm(REG_SETTING_IDS)
+      : null;
+    const settingsChanged =
+      isSettingsAdmin() &&
+      StoreProductSettingsApi.changed(modalSettingsSnapshot, currentSettings);
+
+    if (quantity === 0 && !settingsChanged) {
       closeRegisterModal();
       return;
     }
@@ -748,13 +755,7 @@ function formatLogRecordedAt(log) {
       recorded_at,
     };
 
-    const currentSettings = isSettingsAdmin()
-      ? StoreProductSettingsApi.readFromForm(REG_SETTING_IDS)
-      : null;
-    const settingsChanged =
-      isSettingsAdmin() &&
-      StoreProductSettingsApi.changed(modalSettingsSnapshot, currentSettings);
-    if (settingsChanged) {
+    if (isSettingsAdmin() && currentSettings && (settingsChanged || quantity === 0)) {
       const settingsError = StoreProductSettingsApi.validate(currentSettings);
       if (settingsError) {
         if (errEl) {
@@ -763,17 +764,19 @@ function formatLogRecordedAt(log) {
         }
         return;
       }
+      body.standard_stock = currentSettings.standard_stock;
+      body.warning_threshold = currentSettings.warning_threshold;
+      body.critical_threshold = currentSettings.critical_threshold;
     }
 
     try {
-      await Api.post(SUBMIT_URL, body);
-      if (settingsChanged) {
-        await StoreProductSettingsApi.saveSetting(
-          StoreProductSettingsApi.buildPutBody(storeId, productId, currentSettings)
-        );
-      }
+      const res = await Api.post(SUBMIT_URL, body);
       closeRegisterModal();
-      showToast("✓ 登録しました", 2000);
+      const toastMsg =
+        quantity === 0
+          ? res?.message || "発注目安を更新しました"
+          : "✓ 登録しました";
+      showToast(toastMsg, 2000);
       await reloadProducts();
       resetScanInput();
     } catch (err) {
