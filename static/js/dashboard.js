@@ -70,6 +70,25 @@ function toJSTDateTime(dateStr) {
         ? `<span class="ordering-badge">発注中 ${orderedQty}${escapeHtml(unit)}</span>`
         : "";
 
+    const warningStock = item.warning_threshold ?? item.warning_stock;
+    const criticalStock = item.critical_threshold ?? item.critical_stock;
+    const thresholdHtml =
+      warningStock || criticalStock
+        ? `
+<div class="alert-threshold-row">
+  ${
+    warningStock
+      ? `<span class="threshold-badge threshold-warn">要発注 ${warningStock}本以下</span>`
+      : ""
+  }
+  ${
+    criticalStock
+      ? `<span class="threshold-badge threshold-crit">至急 ${criticalStock}本以下</span>`
+      : ""
+  }
+</div>`
+        : "";
+
     return `
       <div class="product-card ${status.card}">
         <span class="status-badge ${status.badge}">${status.label}</span>
@@ -81,6 +100,7 @@ function toJSTDateTime(dateStr) {
           <span class="stock-unit">${escapeHtml(unit)}</span>
           ${stdHtml}
         </div>
+        ${thresholdHtml}
         ${orderingBadge}
       </div>`;
   }
