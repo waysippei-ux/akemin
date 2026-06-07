@@ -987,7 +987,10 @@ def get_ordering_quantity_map(db: Session, store_id: int) -> dict[int, int]:
 
     rows = (
         db.query(OrderingItem.product_id, OrderingItem.ordered_quantity)
-        .filter(OrderingItem.store_id == store_id)
+        .filter(
+            OrderingItem.store_id == store_id,
+            OrderingItem.ordered_quantity > 0,
+        )
         .all()
     )
     return {pid: int(qty or 0) for pid, qty in rows}

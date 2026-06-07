@@ -123,7 +123,13 @@ def deliver_ordering_items(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """納品登録（在庫に加算）"""
+    """納品登録（在庫に加算・発注中レコード削除）
+
+    crud.deliver_ordering_items 内で各 item_id について:
+    - 在庫 quantity に ordered_quantity を加算
+    - inventory_logs に RESTOCK を記録
+    - ordering_items から db.delete(ordering) で削除
+    """
     check_store_access(current_user, body.store_id)
     if not body.item_ids:
         raise HTTPException(status_code=400, detail="納品登録する商品を選択してください。")

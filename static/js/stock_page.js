@@ -892,9 +892,13 @@ function formatLogRecordedAt(log) {
       });
       alert("納品登録が完了しました！在庫数に反映されました。");
       await loadDeliveryList();
+      localStorage.setItem("akemin:ordering-delivered", String(Date.now()));
+      if (typeof loadInventory === "function") {
+        await loadInventory();
+      }
       await reloadProducts();
     } catch (err) {
-      alert(err.message || "エラーが発生しました");
+      alert("エラーが発生しました: " + (err.message || "不明"));
     }
   }
 

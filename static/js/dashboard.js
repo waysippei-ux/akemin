@@ -66,8 +66,8 @@ function toJSTDateTime(dateStr) {
 
     const orderedQty = item.ordered_quantity ?? 0;
     const orderingBadge =
-      orderedQty > 0
-        ? `<span class="ordering-badge">発注中 ${orderedQty}${escapeHtml(unit)}</span>`
+      item.ordered_quantity && item.ordered_quantity > 0
+        ? `<span class="ordering-badge">発注中 ${item.ordered_quantity}${escapeHtml(unit)}</span>`
         : "";
 
     const warningStock = item.warning_threshold ?? item.warning_stock;
@@ -495,4 +495,25 @@ function toJSTDateTime(dateStr) {
     div.textContent = str;
     return div.innerHTML;
   }
+
+  function refreshDashboardInventory() {
+    const storeId = getStoreId();
+    if (!storeId) return Promise.resolve();
+    if (currentCategoryId) {
+      return loadInventory(storeId, currentCategoryId);
+    }
+    return loadCategoryCards();
+  }
+
+  window.loadInventory = refreshDashboardInventory;
+
+  window.addEventListener("storage", (e) => {
+    if (e.key !== "akemin:ordering-delivered" || !e.newValue) return;
+    refreshDashboardInventory();
+  });
+
+  window.addEventListener("pageshow", (e) => {
+    if (!e.persisted) return;
+    refreshDashboardInventory();
+  });
 })();
