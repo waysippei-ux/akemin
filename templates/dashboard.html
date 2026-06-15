@@ -33,15 +33,27 @@
     <p id="advice-text" class="advice-text" hidden></p>
   </section>
 
-  <section class="inventory-section">
+  <section class="inventory-section category-product-section">
     <h2 class="section-title">棚の状況</h2>
     <div class="stock-legend">
       <span class="legend-item legend-green">十分</span>
       <span class="legend-item legend-yellow">要発注</span>
       <span class="legend-item legend-red">至急</span>
     </div>
+    <div class="product-search-wrap">
+      <input
+        type="text"
+        class="product-name-filter"
+        placeholder="商品名で絞り込み..."
+        inputmode="text"
+        autocomplete="off"
+      >
+    </div>
     <div id="inventory-loading" class="loading">読み込み中…</div>
     <div id="inventory-list" class="card-grid" hidden></div>
+    <p class="filter-empty-msg" style="display:none; color:#aaa; text-align:center; padding:1rem;">
+      該当する商品が見つかりません
+    </p>
   </section>
 </div>
 
@@ -61,5 +73,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/dashboard.js?v=17"></script>
+<script src="/static/js/dashboard.js?v=18"></script>
 {% endblock %}

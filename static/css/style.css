@@ -692,6 +692,28 @@ input[type="number"],
   border: 2px solid var(--stock-red-border);
 }
 
+/* 棚を見る — 商品名絞り込み */
+.product-search-wrap {
+  margin-bottom: 12px;
+}
+.product-name-filter {
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 14px;
+  border: 1.5px solid #4a3fc7;
+  border-radius: 24px;
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+  outline: none;
+}
+.product-name-filter:focus {
+  border-color: #4a3fc7;
+  box-shadow: 0 0 0 3px rgba(74, 63, 199, 0.12);
+}
+.product-name-filter::placeholder {
+  color: var(--color-text-tertiary);
+}
+
 /* 棚を見る — 商品カードグリッド */
 .inventory-section .card-grid {
   display: grid;

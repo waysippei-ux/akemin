@@ -281,6 +281,7 @@ function toJSTDateTime(dateStr) {
     $("btn-back-categories")?.addEventListener("click", showCategories);
     bindOrderPdfButtons();
     bindOrderingButtons();
+    bindProductNameFilter();
     storeSelect?.addEventListener("change", () => {
       if (isDetailView()) loadCategoryDetail();
       else loadCategoryCards();
@@ -352,8 +353,43 @@ function toJSTDateTime(dateStr) {
     if (!container) return;
     container.querySelectorAll(".category-card").forEach((card) => {
       card.addEventListener("click", () => {
+        resetProductNameFilters();
         openCategory(parseInt(card.dataset.id, 10), card.dataset.name);
       });
+    });
+  }
+
+  function resetProductNameFilters() {
+    document.querySelectorAll(".product-name-filter").forEach((el) => {
+      el.value = "";
+      el.dispatchEvent(new Event("input"));
+    });
+  }
+
+  function bindProductNameFilter() {
+    document.addEventListener("input", (e) => {
+      if (!e.target.classList.contains("product-name-filter")) return;
+      const keyword = e.target.value.trim().toLowerCase();
+      const section = e.target.closest(".category-product-section");
+      if (!section) return;
+      const cards = section.querySelectorAll(".product-card");
+      let visibleCount = 0;
+      cards.forEach((card) => {
+        const name =
+          card.querySelector(".product-name")?.textContent.toLowerCase() || "";
+        const brand =
+          card.querySelector(".brand-pill")?.textContent.toLowerCase() || "";
+        if (!keyword || name.includes(keyword) || brand.includes(keyword)) {
+          card.style.display = "";
+          visibleCount++;
+        } else {
+          card.style.display = "none";
+        }
+      });
+      const emptyMsg = section.querySelector(".filter-empty-msg");
+      if (emptyMsg) {
+        emptyMsg.style.display = visibleCount === 0 ? "block" : "none";
+      }
     });
   }
 
@@ -464,6 +500,11 @@ function toJSTDateTime(dateStr) {
 
       setHidden(loading, true);
       setHidden(list, false);
+
+      const filterInput = document.querySelector(".product-name-filter");
+      if (filterInput?.value) {
+        filterInput.dispatchEvent(new Event("input"));
+      }
     } catch (err) {
       showLoadError(loading, err.message);
     }
