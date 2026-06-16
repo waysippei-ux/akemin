@@ -408,7 +408,7 @@ def create_product(db: Session, data: ProductCreate) -> Product:
     product = Product(**dump)
     db.add(product)
     db.flush()
-    if data.store_settings:
+    if data.store_settings is not None:
         apply_product_store_settings(db, product.id, data.store_settings, commit=False)
     else:
         apply_product_store_deployment(
@@ -456,7 +456,7 @@ def update_product(db: Session, product: Product, data: ProductUpdate) -> Produc
     if product.critical_threshold > product.warning_threshold:
         raise ValueError("危険閾値は警告閾値以下にしてください。")
 
-    if data.store_settings:
+    if data.store_settings is not None:
         apply_product_store_settings(db, product.id, data.store_settings, commit=False)
     elif data.deployment is not None:
         apply_product_store_deployment(
@@ -859,17 +859,16 @@ def apply_product_store_settings(
     """店舗ごとに inventories.is_active を更新（未作成かつ active の場合は quantity=0 で作成）"""
     stores = get_stores(db, active_only=True)
     valid_ids = {s.id for s in stores}
-    seen: set[int] = set()
+    setting_map: dict[int, bool] = {}
 
     for setting in settings:
         store_id = int(setting.store_id)
-        if store_id in seen:
-            continue
-        seen.add(store_id)
         if store_id not in valid_ids:
             raise ValueError(f"無効な店舗ID: {store_id}")
+        setting_map[store_id] = bool(setting.is_active)
 
-        is_active = bool(setting.is_active)
+    for store_id in valid_ids:
+        is_active = setting_map.get(store_id, False)
         inv = get_inventory_row(db, store_id, product_id)
         if inv:
             inv.is_active = is_active

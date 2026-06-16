@@ -615,13 +615,7 @@
   }
 
   function getStoreSettings() {
-    const expandAll = document.getElementById("modal-expand-all-stores")?.checked;
-    if (expandAll) {
-      return adminStores.map((s) => ({
-        store_id: s.id,
-        is_active: true,
-      }));
-    }
+    syncExpandAllCheckbox();
     const storeSettings = [];
     document.querySelectorAll(".store-checkbox").forEach((cb) => {
       storeSettings.push({

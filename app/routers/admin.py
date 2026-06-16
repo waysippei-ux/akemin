@@ -130,7 +130,11 @@ def admin_update_product(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """商品更新（店舗展開 store_settings 対応）— 管理者のみ"""
+    """商品更新（店舗展開 store_settings 対応）— 管理者のみ
+
+    body.store_settings がある場合、crud.update_product 内で
+    各店舗の Inventory.is_active を更新する（オフ時は quantity=0）。
+    """
     if not is_admin(current_user):
         raise HTTPException(status_code=403, detail="管理者権限が必要です")
     product = crud.get_product_by_id(db, product_id)
@@ -166,7 +170,7 @@ def admin_update_product(
     try:
         crud.update_product(db, product, body)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     product = crud.get_product_by_id(db, product_id)
     return crud_masters.product_to_out(db, product)
