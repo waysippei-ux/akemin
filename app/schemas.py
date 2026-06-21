@@ -256,6 +256,7 @@ class OrderingItemOut(BaseModel):
     product_id: int
     product_name: str
     brand_name: Optional[str] = None
+    dealer_name: str = "未分類"
     ordered_quantity: int
 
 

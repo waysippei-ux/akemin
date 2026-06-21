@@ -1038,6 +1038,39 @@ def list_ordering_items(db: Session, store_id: int) -> list:
     return rows
 
 
+def list_ordering_items_with_dealer(db: Session, store_id: int) -> list[dict]:
+    """発注中一覧（ディーラー名付き・納品登録画面用）"""
+    from app.models import Brand, Dealer, OrderingItem, Product
+
+    rows = (
+        db.query(
+            OrderingItem.id,
+            OrderingItem.product_id,
+            OrderingItem.ordered_quantity,
+            Product.name.label("product_name"),
+            Brand.name.label("brand_name"),
+            Dealer.name.label("dealer_name"),
+        )
+        .join(Product, OrderingItem.product_id == Product.id)
+        .outerjoin(Brand, Product.brand_id == Brand.id)
+        .outerjoin(Dealer, Product.dealer_id == Dealer.id)
+        .filter(OrderingItem.store_id == store_id)
+        .order_by(Dealer.name.nulls_last(), Product.name)
+        .all()
+    )
+    return [
+        {
+            "id": row.id,
+            "product_id": row.product_id,
+            "product_name": row.product_name,
+            "brand_name": row.brand_name,
+            "dealer_name": (row.dealer_name or "").strip() or "未分類",
+            "ordered_quantity": row.ordered_quantity,
+        }
+        for row in rows
+    ]
+
+
 def save_ordering_items(
     db: Session, store_id: int, items: list
 ) -> None:

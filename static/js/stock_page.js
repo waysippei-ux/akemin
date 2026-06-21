@@ -846,19 +846,48 @@ function formatLogRecordedAt(log) {
           '<p style="color:#aaa; text-align:center; padding:2rem;">発注中の商品はありません</p>';
         return;
       }
-      list.innerHTML = items
-        .map(
-          (item) => `
-        <div class="delivery-row">
-          <input type="checkbox" class="delivery-check" value="${item.id}" checked>
-          <span class="delivery-row-name">${escapeHtml(item.product_name)}${
-            item.brand_name
-              ? ` <span class="brand-pill delivery-brand-pill">${escapeHtml(item.brand_name)}</span>`
-              : ""
-          }</span>
-          <span class="delivery-row-qty">発注中 ${item.ordered_quantity}本</span>
-        </div>`
-        )
+
+      const grouped = {};
+      items.forEach((item) => {
+        const dealer = item.dealer_name || "未分類";
+        if (!grouped[dealer]) grouped[dealer] = [];
+        grouped[dealer].push(item);
+      });
+
+      const dealerNames = Object.keys(grouped).sort((a, b) => {
+        if (a === "未分類") return 1;
+        if (b === "未分類") return -1;
+        return a.localeCompare(b, "ja");
+      });
+
+      list.innerHTML = dealerNames
+        .map((dealerName) => {
+          const rows = grouped[dealerName]
+            .map(
+              (item) => `
+          <div class="delivery-item-row">
+            <input type="checkbox" class="delivery-check" value="${item.id}" checked>
+            <span class="delivery-item-name">
+              ${escapeHtml(item.product_name)}
+              ${
+                item.brand_name
+                  ? `<span class="brand-pill" style="font-size:11px;">${escapeHtml(item.brand_name)}</span>`
+                  : ""
+              }
+            </span>
+            <span class="delivery-item-qty">発注中 ${item.ordered_quantity}本</span>
+          </div>`
+            )
+            .join("");
+          return `
+        <div class="delivery-dealer-group">
+          <div class="delivery-dealer-header">
+            <i class="ti ti-truck-delivery" style="font-size:14px;" aria-hidden="true"></i>
+            ${escapeHtml(dealerName)}
+          </div>
+          ${rows}
+        </div>`;
+        })
         .join("");
     } catch (err) {
       list.innerHTML = `<p class="error-msg">${escapeHtml(err.message)}</p>`;

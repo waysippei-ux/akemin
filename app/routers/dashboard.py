@@ -53,17 +53,8 @@ def get_ordering_items(
 ):
     """発注中一覧（ordering_items テーブル）— GET /api/ordering-items?store_id="""
     check_store_access(current_user, store_id)
-    rows = crud.list_ordering_items(db, store_id)
-    return [
-        OrderingItemOut(
-            id=row.id,
-            product_id=row.product_id,
-            product_name=row.product.name,
-            brand_name=row.product.brand.name if row.product.brand else None,
-            ordered_quantity=row.ordered_quantity,
-        )
-        for row in rows
-    ]
+    rows = crud.list_ordering_items_with_dealer(db, store_id)
+    return [OrderingItemOut(**row) for row in rows]
 
 
 @ordering_router.get(

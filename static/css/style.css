@@ -432,6 +432,51 @@ a {
   min-height: 80px;
 }
 
+.delivery-dealer-group {
+  margin-bottom: 20px;
+}
+
+.delivery-dealer-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  background: #EEEDFE;
+  color: #3C3489;
+  padding: 8px 14px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.delivery-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 0.5px solid var(--color-border-tertiary, var(--color-border));
+}
+
+.delivery-item-row:last-child {
+  border-bottom: none;
+}
+
+.delivery-item-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.delivery-item-qty {
+  font-size: 13px;
+  font-weight: 500;
+  color: #4a3fc7;
+  white-space: nowrap;
+}
+
 .delivery-row {
   display: flex;
   align-items: center;
