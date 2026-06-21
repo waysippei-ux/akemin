@@ -4,6 +4,7 @@
 
 {% block extra_head %}
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<link rel="stylesheet" href="/static/css/style.css?v={{ range(1000,9999) | random }}">
 {% endblock %}
 
 {% block content %}
@@ -232,5 +233,5 @@
 <script>window.STOCK_PAGE = {{ page_json | safe }};</script>
 <script src="/static/js/filter_helpers.js?v=3"></script>
 <script src="/static/js/store_product_settings_api.js?v=2"></script>
-<script src="/static/js/stock_page.js?v=24"></script>
+<script src="/static/js/stock_page.js?v=25"></script>
 {% endblock %}
