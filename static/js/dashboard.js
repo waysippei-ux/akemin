@@ -39,6 +39,14 @@ function toJSTDateTime(dateStr) {
     return (item.maker_name || "").trim();
   }
 
+  function renderRareBadge(item, size = "11px") {
+    if (!item.is_rare) return "";
+    return `<span class="rare-badge" title="この店舗にしかない希少商品です">
+      <i class="ti ti-star-filled" style="font-size:${size};" aria-hidden="true"></i>
+      希少
+    </span>`;
+  }
+
   function cardStatus(item) {
     const qty = item.quantity ?? 0;
     const critical = item.critical_threshold ?? 0;
@@ -56,6 +64,7 @@ function toJSTDateTime(dateStr) {
     const status = cardStatus(item);
     const brand = displayBrand(item);
     const chipHtml = brand ? `<span class="brand-pill">${escapeHtml(brand)}</span>` : "";
+    const rareHtml = renderRareBadge(item);
 
     const unit = item.unit || "本";
     const std = item.standard_stock;
@@ -93,6 +102,7 @@ function toJSTDateTime(dateStr) {
       <div class="product-card ${status.card}">
         <span class="status-badge ${status.badge}">${status.label}</span>
         ${chipHtml}
+        ${rareHtml}
         <p class="product-name">${escapeHtml(item.product_name)}</p>
         <div class="card-divider"></div>
         <div class="stock-row">
@@ -120,7 +130,8 @@ function toJSTDateTime(dateStr) {
     return items
       .map(
         (item) => `
-    <div class="ordering-item-row" data-product-id="${item.product_id}">
+    <div class="ordering-item-row" data-product-id="${item.product_id}"
+      data-is-rare="${item.is_rare ? "true" : "false"}">
       <label class="ordering-item-label">
         <input type="checkbox" class="ordering-check" value="${item.product_id}" checked>
         <span class="ordering-item-name">
@@ -130,6 +141,7 @@ function toJSTDateTime(dateStr) {
               ? `<span class="brand-pill ordering-brand-pill">${escapeHtml(item.brand_name)}</span>`
               : ""
           }
+          ${renderRareBadge(item, "10px")}
         </span>
         <span class="ordering-item-needed">必要: ${item.needed}本</span>
         <input type="number" class="ordering-qty input-number" value="${item.needed}" min="0" max="999" inputmode="numeric">
@@ -193,6 +205,31 @@ function toJSTDateTime(dateStr) {
       alert("店舗を選択してください。");
       return;
     }
+
+    const checkedRows = document.querySelectorAll(
+      ".ordering-item-row .ordering-check:checked"
+    );
+    const rareItems = [];
+    checkedRows.forEach((cb) => {
+      const row = cb.closest(".ordering-item-row");
+      if (row?.dataset.isRare === "true") {
+        const name =
+          row.querySelector(".ordering-item-name")?.textContent.trim() ||
+          row.textContent.trim();
+        rareItems.push(name);
+      }
+    });
+
+    if (rareItems.length > 0) {
+      const confirmed = confirm(
+        `以下の商品には希少バッジが付いています。\n` +
+          `この店舗にしかない商品のため、在庫切れすると補充できません。\n\n` +
+          `${rareItems.join("\n")}\n\n` +
+          `個数の数は確認済みですか？\nよろしければOKを押してください。`
+      );
+      if (!confirmed) return;
+    }
+
     const rows = [...document.querySelectorAll(".ordering-item-row")];
     const items = [];
     rows.forEach((row) => {

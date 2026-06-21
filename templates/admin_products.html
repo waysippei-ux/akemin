@@ -476,6 +476,16 @@
           <input type="text" id="modal-unit" value="本">
         </div>
       </div>
+      <div class="form-group">
+        <label style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" id="edit-is-rare-manual">
+          ★ 希少商品として強制的にマークする
+        </label>
+        <p class="help-text">
+          1店舗のみ展開している商品は自動で希少表示されます。
+          複数店舗展開でも希少扱いしたい場合はこちらをONにしてください。
+        </p>
+      </div>
       <section class="deployment-section card">
         <h4 class="section-title">展開店舗</h4>
         <label class="checkbox-label">
@@ -497,6 +507,6 @@
 
 {% block scripts %}
 <script src="/static/js/filter_helpers.js?v=3"></script>
-<script src="/static/js/admin_products.js?v=17"></script>
+<script src="/static/js/admin_products.js?v=18"></script>
 <script src="/static/js/admin_masters.js?v=8"></script>
 {% endblock %}

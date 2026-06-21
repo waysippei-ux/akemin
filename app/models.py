@@ -200,6 +200,7 @@ class Product(Base):
     maker_id: Mapped[Optional[int]] = mapped_column(ForeignKey("makers.id"), nullable=True, index=True)
     dealer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("dealers.id"), nullable=True, index=True)
     brand_id: Mapped[Optional[int]] = mapped_column(ForeignKey("brands.id"), nullable=True, index=True)
+    is_rare_manual: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     category: Mapped["Category"] = relationship(back_populates="products")
     maker: Mapped[Optional["Maker"]] = relationship(back_populates="products")

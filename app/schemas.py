@@ -180,6 +180,8 @@ class ProductOut(BaseModel):
     active_store_ids: list[int] = Field(default_factory=list)
     active_store_names: list[str] = Field(default_factory=list)
     deployment_label: str = ""
+    is_rare_manual: bool = False
+    is_rare: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -215,6 +217,7 @@ class ProductUpdate(BaseModel):
     dealer_id: Optional[int] = None
     deployment: Optional[ProductDeploymentIn] = None
     store_settings: Optional[list[ProductStoreSettingIn]] = None
+    is_rare_manual: Optional[bool] = None
 
 
 class ProductImportResult(BaseModel):
@@ -249,6 +252,7 @@ class InventoryItemOut(BaseModel):
     dealer_name: Optional[str] = None
     is_on_shelf: bool = False
     ordered_quantity: int = 0
+    is_rare: bool = False
 
 
 class OrderingItemOut(BaseModel):
@@ -259,6 +263,7 @@ class OrderingItemOut(BaseModel):
     dealer_name: str = "未分類"
     ordered_quantity: int
     created_at: Optional[str] = None
+    is_rare: bool = False
 
 
 class OrderingCandidateOut(BaseModel):
@@ -266,6 +271,7 @@ class OrderingCandidateOut(BaseModel):
     product_name: str
     brand_name: Optional[str] = None
     needed: int
+    is_rare: bool = False
 
 
 class OrderingItemSaveIn(BaseModel):

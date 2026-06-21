@@ -525,6 +525,7 @@ def product_to_out(
     deployment_label, active_store_names = format_product_deployment(
         active_ids, expand_all, stores
     )
+    is_rare = crud_core.compute_is_rare(product, len(active_ids))
     section_id = None
     section_name = None
     if product.category:
@@ -555,6 +556,8 @@ def product_to_out(
         active_store_ids=active_ids,
         active_store_names=active_store_names,
         deployment_label=deployment_label,
+        is_rare_manual=bool(getattr(product, "is_rare_manual", False)),
+        is_rare=is_rare,
     )
 
 

@@ -698,6 +698,7 @@
       brand_id: brand ? parseInt(brand, 10) : null,
       dealer_id: dealer ? parseInt(dealer, 10) : null,
       store_settings: getStoreSettings(),
+      is_rare_manual: document.getElementById("edit-is-rare-manual")?.checked || false,
     };
     if (editingProductSnapshot) {
       body.warning_threshold = editingProductSnapshot.warning_threshold;
@@ -743,6 +744,8 @@
     }
     renderStorePickList(adminStores.map((s) => s.id));
     onExpandAllChange();
+    const rareManual = document.getElementById("edit-is-rare-manual");
+    if (rareManual) rareManual.checked = false;
   }
 
   function openAddModal() {
@@ -781,6 +784,8 @@
     document.getElementById("modal-brand_id").value = p.brand_id || "";
     document.getElementById("modal-dealer_id").value = p.dealer_id || "";
     document.getElementById("modal-unit").value = p.unit;
+    const rareManual = document.getElementById("edit-is-rare-manual");
+    if (rareManual) rareManual.checked = !!p.is_rare_manual;
     const activeIds = p.active_store_ids || [];
     renderStorePickList(activeIds);
     const expandAll = document.getElementById("modal-expand-all-stores");
@@ -815,7 +820,10 @@
       .map(
         (p) => `
       <tr>
-        <td data-label="商品名" class="cell-product-name">${esc(p.name)}</td>
+        <td data-label="商品名" class="cell-product-name">
+          ${esc(p.name)}
+          ${p.is_rare ? '<span class="rare-badge">★ 希少</span>' : ""}
+        </td>
         <td data-label="コード"><code>${formatBarcodeForList(p.barcode)}</code>${p.jan_code ? `<br><small>納品:${esc(p.jan_code)}</small>` : ""}</td>
         <td data-label="カテゴリ">${esc(p.category_name || "")}</td>
         <td data-label="店舗">${esc(p.deployment_label || formatDeploymentFallback(p))}</td>

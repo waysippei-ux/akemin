@@ -532,6 +532,14 @@ function formatLogRecordedAt(log) {
     return (item.maker_name || "").trim();
   }
 
+  function renderRareBadge(item, size = "11px") {
+    if (!item.is_rare) return "";
+    return `<span class="rare-badge" title="この店舗にしかない希少商品です">
+      <i class="ti ti-star-filled" style="font-size:${size};" aria-hidden="true"></i>
+      希少
+    </span>`;
+  }
+
   function standardStockQtyPart(item) {
     const std = item.standard_stock;
     const unit = item.unit || "本";
@@ -553,6 +561,9 @@ function formatLogRecordedAt(log) {
     }
     if (brand) {
       badgeParts.push(`<span class="stock-badge-brand">${escapeHtml(brand)}</span>`);
+    }
+    if (p.is_rare) {
+      badgeParts.push(renderRareBadge(p));
     }
     const badgesHtml = badgeParts.length
       ? `<div class="stock-card-badges">${badgeParts.join("")}</div>`
@@ -880,6 +891,7 @@ function formatLogRecordedAt(log) {
                     ? `<span class="brand-pill" style="font-size:11px;">${escapeHtml(item.brand_name)}</span>`
                     : ""
                 }
+                ${renderRareBadge(item)}
               </span>
               <span class="delivery-item-qty">発注中 ${item.ordered_quantity}本</span>
             </div>`

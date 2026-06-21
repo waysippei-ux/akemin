@@ -566,6 +566,27 @@ a {
   margin-left: 6px;
 }
 
+.rare-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 9px;
+  border-radius: 20px;
+  background: #FAEEDA;
+  color: #854F0B;
+  border: 0.5px solid #EF9F27;
+}
+
+.inventory-section .product-card .rare-badge,
+.stock-product-card .rare-badge,
+.ordering-item-name .rare-badge,
+.delivery-item-name .rare-badge,
+.cell-product-name .rare-badge {
+  margin-left: 0;
+}
+
 /* 管理画面トースト（保存/削除の成功通知） */
 .admin-success-toast {
   position: fixed;

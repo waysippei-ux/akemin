@@ -223,6 +223,23 @@ def migrate_schema() -> None:
                         "ALTER TABLE products ADD COLUMN standard_stock INTEGER NOT NULL DEFAULT 0"
                     )
                 )
+        if "is_rare_manual" not in prod_cols:
+            dialect = engine.dialect.name
+            with engine.begin() as conn:
+                if dialect == "postgresql":
+                    conn.execute(
+                        text(
+                            "ALTER TABLE products ADD COLUMN IF NOT EXISTS "
+                            "is_rare_manual BOOLEAN NOT NULL DEFAULT false"
+                        )
+                    )
+                else:
+                    conn.execute(
+                        text(
+                            "ALTER TABLE products ADD COLUMN is_rare_manual "
+                            "BOOLEAN NOT NULL DEFAULT 0"
+                        )
+                    )
 
     # 店舗別発注目安（新規テーブルのみ作成・既存テーブルは変更しない）
     if "store_product_settings" not in insp.get_table_names():

@@ -452,6 +452,8 @@ def update_product(db: Session, product: Product, data: ProductUpdate) -> Produc
         product.brand_id = data.brand_id
     if data.dealer_id is not None:
         product.dealer_id = data.dealer_id
+    if data.is_rare_manual is not None:
+        product.is_rare_manual = data.is_rare_manual
 
     if product.critical_threshold > product.warning_threshold:
         raise ValueError("危険閾値は警告閾値以下にしてください。")
@@ -946,6 +948,43 @@ def get_or_create_inventory(
     return inv
 
 
+def get_active_store_count_map(db: Session) -> dict[int, int]:
+    """商品ごとの is_active=true 店舗数"""
+    from sqlalchemy import func
+
+    rows = (
+        db.query(Inventory.product_id, func.count(Inventory.id))
+        .filter(Inventory.is_active.is_(True))
+        .group_by(Inventory.product_id)
+        .all()
+    )
+    return {int(pid): int(cnt) for pid, cnt in rows}
+
+
+def compute_is_rare(product: Product, active_store_count: int) -> bool:
+    """手動フラグまたは展開店舗が1店舗のみの場合に希少"""
+    if getattr(product, "is_rare_manual", False):
+        return True
+    return active_store_count == 1
+
+
+def is_rare_product(db: Session, product_id: int) -> bool:
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        return False
+    if product.is_rare_manual:
+        return True
+    active_store_count = (
+        db.query(Inventory)
+        .filter(
+            Inventory.product_id == product_id,
+            Inventory.is_active.is_(True),
+        )
+        .count()
+    )
+    return active_store_count == 1
+
+
 def _inventory_item_from_row(
     db: Session,
     store_id: int,
@@ -953,10 +992,13 @@ def _inventory_item_from_row(
     inv: Inventory,
     settings_map: dict,
     ordering_map: dict[int, int] | None = None,
+    active_store_count_map: dict[int, int] | None = None,
 ) -> InventoryItemOut:
     warning, critical = resolve_thresholds(product, settings_map.get(product.id))
     level = calc_stock_level(inv.quantity, warning, critical)
     ordered_qty = (ordering_map or {}).get(product.id, 0)
+    active_count = (active_store_count_map or {}).get(product.id, 0)
+    is_rare = compute_is_rare(product, active_count)
     return InventoryItemOut(
         product_id=product.id,
         product_name=product.name,
@@ -977,6 +1019,7 @@ def _inventory_item_from_row(
         dealer_name=product.dealer.name if product.dealer else None,
         is_on_shelf=inv.is_active,
         ordered_quantity=ordered_qty,
+        is_rare=is_rare,
     )
 
 
@@ -1022,6 +1065,7 @@ def get_ordering_candidates_for_shelf(
                 "product_name": item.product_name,
                 "brand_name": item.brand_name,
                 "needed": needed,
+                "is_rare": item.is_rare,
             }
         )
     result.sort(key=lambda x: x["product_name"])
@@ -1048,6 +1092,7 @@ def list_ordering_items_with_dealer(db: Session, store_id: int) -> list[dict]:
     """発注中一覧（ディーラー名・登録日付き・納品登録画面用）"""
     from app.models import Brand, Dealer, JST, OrderingItem, Product
 
+    active_store_count_map = get_active_store_count_map(db)
     rows = (
         db.query(
             OrderingItem.id,
@@ -1055,6 +1100,7 @@ def list_ordering_items_with_dealer(db: Session, store_id: int) -> list[dict]:
             OrderingItem.ordered_quantity,
             OrderingItem.created_at,
             Product.name.label("product_name"),
+            Product.is_rare_manual,
             Brand.name.label("brand_name"),
             Dealer.name.label("dealer_name"),
         )
@@ -1078,6 +1124,8 @@ def list_ordering_items_with_dealer(db: Session, store_id: int) -> list[dict]:
                 if row.created_at
                 else None
             ),
+            "is_rare": bool(row.is_rare_manual)
+            or active_store_count_map.get(row.product_id, 0) == 1,
         }
         for row in rows
     ]
@@ -1270,6 +1318,7 @@ def get_inventory_list(
     """
     settings_map = get_settings_map(db, store_id)
     ordering_map = get_ordering_quantity_map(db, store_id)
+    active_store_count_map = get_active_store_count_map(db)
     result: list[InventoryItemOut] = []
 
     if active_only:
@@ -1301,7 +1350,13 @@ def get_inventory_list(
                 continue
             result.append(
                 _inventory_item_from_row(
-                    db, store_id, product, inv, settings_map, ordering_map
+                    db,
+                    store_id,
+                    product,
+                    inv,
+                    settings_map,
+                    ordering_map,
+                    active_store_count_map,
                 )
             )
         result.sort(key=lambda x: x.product_name)
@@ -1325,7 +1380,13 @@ def get_inventory_list(
             )
         result.append(
             _inventory_item_from_row(
-                db, store_id, product, inv, settings_map, ordering_map
+                db,
+                store_id,
+                product,
+                inv,
+                settings_map,
+                ordering_map,
+                active_store_count_map,
             )
         )
     return result
