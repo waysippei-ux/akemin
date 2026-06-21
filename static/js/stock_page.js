@@ -821,8 +821,13 @@ function formatLogRecordedAt(log) {
   /* ---------- 発注中納品タブ（補充のみ） ---------- */
   function bindDeliveryTab() {
     document.addEventListener("click", async (e) => {
-      if (!e.target.closest("#delivery-submit-btn")) return;
-      await submitDelivery();
+      if (e.target.closest("#delivery-submit-btn")) {
+        await submitDelivery();
+        return;
+      }
+      if (e.target.closest("#delivery-delete-btn")) {
+        await submitDeliveryDelete();
+      }
     });
   }
 
@@ -891,6 +896,43 @@ function formatLogRecordedAt(log) {
         .join("");
     } catch (err) {
       list.innerHTML = `<p class="error-msg">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  async function submitDeliveryDelete() {
+    const checked = [...document.querySelectorAll(".delivery-check:checked")].map((cb) =>
+      parseInt(cb.value, 10)
+    );
+    if (!checked.length) {
+      alert("削除する商品を選択してください");
+      return;
+    }
+    if (
+      !confirm(
+        `${checked.length}件の商品を発注中リストから削除しますか？\n` +
+          "この操作は元に戻せません。在庫数には反映されません。"
+      )
+    ) {
+      return;
+    }
+    const storeId = getStoreId();
+    if (!storeId) {
+      alert("店舗を選択してください。");
+      return;
+    }
+    try {
+      await Api.post("/api/ordering-items/delete-bulk", {
+        store_id: storeId,
+        item_ids: checked,
+      });
+      alert("削除しました");
+      await loadDeliveryList();
+      localStorage.setItem("akemin:ordering-delivered", String(Date.now()));
+      if (typeof loadInventory === "function") {
+        await loadInventory();
+      }
+    } catch (err) {
+      alert("エラーが発生しました: " + (err.message || "不明"));
     }
   }
 

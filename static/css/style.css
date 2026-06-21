@@ -499,6 +499,23 @@ a {
 
 .delivery-tab-actions {
   margin-top: 1rem;
+  gap: 8px;
+}
+
+.btn-danger-outline {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  background: #fff;
+  color: #A32D2D;
+  border: 1.5px solid #E24B4A;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-danger-outline:hover {
+  background: #FCEBEB;
 }
 
 .delivery-brand-pill {

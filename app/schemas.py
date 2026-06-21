@@ -282,6 +282,11 @@ class OrderingDeliverBody(BaseModel):
     item_ids: list[int] = Field(default_factory=list)
 
 
+class OrderingDeleteBulkBody(BaseModel):
+    store_id: int = Field(gt=0)
+    item_ids: list[int] = Field(default_factory=list)
+
+
 class InventoryScanRequest(BaseModel):
     """バーコードスキャン時の入力"""
     barcode: str

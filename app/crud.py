@@ -1125,6 +1125,33 @@ def delete_ordering_item(db: Session, item_id: int) -> bool:
     return True
 
 
+def delete_ordering_items_bulk(
+    db: Session, store_id: int, item_ids: list[int]
+) -> int:
+    """発注中を一括削除（在庫には反映しない）"""
+    from app.models import OrderingItem
+
+    require_store_id_for_stock(store_id)
+    if not get_store(db, store_id):
+        raise ValueError("店舗が見つかりません。")
+    if not item_ids:
+        return 0
+
+    rows = (
+        db.query(OrderingItem)
+        .filter(
+            OrderingItem.store_id == store_id,
+            OrderingItem.id.in_(item_ids),
+        )
+        .all()
+    )
+    for row in rows:
+        db.delete(row)
+    if rows:
+        db.commit()
+    return len(rows)
+
+
 def deliver_ordering_items(
     db: Session,
     user: User,

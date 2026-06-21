@@ -10,6 +10,7 @@ from app.schemas import (
     CategorySummaryOut,
     DashboardSectionsOut,
     OrderingCandidateOut,
+    OrderingDeleteBulkBody,
     OrderingDeliverBody,
     OrderingItemOut,
     OrderingItemsSaveBody,
@@ -101,7 +102,7 @@ def delete_ordering_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """発注中削除"""
+    """発注中削除（1件）"""
     from app.models import OrderingItem
 
     row = db.query(OrderingItem).filter(OrderingItem.id == item_id).first()
@@ -110,6 +111,25 @@ def delete_ordering_item(
     check_store_access(current_user, row.store_id)
     crud.delete_ordering_item(db, item_id)
     return {"message": "削除しました"}
+
+
+@ordering_router.post("/ordering-items/delete-bulk")
+def delete_ordering_items_bulk(
+    body: OrderingDeleteBulkBody,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """発注中一括削除（在庫には反映しない）"""
+    check_store_access(current_user, body.store_id)
+    if not body.item_ids:
+        raise HTTPException(status_code=400, detail="削除する商品を選択してください。")
+    try:
+        count = crud.delete_ordering_items_bulk(db, body.store_id, body.item_ids)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    if count == 0:
+        raise HTTPException(status_code=404, detail="削除対象が見つかりません。")
+    return {"message": "削除しました", "deleted_count": count}
 
 
 @ordering_router.post("/ordering-items/deliver")
