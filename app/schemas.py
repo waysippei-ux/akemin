@@ -258,6 +258,7 @@ class OrderingItemOut(BaseModel):
     brand_name: Optional[str] = None
     dealer_name: str = "未分類"
     ordered_quantity: int
+    created_at: Optional[str] = None
 
 
 class OrderingCandidateOut(BaseModel):

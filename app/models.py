@@ -350,11 +350,8 @@ class PurchaseOrderItem(Base):
 
 
 class OrderingItem(Base):
-    """発注中管理（店舗×商品ごとの発注数量）"""
+    """発注中管理（登録ごとに別レコード。同一商品の複数回発注を保持）"""
     __tablename__ = "ordering_items"
-    __table_args__ = (
-        UniqueConstraint("store_id", "product_id", name="uq_ordering_store_product"),
-    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     store_id: Mapped[int] = mapped_column(ForeignKey("stores.id"), nullable=False, index=True)

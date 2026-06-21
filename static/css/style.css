@@ -432,21 +432,37 @@ a {
   min-height: 80px;
 }
 
+.delivery-date-group {
+  margin-bottom: 28px;
+}
+
+.delivery-date-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1a1a1a;
+  border-bottom: 2px solid #4a3fc7;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
 .delivery-dealer-group {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .delivery-dealer-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  background: #EEEDFE;
-  color: #3C3489;
-  padding: 8px 14px;
-  border-radius: 8px;
-  margin-bottom: 8px;
+  background: #4a3fc7;
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 6px;
+  margin-bottom: 6px;
 }
 
 .delivery-item-row {

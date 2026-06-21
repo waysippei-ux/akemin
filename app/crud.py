@@ -981,15 +981,21 @@ def _inventory_item_from_row(
 
 
 def get_ordering_quantity_map(db: Session, store_id: int) -> dict[int, int]:
-    """店舗の発注中数量（product_id → ordered_quantity）"""
+    """店舗の発注中数量（product_id → 合計 ordered_quantity）"""
+    from sqlalchemy import func
+
     from app.models import OrderingItem
 
     rows = (
-        db.query(OrderingItem.product_id, OrderingItem.ordered_quantity)
+        db.query(
+            OrderingItem.product_id,
+            func.sum(OrderingItem.ordered_quantity).label("total_qty"),
+        )
         .filter(
             OrderingItem.store_id == store_id,
             OrderingItem.ordered_quantity > 0,
         )
+        .group_by(OrderingItem.product_id)
         .all()
     )
     return {pid: int(qty or 0) for pid, qty in rows}
@@ -1039,14 +1045,15 @@ def list_ordering_items(db: Session, store_id: int) -> list:
 
 
 def list_ordering_items_with_dealer(db: Session, store_id: int) -> list[dict]:
-    """発注中一覧（ディーラー名付き・納品登録画面用）"""
-    from app.models import Brand, Dealer, OrderingItem, Product
+    """発注中一覧（ディーラー名・登録日付き・納品登録画面用）"""
+    from app.models import Brand, Dealer, JST, OrderingItem, Product
 
     rows = (
         db.query(
             OrderingItem.id,
             OrderingItem.product_id,
             OrderingItem.ordered_quantity,
+            OrderingItem.created_at,
             Product.name.label("product_name"),
             Brand.name.label("brand_name"),
             Dealer.name.label("dealer_name"),
@@ -1055,7 +1062,7 @@ def list_ordering_items_with_dealer(db: Session, store_id: int) -> list[dict]:
         .outerjoin(Brand, Product.brand_id == Brand.id)
         .outerjoin(Dealer, Product.dealer_id == Dealer.id)
         .filter(OrderingItem.store_id == store_id)
-        .order_by(Dealer.name.nulls_last(), Product.name)
+        .order_by(OrderingItem.created_at.desc(), OrderingItem.id.desc())
         .all()
     )
     return [
@@ -1066,6 +1073,11 @@ def list_ordering_items_with_dealer(db: Session, store_id: int) -> list[dict]:
             "brand_name": row.brand_name,
             "dealer_name": (row.dealer_name or "").strip() or "未分類",
             "ordered_quantity": row.ordered_quantity,
+            "created_at": (
+                row.created_at.astimezone(JST).strftime("%Y-%m-%d")
+                if row.created_at
+                else None
+            ),
         }
         for row in rows
     ]
@@ -1074,43 +1086,27 @@ def list_ordering_items_with_dealer(db: Session, store_id: int) -> list[dict]:
 def save_ordering_items(
     db: Session, store_id: int, items: list
 ) -> None:
-    """発注中を登録・更新（数量0は削除）"""
+    """発注中を登録（同一商品でも毎回新規レコードとして追加）"""
     from app.models import OrderingItem
 
     if not get_store(db, store_id):
         raise ValueError("店舗が見つかりません。")
 
-    now = datetime.now(JST)
     for row in items:
         product_id = int(row["product_id"])
         quantity = int(row["ordered_quantity"])
         product = get_product_by_id(db, product_id)
         if not product:
             raise ValueError(f"商品ID {product_id} が見つかりません。")
-
-        existing = (
-            db.query(OrderingItem)
-            .filter(
-                OrderingItem.store_id == store_id,
-                OrderingItem.product_id == product_id,
-            )
-            .first()
-        )
         if quantity <= 0:
-            if existing:
-                db.delete(existing)
             continue
-        if existing:
-            existing.ordered_quantity = quantity
-            existing.updated_at = now
-        else:
-            db.add(
-                OrderingItem(
-                    store_id=store_id,
-                    product_id=product_id,
-                    ordered_quantity=quantity,
-                )
+        db.add(
+            OrderingItem(
+                store_id=store_id,
+                product_id=product_id,
+                ordered_quantity=quantity,
             )
+        )
     db.commit()
 
 

@@ -281,6 +281,8 @@ def migrate_schema() -> None:
     if "ordering_items" not in insp.get_table_names():
         models.OrderingItem.__table__.create(bind=engine, checkfirst=True)
 
+    _drop_ordering_items_store_product_unique(engine, insp)
+
     if "categories" in insp.get_table_names():
         cat_cols = {c["name"] for c in insp.get_columns("categories")}
         if "sort_order" not in cat_cols:
@@ -294,6 +296,25 @@ def migrate_schema() -> None:
     _ensure_default_sections(engine, insp)
     _ensure_direct_dealer(engine, insp)
     _ensure_users_store_id(engine, insp)
+
+
+def _drop_ordering_items_store_product_unique(engine, insp) -> None:
+    """同一店舗×商品の複数発注レコードを許可するためユニーク制約を削除"""
+    from sqlalchemy import text
+
+    if "ordering_items" not in insp.get_table_names():
+        return
+    dialect = engine.dialect.name
+    with engine.begin() as conn:
+        if dialect == "postgresql":
+            conn.execute(
+                text(
+                    "ALTER TABLE ordering_items "
+                    "DROP CONSTRAINT IF EXISTS uq_ordering_store_product"
+                )
+            )
+        elif dialect == "sqlite":
+            conn.execute(text("DROP INDEX IF EXISTS uq_ordering_store_product"))
 
 
 def _ensure_users_store_id(engine, insp) -> None:
