@@ -950,39 +950,48 @@ def get_or_create_inventory(
 
 def get_active_store_count_map(db: Session) -> dict[int, int]:
     """商品ごとの is_active=true 店舗数"""
-    from sqlalchemy import func
+    try:
+        from sqlalchemy import func
 
-    rows = (
-        db.query(Inventory.product_id, func.count(Inventory.id))
-        .filter(Inventory.is_active.is_(True))
-        .group_by(Inventory.product_id)
-        .all()
-    )
-    return {int(pid): int(cnt) for pid, cnt in rows}
+        rows = (
+            db.query(Inventory.product_id, func.count(Inventory.id))
+            .filter(Inventory.is_active.is_(True))
+            .group_by(Inventory.product_id)
+            .all()
+        )
+        return {int(pid): int(cnt) for pid, cnt in rows}
+    except Exception:
+        return {}
 
 
 def compute_is_rare(product: Product, active_store_count: int) -> bool:
     """手動フラグまたは展開店舗が1店舗のみの場合に希少"""
-    if getattr(product, "is_rare_manual", False):
-        return True
-    return active_store_count == 1
+    try:
+        if getattr(product, "is_rare_manual", False):
+            return True
+        return active_store_count == 1
+    except Exception:
+        return False
 
 
 def is_rare_product(db: Session, product_id: int) -> bool:
-    product = db.query(Product).filter(Product.id == product_id).first()
-    if not product:
-        return False
-    if product.is_rare_manual:
-        return True
-    active_store_count = (
-        db.query(Inventory)
-        .filter(
-            Inventory.product_id == product_id,
-            Inventory.is_active.is_(True),
+    try:
+        product = db.query(Product).filter(Product.id == product_id).first()
+        if not product:
+            return False
+        if getattr(product, "is_rare_manual", False):
+            return True
+        active_store_count = (
+            db.query(Inventory)
+            .filter(
+                Inventory.product_id == product_id,
+                Inventory.is_active.is_(True),
+            )
+            .count()
         )
-        .count()
-    )
-    return active_store_count == 1
+        return active_store_count == 1
+    except Exception:
+        return False
 
 
 def _inventory_item_from_row(
@@ -998,7 +1007,10 @@ def _inventory_item_from_row(
     level = calc_stock_level(inv.quantity, warning, critical)
     ordered_qty = (ordering_map or {}).get(product.id, 0)
     active_count = (active_store_count_map or {}).get(product.id, 0)
-    is_rare = compute_is_rare(product, active_count)
+    try:
+        is_rare = compute_is_rare(product, active_count)
+    except Exception:
+        is_rare = False
     return InventoryItemOut(
         product_id=product.id,
         product_name=product.name,
@@ -1093,42 +1105,79 @@ def list_ordering_items_with_dealer(db: Session, store_id: int) -> list[dict]:
     from app.models import Brand, Dealer, JST, OrderingItem, Product
 
     active_store_count_map = get_active_store_count_map(db)
-    rows = (
-        db.query(
-            OrderingItem.id,
-            OrderingItem.product_id,
-            OrderingItem.ordered_quantity,
-            OrderingItem.created_at,
-            Product.name.label("product_name"),
-            Product.is_rare_manual,
-            Brand.name.label("brand_name"),
-            Dealer.name.label("dealer_name"),
+    try:
+        rows = (
+            db.query(
+                OrderingItem.id,
+                OrderingItem.product_id,
+                OrderingItem.ordered_quantity,
+                OrderingItem.created_at,
+                Product.name.label("product_name"),
+                Product.is_rare_manual,
+                Brand.name.label("brand_name"),
+                Dealer.name.label("dealer_name"),
+            )
+            .join(Product, OrderingItem.product_id == Product.id)
+            .outerjoin(Brand, Product.brand_id == Brand.id)
+            .outerjoin(Dealer, Product.dealer_id == Dealer.id)
+            .filter(OrderingItem.store_id == store_id)
+            .order_by(OrderingItem.created_at.desc(), OrderingItem.id.desc())
+            .all()
         )
-        .join(Product, OrderingItem.product_id == Product.id)
-        .outerjoin(Brand, Product.brand_id == Brand.id)
-        .outerjoin(Dealer, Product.dealer_id == Dealer.id)
-        .filter(OrderingItem.store_id == store_id)
-        .order_by(OrderingItem.created_at.desc(), OrderingItem.id.desc())
-        .all()
-    )
-    return [
-        {
-            "id": row.id,
-            "product_id": row.product_id,
-            "product_name": row.product_name,
-            "brand_name": row.brand_name,
-            "dealer_name": (row.dealer_name or "").strip() or "未分類",
-            "ordered_quantity": row.ordered_quantity,
-            "created_at": (
-                row.created_at.astimezone(JST).strftime("%Y-%m-%d")
-                if row.created_at
-                else None
-            ),
-            "is_rare": bool(row.is_rare_manual)
-            or active_store_count_map.get(row.product_id, 0) == 1,
-        }
-        for row in rows
-    ]
+        return [
+            {
+                "id": row.id,
+                "product_id": row.product_id,
+                "product_name": row.product_name,
+                "brand_name": row.brand_name,
+                "dealer_name": (row.dealer_name or "").strip() or "未分類",
+                "ordered_quantity": row.ordered_quantity,
+                "created_at": (
+                    row.created_at.astimezone(JST).strftime("%Y-%m-%d")
+                    if row.created_at
+                    else None
+                ),
+                "is_rare": bool(getattr(row, "is_rare_manual", False))
+                or active_store_count_map.get(row.product_id, 0) == 1,
+            }
+            for row in rows
+        ]
+    except Exception:
+        db.rollback()
+        rows = (
+            db.query(
+                OrderingItem.id,
+                OrderingItem.product_id,
+                OrderingItem.ordered_quantity,
+                OrderingItem.created_at,
+                Product.name.label("product_name"),
+                Brand.name.label("brand_name"),
+                Dealer.name.label("dealer_name"),
+            )
+            .join(Product, OrderingItem.product_id == Product.id)
+            .outerjoin(Brand, Product.brand_id == Brand.id)
+            .outerjoin(Dealer, Product.dealer_id == Dealer.id)
+            .filter(OrderingItem.store_id == store_id)
+            .order_by(OrderingItem.created_at.desc(), OrderingItem.id.desc())
+            .all()
+        )
+        return [
+            {
+                "id": row.id,
+                "product_id": row.product_id,
+                "product_name": row.product_name,
+                "brand_name": row.brand_name,
+                "dealer_name": (row.dealer_name or "").strip() or "未分類",
+                "ordered_quantity": row.ordered_quantity,
+                "created_at": (
+                    row.created_at.astimezone(JST).strftime("%Y-%m-%d")
+                    if row.created_at
+                    else None
+                ),
+                "is_rare": active_store_count_map.get(row.product_id, 0) == 1,
+            }
+            for row in rows
+        ]
 
 
 def save_ordering_items(

@@ -3,12 +3,15 @@ SQLite データベースへの接続を管理するモジュール
 """
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.config import BASE_DIR, settings
+
+logger = logging.getLogger(__name__)
 
 
 def _sqlite_file_path(url: str) -> Path | None:
@@ -171,6 +174,37 @@ def _migrate_products_columns(engine, insp) -> None:
             )
 
 
+def _ensure_is_rare_manual_column(engine) -> None:
+    """products.is_rare_manual を既存 DB に追加（PostgreSQL / SQLite 両対応）"""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "products" not in insp.get_table_names():
+        return
+
+    dialect = engine.dialect.name
+    try:
+        with engine.begin() as conn:
+            if dialect == "postgresql":
+                conn.execute(
+                    text(
+                        "ALTER TABLE products ADD COLUMN IF NOT EXISTS "
+                        "is_rare_manual BOOLEAN NOT NULL DEFAULT false"
+                    )
+                )
+            else:
+                cols = _table_column_names(insp, "products")
+                if "is_rare_manual" not in cols:
+                    conn.execute(
+                        text(
+                            "ALTER TABLE products ADD COLUMN is_rare_manual "
+                            "BOOLEAN NOT NULL DEFAULT 0"
+                        )
+                    )
+    except Exception:
+        logger.exception("products.is_rare_manual のマイグレーションに失敗しました")
+
+
 def migrate_schema() -> None:
     """
     既存 DB への列追加（後方互換）。
@@ -190,6 +224,9 @@ def migrate_schema() -> None:
     if "products" in insp.get_table_names():
         _migrate_products_columns(engine, insp)
         insp = inspect(engine)
+
+    _ensure_is_rare_manual_column(engine)
+    insp = inspect(engine)
 
     if "categories" in insp.get_table_names():
         cat_cols = {c["name"] for c in insp.get_columns("categories")}
@@ -223,23 +260,9 @@ def migrate_schema() -> None:
                         "ALTER TABLE products ADD COLUMN standard_stock INTEGER NOT NULL DEFAULT 0"
                     )
                 )
-        if "is_rare_manual" not in prod_cols:
-            dialect = engine.dialect.name
-            with engine.begin() as conn:
-                if dialect == "postgresql":
-                    conn.execute(
-                        text(
-                            "ALTER TABLE products ADD COLUMN IF NOT EXISTS "
-                            "is_rare_manual BOOLEAN NOT NULL DEFAULT false"
-                        )
-                    )
-                else:
-                    conn.execute(
-                        text(
-                            "ALTER TABLE products ADD COLUMN is_rare_manual "
-                            "BOOLEAN NOT NULL DEFAULT 0"
-                        )
-                    )
+
+    if "products" in insp.get_table_names():
+        _ensure_is_rare_manual_column(engine)
 
     # 店舗別発注目安（新規テーブルのみ作成・既存テーブルは変更しない）
     if "store_product_settings" not in insp.get_table_names():
@@ -322,16 +345,19 @@ def _drop_ordering_items_store_product_unique(engine, insp) -> None:
     if "ordering_items" not in insp.get_table_names():
         return
     dialect = engine.dialect.name
-    with engine.begin() as conn:
-        if dialect == "postgresql":
-            conn.execute(
-                text(
-                    "ALTER TABLE ordering_items "
-                    "DROP CONSTRAINT IF EXISTS uq_ordering_store_product"
+    try:
+        with engine.begin() as conn:
+            if dialect == "postgresql":
+                conn.execute(
+                    text(
+                        "ALTER TABLE ordering_items "
+                        "DROP CONSTRAINT IF EXISTS uq_ordering_store_product"
+                    )
                 )
-            )
-        elif dialect == "sqlite":
-            conn.execute(text("DROP INDEX IF EXISTS uq_ordering_store_product"))
+            elif dialect == "sqlite":
+                conn.execute(text("DROP INDEX IF EXISTS uq_ordering_store_product"))
+    except Exception:
+        logger.exception("ordering_items のユニーク制約削除をスキップしました")
 
 
 def _ensure_users_store_id(engine, insp) -> None:

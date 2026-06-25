@@ -525,13 +525,18 @@ def product_to_out(
     deployment_label, active_store_names = format_product_deployment(
         active_ids, expand_all, stores
     )
-    is_rare = crud_core.compute_is_rare(product, len(active_ids))
     section_id = None
     section_name = None
     if product.category:
         section_id = product.category.section
         if product.category.shelf_section:
             section_name = product.category.shelf_section.name
+    try:
+        is_rare_manual = bool(getattr(product, "is_rare_manual", False))
+        is_rare = crud_core.compute_is_rare(product, len(active_ids))
+    except Exception:
+        is_rare_manual = False
+        is_rare = len(active_ids) == 1
     return ProductOut(
         id=product.id,
         name=product.name,
@@ -556,7 +561,7 @@ def product_to_out(
         active_store_ids=active_ids,
         active_store_names=active_store_names,
         deployment_label=deployment_label,
-        is_rare_manual=bool(getattr(product, "is_rare_manual", False)),
+        is_rare_manual=is_rare_manual,
         is_rare=is_rare,
     )
 
