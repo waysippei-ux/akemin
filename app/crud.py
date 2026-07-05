@@ -267,6 +267,8 @@ def get_products(
     maker_id: int | None = None,
     brand_id: int | None = None,
     section: int | None = None,
+    store_id: int | None = None,
+    require_standard_stock: bool = False,
 ) -> list[Product]:
     q = db.query(Product).options(
         joinedload(Product.category).joinedload(Category.shelf_section),
@@ -282,6 +284,11 @@ def get_products(
         q = q.filter(Product.brand_id == brand_id)
     if section is not None:
         q = q.join(Category).filter(Category.section == section)
+    if require_standard_stock:
+        if store_id is None:
+            raise ValueError("store_id is required when require_standard_stock is True")
+        q = outerjoin_store_settings(q, store_id)
+        q = q.filter(effective_standard_stock_gt_zero(store_id))
     return q.order_by(Product.name).all()
 
 
@@ -1361,11 +1368,13 @@ def get_inventory_list(
     brand_id: int | None = None,
     section: int | None = None,
     active_only: bool = True,
+    require_standard_stock: bool = False,
 ) -> list[InventoryItemOut]:
     """
     店舗の在庫一覧。
     active_only=True（ダッシュボード）: is_active かつ標準在庫>0 の商品のみ。
     active_only=False（補充画面の検索）: マスタ全商品＋在庫数。
+    require_standard_stock=True: 標準在庫が設定されている商品のみ（補充画面用）。
     """
     settings_map = get_settings_map(db, store_id)
     ordering_map = get_ordering_quantity_map(db, store_id)
@@ -1421,6 +1430,8 @@ def get_inventory_list(
         maker_id=maker_id,
         brand_id=brand_id,
         section=section,
+        store_id=store_id if require_standard_stock else None,
+        require_standard_stock=require_standard_stock,
     )
     for product in products:
         inv = get_inventory_row(db, store_id, product.id)

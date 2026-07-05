@@ -330,6 +330,7 @@ def list_stock_products(
         brand_id=brand_id,
         section=section,
         active_only=active_only,
+        require_standard_stock=(page == "replenish"),
     )
 
 

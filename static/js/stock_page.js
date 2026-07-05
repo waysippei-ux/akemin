@@ -610,7 +610,12 @@ function formatLogRecordedAt(log) {
   function renderProducts() {
     const empty = document.getElementById("product-empty");
     if (!productGrid) return;
-    const items = filteredProducts();
+    let items = filteredProducts();
+    if (IS_REPLENISH) {
+      items = items.filter(
+        (item) => item.standard_stock && item.standard_stock > 0
+      );
+    }
     if (!items.length) {
       productGrid.innerHTML = "";
       if (empty) empty.style.display = "block";
