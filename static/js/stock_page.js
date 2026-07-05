@@ -540,51 +540,70 @@ function formatLogRecordedAt(log) {
     </span>`;
   }
 
-  function standardStockQtyPart(item) {
-    const std = item.standard_stock;
-    const unit = item.unit || "本";
-    if (std != null && std !== undefined && std !== 0) {
-      return `<span class="qty-std">標準 ${std}${escapeHtml(unit)}</span>`;
+  function cardStatusStock(item) {
+    const qty = item.quantity ?? 0;
+    const critical = item.critical_threshold ?? item.critical_stock ?? 0;
+    const warning = item.warning_threshold ?? item.warning_stock ?? 0;
+    if (qty <= critical) {
+      return { card: "card-crit", badge: "badge-crit", label: "至急" };
     }
-    return `<span class="qty-std qty-std-unset">未設定</span>`;
+    if (qty <= warning) {
+      return { card: "card-warn", badge: "badge-warn", label: "要発注" };
+    }
+    return { card: "card-ok", badge: "badge-ok", label: "十分" };
   }
 
-  function renderProductCard(p) {
-    const unit = p.unit || "本";
-    const category = (p.category_name || "").trim();
-    const brand = productBrandLabel(p);
-    const badgeParts = [];
-    if (category) {
-      badgeParts.push(
-        `<span class="stock-badge-category">${escapeHtml(category)}</span>`
-      );
-    }
-    if (brand) {
-      badgeParts.push(`<span class="stock-badge-brand">${escapeHtml(brand)}</span>`);
-    }
-    if (p.is_rare) {
-      badgeParts.push(renderRareBadge(p));
-    }
-    const badgesHtml = badgeParts.length
-      ? `<div class="stock-card-badges">${badgeParts.join("")}</div>`
-      : "";
-    const shelfNote =
-      IS_REPLENISH && !p.is_on_shelf
-        ? '<span class="stock-card-shelf-note"> · 未配置</span>'
+  function renderStockProductCard(item) {
+    const status = cardStatusStock(item);
+    const brand = productBrandLabel(item);
+    const chipHtml = brand ? `<span class="brand-pill">${escapeHtml(brand)}</span>` : "";
+    const rareHtml = renderRareBadge(item);
+
+    const unit = item.unit || "本";
+    const std = item.standard_stock;
+    const stdHtml =
+      std != null && std !== undefined && std !== 0
+        ? `<span class="stock-std">標準 ${std}本</span>`
+        : `<span class="stock-std stock-std-unset">未設定</span>`;
+
+    const warningStock = item.warning_threshold ?? item.warning_stock;
+    const criticalStock = item.critical_threshold ?? item.critical_stock;
+    const thresholdHtml =
+      warningStock || criticalStock
+        ? `
+<div class="alert-threshold-row">
+  ${
+    warningStock
+      ? `<span class="threshold-badge threshold-warn">要発注 ${warningStock}本以下</span>`
+      : ""
+  }
+  ${
+    criticalStock
+      ? `<span class="threshold-badge threshold-crit">至急 ${criticalStock}本以下</span>`
+      : ""
+  }
+</div>`
+        : "";
+
+    const orderingBadge =
+      item.ordered_quantity && item.ordered_quantity > 0
+        ? `<span class="ordering-badge">発注中 ${item.ordered_quantity}${escapeHtml(unit)}</span>`
         : "";
 
     return `
-      <button type="button" class="product-card stock-${p.stock_level}" data-product-id="${p.product_id}">
-        <div class="stock-product-card">
-          ${badgesHtml}
-          <p class="stock-card-name">${escapeHtml(p.product_name)}</p>
-          <p class="stock-card-qty">
-            <span class="qty-num">${p.quantity}${escapeHtml(unit)}</span>
-            <span class="qty-sep"> / </span>
-            ${standardStockQtyPart(p)}
-            ${shelfNote}
-          </p>
+      <button type="button" class="product-card ${status.card}" data-product-id="${item.product_id}">
+        <span class="status-badge ${status.badge}">${status.label}</span>
+        ${chipHtml}
+        ${rareHtml}
+        <p class="product-name">${escapeHtml(item.product_name)}</p>
+        <div class="card-divider"></div>
+        <div class="stock-row">
+          <span class="stock-num">${item.quantity ?? 0}</span>
+          <span class="stock-unit">${escapeHtml(unit)}</span>
+          ${stdHtml}
         </div>
+        ${thresholdHtml}
+        ${orderingBadge}
       </button>`;
   }
 
@@ -598,7 +617,7 @@ function formatLogRecordedAt(log) {
       return;
     }
     if (empty) empty.style.display = "none";
-    productGrid.innerHTML = items.map((p) => renderProductCard(p)).join("");
+    productGrid.innerHTML = items.map((p) => renderStockProductCard(p)).join("");
 
     productGrid.querySelectorAll(".product-card").forEach((btn) => {
       btn.addEventListener("click", () => {
