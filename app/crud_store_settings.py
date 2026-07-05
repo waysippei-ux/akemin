@@ -26,6 +26,22 @@ def resolve_standard_stock(
     return int(getattr(product, "standard_stock", 0) or 0)
 
 
+def effective_standard_stock_gt_zero(store_id: int):
+    """店舗設定優先の標準在庫数が 1 以上（棚を見る表示用）"""
+    from sqlalchemy import func
+
+    return func.coalesce(StoreProductSetting.standard_stock, Product.standard_stock, 0) > 0
+
+
+def outerjoin_store_settings(query, store_id: int):
+    """Product 結合済みクエリに店舗別設定を outer join"""
+    return query.outerjoin(
+        StoreProductSetting,
+        (StoreProductSetting.product_id == Product.id)
+        & (StoreProductSetting.store_id == store_id),
+    )
+
+
 def resolve_thresholds(
     product: Product, setting: StoreProductSetting | None
 ) -> tuple[int, int]:

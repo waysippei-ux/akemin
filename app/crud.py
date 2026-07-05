@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.auth import verify_password
 from app.crud_store_settings import (
+    effective_standard_stock_gt_zero,
     get_settings_map,
+    outerjoin_store_settings,
     resolve_standard_stock,
     resolve_thresholds,
 )
@@ -1362,7 +1364,7 @@ def get_inventory_list(
 ) -> list[InventoryItemOut]:
     """
     店舗の在庫一覧。
-    active_only=True（ダッシュボード）: is_active の商品のみ。
+    active_only=True（ダッシュボード）: is_active かつ標準在庫>0 の商品のみ。
     active_only=False（補充画面の検索）: マスタ全商品＋在庫数。
     """
     settings_map = get_settings_map(db, store_id)
@@ -1371,9 +1373,10 @@ def get_inventory_list(
     result: list[InventoryItemOut] = []
 
     if active_only:
+        q = db.query(Inventory).join(Product, Product.id == Inventory.product_id)
+        q = outerjoin_store_settings(q, store_id)
         q = (
-            db.query(Inventory)
-            .options(
+            q.options(
                 joinedload(Inventory.product).joinedload(Product.category),
                 joinedload(Inventory.product).joinedload(Product.maker),
                 joinedload(Inventory.product).joinedload(Product.dealer),
@@ -1382,6 +1385,7 @@ def get_inventory_list(
             .filter(
                 Inventory.store_id == store_id,
                 Inventory.is_active.is_(True),
+                effective_standard_stock_gt_zero(store_id),
             )
         )
         rows = q.all()

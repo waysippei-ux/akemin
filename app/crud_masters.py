@@ -54,7 +54,12 @@ from app.schemas import (
     StockLevel,
 )
 from app.crud import calc_stock_level, get_or_create_inventory, get_store
-from app.crud_store_settings import get_settings_map, resolve_thresholds
+from app.crud_store_settings import (
+    effective_standard_stock_gt_zero,
+    get_settings_map,
+    outerjoin_store_settings,
+    resolve_thresholds,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -571,15 +576,19 @@ def product_to_out(
 # ---------------------------------------------------------------------------
 
 def _summarize_category(db: Session, store_id: int, cat: Category) -> CategorySummaryOut:
-    """is_active=true の商品のみ集計（アラート対象）"""
-    rows = (
+    """is_active=true かつ標準在庫>0 の商品のみ集計（アラート対象）"""
+    q = (
         db.query(Inventory)
-        .options(joinedload(Inventory.product))
         .join(Product, Product.id == Inventory.product_id)
-        .filter(
+        .options(joinedload(Inventory.product))
+    )
+    q = outerjoin_store_settings(q, store_id)
+    rows = (
+        q.filter(
             Inventory.store_id == store_id,
             Inventory.is_active.is_(True),
             Product.category_id == cat.id,
+            effective_standard_stock_gt_zero(store_id),
         )
         .all()
     )
