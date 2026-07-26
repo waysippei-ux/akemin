@@ -68,7 +68,7 @@ def get_ordering_candidates(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """発注中登録モーダル用：黄アラート以下の商品一覧"""
+    """発注中登録モーダル用：標準在庫数 > 現在庫数 の商品一覧"""
     check_store_access(current_user, store_id)
     try:
         items = crud.get_ordering_candidates_for_shelf(db, store_id, shelf_id)

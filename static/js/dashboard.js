@@ -127,21 +127,25 @@ function toJSTDateTime(dateStr) {
   let orderingShelfId = null;
 
   function renderOrderingItems(items) {
-    const filteredItems = items.filter(
-      (item) =>
-        Math.max(0, (item.standard_stock || 0) - (item.quantity || 0)) > 0
-    );
-    return filteredItems
+    return items
       .map((item) => {
         const needed = Math.max(
           0,
           (item.standard_stock || 0) - (item.quantity || 0)
         );
+        const qtyControl =
+          needed <= 0
+            ? `<span style="color:#aaa; font-size:12px;">在庫足りています</span>`
+            : `<input type="number" class="ordering-qty input-number"
+    value="${needed}" min="0" max="999" inputmode="numeric"
+    style="width:80px;">`;
         return `
     <div class="ordering-item-row" data-product-id="${item.product_id}"
       data-is-rare="${item.is_rare ? "true" : "false"}">
       <label class="ordering-item-label">
-        <input type="checkbox" class="ordering-check" value="${item.product_id}" checked>
+        <input type="checkbox" class="ordering-check" value="${item.product_id}" ${
+          needed > 0 ? "checked" : ""
+        }>
         <span class="ordering-item-name">
           ${escapeHtml(item.product_name)}
           ${
@@ -152,7 +156,7 @@ function toJSTDateTime(dateStr) {
           ${renderRareBadge(item, "10px")}
         </span>
         <span class="ordering-item-needed">必要: ${needed}本</span>
-        <input type="number" class="ordering-qty input-number" value="${needed}" min="0" max="999" inputmode="numeric">
+        ${qtyControl}
       </label>
     </div>`;
       })
@@ -201,10 +205,7 @@ function toJSTDateTime(dateStr) {
           '<p class="empty-msg">標準在庫に達していない商品はありません</p>';
         return;
       }
-      const html = renderOrderingItems(items);
-      body.innerHTML =
-        html ||
-        '<p class="empty-msg">標準在庫に達していない商品はありません</p>';
+      body.innerHTML = renderOrderingItems(items);
     } catch (err) {
       if (body) body.innerHTML = `<p class="error-msg">${escapeHtml(err.message)}</p>`;
     }
