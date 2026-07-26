@@ -486,6 +486,27 @@
           複数店舗展開でも希少扱いしたい場合はこちらをONにしてください。
         </p>
       </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="edit-standard-stock">標準在庫数</label>
+          <input type="number" id="edit-standard-stock"
+            class="input-number" min="0" inputmode="numeric"
+            placeholder="未設定">
+          <p class="help-text">通常時に維持したい在庫数</p>
+        </div>
+        <div class="form-group">
+          <label for="edit-warning-stock">黄アラート ≤</label>
+          <input type="number" id="edit-warning-stock"
+            class="input-number" min="0" inputmode="numeric"
+            placeholder="未設定">
+        </div>
+        <div class="form-group">
+          <label for="edit-critical-stock">赤アラート ≤</label>
+          <input type="number" id="edit-critical-stock"
+            class="input-number" min="0" inputmode="numeric"
+            placeholder="未設定">
+        </div>
+      </div>
       <section class="deployment-section card">
         <h4 class="section-title">展開店舗</h4>
         <label class="checkbox-label">
@@ -507,6 +528,6 @@
 
 {% block scripts %}
 <script src="/static/js/filter_helpers.js?v=3"></script>
-<script src="/static/js/admin_products.js?v=18"></script>
+<script src="/static/js/admin_products.js?v=19"></script>
 <script src="/static/js/admin_masters.js?v=8"></script>
 {% endblock %}

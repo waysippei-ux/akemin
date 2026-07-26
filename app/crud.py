@@ -1068,16 +1068,18 @@ def get_ordering_quantity_map(db: Session, store_id: int) -> dict[int, int]:
 def get_ordering_candidates_for_shelf(
     db: Session, store_id: int, section_id: int
 ) -> list[dict]:
-    """発注表と同条件：黄アラート以下かつ必要発注数 > 0"""
+    """発注中登録候補：標準在庫数 − 現在庫数 > 0 の商品のみ"""
     items = get_inventory_list(db, store_id, active_only=True, section=section_id)
     result: list[dict] = []
     for item in items:
         qty = int(item.quantity or 0)
-        warning = int(item.warning_threshold or 0)
-        std = int(item.standard_stock or 0)
-        if qty > warning:
+        std = item.standard_stock
+        if std is None:
             continue
-        needed = std - qty
+        std = int(std)
+        if std <= 0:
+            continue
+        needed = max(0, std - qty)
         if needed <= 0:
             continue
         result.append(
@@ -1085,6 +1087,8 @@ def get_ordering_candidates_for_shelf(
                 "product_id": item.product_id,
                 "product_name": item.product_name,
                 "brand_name": item.brand_name,
+                "quantity": qty,
+                "standard_stock": std,
                 "needed": needed,
                 "is_rare": item.is_rare,
             }

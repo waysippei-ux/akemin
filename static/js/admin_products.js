@@ -10,7 +10,6 @@
   let dealers = [];
   let adminStores = [];
   let editingId = null;
-  let editingProductSnapshot = null;
   let suppressStoreCheckboxEvents = false;
   let modalJanCode = null;
   let currentPage = 1;
@@ -688,26 +687,40 @@
     const maker = document.getElementById("modal-maker_id").value;
     const brand = document.getElementById("modal-brand_id").value;
     const dealer = document.getElementById("modal-dealer_id").value;
-    const body = {
+    const standardRaw = document.getElementById("edit-standard-stock")?.value?.trim() ?? "";
+    const warningRaw = document.getElementById("edit-warning-stock")?.value?.trim() ?? "";
+    const criticalRaw = document.getElementById("edit-critical-stock")?.value?.trim() ?? "";
+    const standard_stock =
+      standardRaw === "" ? 0 : parseInt(standardRaw, 10);
+    const warning_threshold =
+      warningRaw === "" ? 5 : parseInt(warningRaw, 10);
+    const critical_threshold =
+      criticalRaw === "" ? 2 : parseInt(criticalRaw, 10);
+    if (
+      !Number.isFinite(standard_stock) ||
+      !Number.isFinite(warning_threshold) ||
+      !Number.isFinite(critical_threshold)
+    ) {
+      throw new Error("標準在庫数・黄アラート・赤アラートは数値で入力してください。");
+    }
+    if (critical_threshold > warning_threshold) {
+      throw new Error("赤アラートは黄アラート以下にしてください。");
+    }
+    return {
       name: document.getElementById("modal-name").value.trim(),
       barcode: document.getElementById("modal-barcode").value.trim() || null,
       jan_code: modalJanCode,
       category_id: parseInt(categoryId, 10),
       unit: document.getElementById("modal-unit").value.trim() || "本",
+      standard_stock,
+      warning_threshold,
+      critical_threshold,
       maker_id: maker ? parseInt(maker, 10) : null,
       brand_id: brand ? parseInt(brand, 10) : null,
       dealer_id: dealer ? parseInt(dealer, 10) : null,
       store_settings: getStoreSettings(),
       is_rare_manual: document.getElementById("edit-is-rare-manual")?.checked || false,
     };
-    if (editingProductSnapshot) {
-      body.warning_threshold = editingProductSnapshot.warning_threshold;
-      body.critical_threshold = editingProductSnapshot.critical_threshold;
-    } else {
-      body.warning_threshold = 5;
-      body.critical_threshold = 2;
-    }
-    return body;
   }
 
   function openModal() {
@@ -720,7 +733,6 @@
     document.getElementById("product-modal").hidden = true;
     document.body.style.overflow = "";
     editingId = null;
-    editingProductSnapshot = null;
     modalJanCode = null;
     document.getElementById("modal-form-error").hidden = true;
     clearBarcodeDupWarning();
@@ -732,6 +744,9 @@
     document.getElementById("modal-barcode").value = "";
     clearBarcodeDupWarning();
     document.getElementById("modal-unit").value = "本";
+    document.getElementById("edit-standard-stock").value = "";
+    document.getElementById("edit-warning-stock").value = "5";
+    document.getElementById("edit-critical-stock").value = "2";
     document.getElementById("modal-section").value = "";
     document.getElementById("modal-maker_id").value = "";
     document.getElementById("modal-dealer_id").value = "";
@@ -750,7 +765,6 @@
 
   function openAddModal() {
     editingId = null;
-    editingProductSnapshot = null;
     modalJanCode = null;
     document.getElementById("product-modal-title").textContent = "商品を追加";
     resetModalDefaults();
@@ -763,10 +777,6 @@
       products.find((x) => x.id === id) ||
       (await Api.get(`/api/products/${id}`));
     editingId = id;
-    editingProductSnapshot = {
-      warning_threshold: p.warning_threshold,
-      critical_threshold: p.critical_threshold,
-    };
     modalJanCode = p.jan_code || null;
     document.getElementById("product-modal-title").textContent = "商品を編集";
     document.getElementById("modal-product-id").value = id;
@@ -784,6 +794,12 @@
     document.getElementById("modal-brand_id").value = p.brand_id || "";
     document.getElementById("modal-dealer_id").value = p.dealer_id || "";
     document.getElementById("modal-unit").value = p.unit;
+    document.getElementById("edit-standard-stock").value =
+      p.standard_stock ?? "";
+    document.getElementById("edit-warning-stock").value =
+      p.warning_threshold ?? p.warning_stock ?? "";
+    document.getElementById("edit-critical-stock").value =
+      p.critical_threshold ?? p.critical_stock ?? "";
     const rareManual = document.getElementById("edit-is-rare-manual");
     if (rareManual) rareManual.checked = !!p.is_rare_manual;
     const activeIds = p.active_store_ids || [];

@@ -270,6 +270,8 @@ class OrderingCandidateOut(BaseModel):
     product_id: int
     product_name: str
     brand_name: Optional[str] = None
+    quantity: int = 0
+    standard_stock: int = 0
     needed: int
     is_rare: bool = False
 

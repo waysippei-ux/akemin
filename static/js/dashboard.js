@@ -127,9 +127,17 @@ function toJSTDateTime(dateStr) {
   let orderingShelfId = null;
 
   function renderOrderingItems(items) {
-    return items
-      .map(
-        (item) => `
+    const filteredItems = items.filter(
+      (item) =>
+        Math.max(0, (item.standard_stock || 0) - (item.quantity || 0)) > 0
+    );
+    return filteredItems
+      .map((item) => {
+        const needed = Math.max(
+          0,
+          (item.standard_stock || 0) - (item.quantity || 0)
+        );
+        return `
     <div class="ordering-item-row" data-product-id="${item.product_id}"
       data-is-rare="${item.is_rare ? "true" : "false"}">
       <label class="ordering-item-label">
@@ -143,11 +151,11 @@ function toJSTDateTime(dateStr) {
           }
           ${renderRareBadge(item, "10px")}
         </span>
-        <span class="ordering-item-needed">必要: ${item.needed}本</span>
-        <input type="number" class="ordering-qty input-number" value="${item.needed}" min="0" max="999" inputmode="numeric">
+        <span class="ordering-item-needed">必要: ${needed}本</span>
+        <input type="number" class="ordering-qty input-number" value="${needed}" min="0" max="999" inputmode="numeric">
       </label>
-    </div>`
-      )
+    </div>`;
+      })
       .join("");
   }
 
@@ -190,10 +198,13 @@ function toJSTDateTime(dateStr) {
       if (!body) return;
       if (!items.length) {
         body.innerHTML =
-          '<p class="empty-msg">黄アラート以下で発注が必要な商品はありません</p>';
+          '<p class="empty-msg">標準在庫に達していない商品はありません</p>';
         return;
       }
-      body.innerHTML = renderOrderingItems(items);
+      const html = renderOrderingItems(items);
+      body.innerHTML =
+        html ||
+        '<p class="empty-msg">標準在庫に達していない商品はありません</p>';
     } catch (err) {
       if (body) body.innerHTML = `<p class="error-msg">${escapeHtml(err.message)}</p>`;
     }
