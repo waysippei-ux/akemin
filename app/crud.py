@@ -3,6 +3,7 @@
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session, joinedload
@@ -1308,6 +1309,15 @@ def deliver_ordering_items(
     return delivered
 
 
+def sort_key_without_numbers(product_name: str) -> tuple[str, int]:
+    """先頭数字を除いた文字部分でグループ化し、同文字内は数字の昇順。"""
+    name = product_name or ""
+    stripped = re.sub(r"^\d+", "", name).strip()
+    numbers = re.match(r"^\d+", name)
+    num = int(numbers.group()) if numbers else 0
+    return (stripped.lower(), num)
+
+
 def build_order_pdf_hierarchy(
     db: Session, store_id: int, section_id: int
 ) -> tuple[str, str, str, dict]:
@@ -1355,6 +1365,14 @@ def build_order_pdf_hierarchy(
             }
         )
 
+    for dealer_name, categories in hierarchy.items():
+        for category_name, makers in categories.items():
+            for maker_name in makers:
+                makers[maker_name] = sorted(
+                    makers[maker_name],
+                    key=lambda p: sort_key_without_numbers(p["product_name"]),
+                )
+
     today_jst = datetime.now(JST).strftime("%Y/%m/%d")
     return store.name, section.name, today_jst, hierarchy
 
@@ -1368,16 +1386,7 @@ def build_stocktaking_hierarchy(
     階層: ディーラー → カテゴリ → メーカー → 商品リスト
     商品名は先頭数字を除いた文字部分でグループ化し、同文字内は数字順。
     """
-    import re
-
     from app.crud_masters import get_section
-
-    def sort_key_without_numbers(product_name: str) -> tuple[str, int]:
-        name = product_name or ""
-        stripped = re.sub(r"^\d+", "", name).strip()
-        numbers = re.match(r"^\d+", name)
-        num = int(numbers.group()) if numbers else 0
-        return (stripped.lower(), num)
 
     store = get_store(db, store_id)
     if not store:
