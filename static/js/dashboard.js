@@ -325,11 +325,51 @@ function toJSTDateTime(dateStr) {
     });
   }
 
+  function bindStocktakingButtons() {
+    document.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".btn-stocktaking");
+      if (!btn) return;
+
+      const shelfId = btn.dataset.shelfId;
+      const storeId = getStoreId();
+      if (!storeId) {
+        alert("店舗を選択してください。");
+        return;
+      }
+      if (!shelfId) return;
+
+      const label = btn.textContent;
+      btn.textContent = "作成中...";
+      btn.disabled = true;
+
+      try {
+        const html = await Api.post("/api/stocktaking", {
+          store_id: Number(storeId),
+          shelf_id: Number(shelfId),
+        });
+        if (typeof html !== "string" || !html.trim()) {
+          throw new Error("棚卸し集計の取得に失敗しました");
+        }
+        const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (err) {
+        alert(err.message || "棚卸し集計の作成に失敗しました");
+        console.error(err);
+      } finally {
+        btn.textContent = label || "棚卸し集計";
+        btn.disabled = false;
+      }
+    });
+  }
+
   async function init() {
     $("btn-refresh")?.addEventListener("click", onRefresh);
     $("btn-back-categories")?.addEventListener("click", showCategories);
     bindOrderPdfButtons();
     bindOrderingButtons();
+    bindStocktakingButtons();
     bindProductNameFilter();
     storeSelect?.addEventListener("change", () => {
       if (isDetailView()) loadCategoryDetail();
@@ -484,6 +524,13 @@ function toJSTDateTime(dateStr) {
                 data-shelf-id="${sec.section_id}"
                 data-shelf-name="${escapeHtml(sec.section_name)}">
                 発注中に登録
+              </button>
+              <button
+                type="button"
+                class="btn-stocktaking"
+                data-shelf-id="${sec.section_id}"
+                data-shelf-name="${escapeHtml(sec.section_name)}">
+                棚卸し集計
               </button>
             </div>
           </div>

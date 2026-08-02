@@ -1,9 +1,11 @@
 """ダッシュボード API"""
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app import crud, crud_masters
 from app.auth import check_store_access, get_current_user
+from app.config import BASE_DIR
 from app.database import get_db
 from app.models import User
 from app.schemas import (
@@ -14,10 +16,12 @@ from app.schemas import (
     OrderingDeliverBody,
     OrderingItemOut,
     OrderingItemsSaveBody,
+    StocktakingBody,
 )
 
 router = APIRouter()
 ordering_router = APIRouter(tags=["発注中"])
+templates = Jinja2Templates(directory=str((BASE_DIR / "templates").resolve()))
 
 
 @router.get("/sections", response_model=DashboardSectionsOut)
@@ -157,3 +161,36 @@ def deliver_ordering_items(
     if count == 0:
         raise HTTPException(status_code=404, detail="納品対象が見つかりません。")
     return {"message": "納品登録しました", "delivered_count": count}
+
+
+@ordering_router.post("/stocktaking")
+def create_stocktaking(
+    request: Request,
+    body: StocktakingBody,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """棚卸し集計 HTML を返す（ブラウザ印刷用）
+
+    指定棚の展開中商品を
+    ディーラー → カテゴリ → メーカー の階層で出力する。
+    """
+    check_store_access(current_user, body.store_id)
+    try:
+        store_name, shelf_name, today_jst, order_data = (
+            crud.build_stocktaking_hierarchy(db, body.store_id, body.shelf_id)
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    return templates.TemplateResponse(
+        request,
+        "stocktaking.html",
+        {
+            "store_name": store_name,
+            "shelf_name": shelf_name,
+            "today": today_jst,
+            "order_data": order_data,
+        },
+        media_type="text/html; charset=utf-8",
+    )

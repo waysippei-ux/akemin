@@ -1359,6 +1359,80 @@ def build_order_pdf_hierarchy(
     return store.name, section.name, today_jst, hierarchy
 
 
+def build_stocktaking_hierarchy(
+    db: Session, store_id: int, section_id: int
+) -> tuple[str, str, str, dict]:
+    """
+    棚卸し集計（印刷用HTML）の階層データを構築する。
+    指定棚の is_active 商品すべて（アラート閾値・標準在庫条件は使わない）。
+    階層: ディーラー → カテゴリ → メーカー → 商品リスト
+    """
+    from app.crud_masters import get_section
+
+    store = get_store(db, store_id)
+    if not store:
+        raise ValueError("店舗が見つかりません。")
+
+    section = get_section(db, section_id)
+    if not section or not section.is_active:
+        raise ValueError("棚が見つかりません。")
+
+    rows = (
+        db.query(Inventory)
+        .join(Product, Product.id == Inventory.product_id)
+        .join(Category, Product.category_id == Category.id)
+        .options(
+            joinedload(Inventory.product).joinedload(Product.category),
+            joinedload(Inventory.product).joinedload(Product.maker),
+            joinedload(Inventory.product).joinedload(Product.dealer),
+            joinedload(Inventory.product).joinedload(Product.brand),
+        )
+        .filter(
+            Inventory.store_id == store_id,
+            Inventory.is_active.is_(True),
+            Category.section == section_id,
+        )
+        .all()
+    )
+
+    order_data: dict = {}
+    for inv in rows:
+        product = inv.product
+        if not product:
+            continue
+        dealer = (
+            (product.dealer.name if product.dealer else "") or ""
+        ).strip() or "未分類"
+        category = (
+            (product.category.name if product.category else "") or ""
+        ).strip() or "未分類"
+        maker = (
+            (product.maker.name if product.maker else "") or ""
+        ).strip() or "未分類"
+        brand = (product.brand.name if product.brand else "") or ""
+
+        order_data.setdefault(dealer, {}).setdefault(category, {}).setdefault(
+            maker, []
+        ).append(
+            {
+                "product_name": product.name,
+                "brand_name": brand,
+                "quantity": int(inv.quantity or 0),
+            }
+        )
+
+    # 商品名順でソート
+    for dealer in order_data:
+        for category in order_data[dealer]:
+            for maker in order_data[dealer][category]:
+                order_data[dealer][category][maker].sort(
+                    key=lambda p: p["product_name"]
+                )
+
+    today_jst = datetime.now(JST).strftime("%Y/%m/%d")
+    return store.name, section.name, today_jst, order_data
+
+
 def get_inventory_list(
     db: Session,
     store_id: int,

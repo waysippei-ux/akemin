@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>棚卸し集計</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+    font-size: 13px; color: #1a1a1a; padding: 32px 40px;
+  }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .meta { font-size: 12px; color: #555; margin-bottom: 16px; }
+  .print-btn {
+    position: fixed; top: 16px; right: 16px;
+    background: #1D9E75; color: white; border: none;
+    padding: 10px 20px; border-radius: 8px;
+    font-size: 14px; cursor: pointer;
+  }
+  .dealer-section { margin-bottom: 28px; }
+  .dealer-title {
+    font-size: 15px; font-weight: bold;
+    background: #E1F5EE; color: #085041;
+    padding: 6px 12px; border-radius: 6px; margin-bottom: 10px;
+  }
+  .category-title {
+    font-size: 13px; font-weight: bold; color: #444;
+    border-bottom: 1px solid #ccc;
+    padding: 4px 8px; margin: 8px 0 6px;
+  }
+  .maker-title {
+    font-size: 12px; color: #777;
+    padding: 2px 8px; margin: 6px 0 4px;
+  }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  th {
+    background: #f4f4f8; font-size: 11px;
+    padding: 6px 8px; text-align: left; border: 1px solid #ddd;
+  }
+  td { padding: 8px; border: 1px solid #ddd; font-size: 12px; }
+  .write-box {
+    display: inline-block; width: 70px; height: 22px;
+    border-bottom: 1.5px solid #333;
+  }
+  .empty { color: #aaa; padding: 16px; text-align: center; }
+  @media print {
+    .print-btn { display: none; }
+    body { padding: 16px; }
+    tr { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<button class="print-btn" onclick="window.print()">印刷 / PDF保存</button>
+<h1>棚卸し集計</h1>
+<p class="meta">店舗：{{ store_name }}　棚：{{ shelf_name }}　実施日：{{ today }}</p>
+<hr style="margin-bottom:20px">
+
+{% if order_data %}
+  {% for dealer_name, categories in order_data.items() %}
+  <div class="dealer-section">
+    <div class="dealer-title">{{ dealer_name }}</div>
+    {% for category_name, makers in categories.items() %}
+      <div class="category-title">{{ category_name }}</div>
+      {% for maker_name, products in makers.items() %}
+        <div class="maker-title">{{ maker_name }}</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:45%">商品名 / ブランド名</th>
+              <th style="width:15%; text-align:center">現在庫数</th>
+              <th style="width:20%; text-align:center">実数（記入欄）</th>
+              <th style="width:20%; text-align:center">差異（記入欄）</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in products %}
+            <tr>
+              <td>
+                {{ p.product_name }}
+                {% if p.brand_name %}
+                <span style="font-size:11px; color:#3C3489;
+                  background:#EEEDFE; padding:1px 6px;
+                  border-radius:10px; margin-left:4px;">
+                  {{ p.brand_name }}
+                </span>
+                {% endif %}
+              </td>
+              <td style="text-align:center">{{ p.quantity }}本</td>
+              <td style="text-align:center"><div class="write-box"></div></td>
+              <td style="text-align:center"><div class="write-box"></div></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endfor %}
+    {% endfor %}
+  </div>
+  {% endfor %}
+{% else %}
+  <p class="empty">表示できる商品がありません</p>
+{% endif %}
+</body>
+</html>

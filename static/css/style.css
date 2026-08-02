@@ -364,6 +364,29 @@ a {
   background: #eeedfe;
 }
 
+.btn-stocktaking {
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  background: #fff;
+  color: #0F6E56;
+  border: 1.5px solid #1D9E75;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-stocktaking:hover {
+  background: #E1F5EE;
+}
+
+.btn-stocktaking:disabled {
+  background: #aaa;
+  color: #fff;
+  border-color: #aaa;
+  cursor: not-allowed;
+}
+
 .ordering-badge {
   display: inline-flex;
   align-items: center;

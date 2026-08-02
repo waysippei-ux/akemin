@@ -296,6 +296,11 @@ class OrderingDeleteBulkBody(BaseModel):
     item_ids: list[int] = Field(default_factory=list)
 
 
+class StocktakingBody(BaseModel):
+    store_id: int = Field(gt=0)
+    shelf_id: int = Field(gt=0, description="棚（sections.id）")
+
+
 class InventoryScanRequest(BaseModel):
     """バーコードスキャン時の入力"""
     barcode: str
