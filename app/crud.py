@@ -1366,8 +1366,18 @@ def build_stocktaking_hierarchy(
     棚卸し集計（印刷用HTML）の階層データを構築する。
     指定棚の is_active 商品すべて（アラート閾値・標準在庫条件は使わない）。
     階層: ディーラー → カテゴリ → メーカー → 商品リスト
+    商品名は先頭数字を除いた文字部分でグループ化し、同文字内は数字順。
     """
+    import re
+
     from app.crud_masters import get_section
+
+    def sort_key_without_numbers(product_name: str) -> tuple[str, int]:
+        name = product_name or ""
+        stripped = re.sub(r"^\d+", "", name).strip()
+        numbers = re.match(r"^\d+", name)
+        num = int(numbers.group()) if numbers else 0
+        return (stripped.lower(), num)
 
     store = get_store(db, store_id)
     if not store:
@@ -1395,39 +1405,49 @@ def build_stocktaking_hierarchy(
         .all()
     )
 
-    order_data: dict = {}
+    results = []
     for inv in rows:
         product = inv.product
         if not product:
             continue
-        dealer = (
-            (product.dealer.name if product.dealer else "") or ""
-        ).strip() or "未分類"
-        category = (
-            (product.category.name if product.category else "") or ""
-        ).strip() or "未分類"
-        maker = (
-            (product.maker.name if product.maker else "") or ""
-        ).strip() or "未分類"
-        brand = (product.brand.name if product.brand else "") or ""
+        results.append(
+            {
+                "product_name": product.name,
+                "brand_name": (product.brand.name if product.brand else "") or "",
+                "quantity": int(inv.quantity or 0),
+                "dealer_name": (
+                    (product.dealer.name if product.dealer else "") or ""
+                ).strip()
+                or "未分類",
+                "category_name": (
+                    (product.category.name if product.category else "") or ""
+                ).strip()
+                or "未分類",
+                "maker_name": (
+                    (product.maker.name if product.maker else "") or ""
+                ).strip()
+                or "未分類",
+            }
+        )
 
+    results_sorted = sorted(
+        results, key=lambda r: sort_key_without_numbers(r["product_name"])
+    )
+
+    order_data: dict = {}
+    for r in results_sorted:
+        dealer = r["dealer_name"]
+        category = r["category_name"]
+        maker = r["maker_name"]
         order_data.setdefault(dealer, {}).setdefault(category, {}).setdefault(
             maker, []
         ).append(
             {
-                "product_name": product.name,
-                "brand_name": brand,
-                "quantity": int(inv.quantity or 0),
+                "product_name": r["product_name"],
+                "brand_name": r["brand_name"],
+                "quantity": r["quantity"],
             }
         )
-
-    # 商品名順でソート
-    for dealer in order_data:
-        for category in order_data[dealer]:
-            for maker in order_data[dealer][category]:
-                order_data[dealer][category][maker].sort(
-                    key=lambda p: p["product_name"]
-                )
 
     today_jst = datetime.now(JST).strftime("%Y/%m/%d")
     return store.name, section.name, today_jst, order_data
